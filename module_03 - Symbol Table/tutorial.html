@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 03 — Symbol Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Code+Pro:wght@400;500&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #0b0f1a;
+    --bg2:     #111827;
+    --bg3:     #1a2235;
+    --card:    #141c2e;
+    --border:  #1e3a5f;
+    --gold:    #f5c842;
+    --cyan:    #38bdf8;
+    --teal:    #0d9488;
+    --red:     #f87171;
+    --green:   #4ade80;
+    --purple:  #a78bfa;
+    --orange:  #fb923c;
+    --text:    #e2e8f0;
+    --muted:   #7a9bbf;
+    --code-bg: #060d1a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Lato', sans-serif;
+    font-weight: 400;
+    line-height: 1.75;
+    font-size: 1rem;
+  }
+
+  .page { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  h1, h2, h3 {
+    font-family: 'Playfair Display', serif;
+    color: var(--gold);
+    line-height: 1.25;
+  }
+  h1 { font-size: 2.4rem; margin-bottom: .5rem; }
+  h2 { font-size: 1.65rem; margin: 2.8rem 0 .8rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+  h3 { font-size: 1.2rem; color: var(--cyan); margin: 1.6rem 0 .5rem; }
+  p  { margin-bottom: 1rem; }
+  ul, ol { margin: .5rem 0 1rem 1.4rem; }
+  li { margin-bottom: .3rem; }
+  a  { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  strong { color: var(--text); font-weight: 700; }
+
+  .prereq-bar {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .75rem 1.2rem;
+    font-size: .9rem;
+    color: var(--muted);
+    margin-bottom: 2rem;
+  }
+  .prereq-bar a { color: var(--cyan); }
+
+  .callout {
+    border-radius: 8px;
+    padding: 1.1rem 1.4rem;
+    margin: 1.4rem 0;
+    border-left: 4px solid;
+  }
+  .callout-gold   { background: #1c1700; border-color: var(--gold); }
+  .callout-teal   { background: #021a18; border-color: var(--teal); }
+  .callout-purple { background: #150f2a; border-color: var(--purple); }
+  .callout-red    { background: #1f0808; border-color: var(--red); }
+  .callout-orange { background: #1f0e00; border-color: var(--orange); }
+  .callout-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: .4rem;
+  }
+  .callout-gold   .callout-title { color: var(--gold); }
+  .callout-teal   .callout-title { color: var(--teal); }
+  .callout-purple .callout-title { color: var(--purple); }
+  .callout-red    .callout-title { color: var(--red); }
+  .callout-orange .callout-title { color: var(--orange); }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.1rem 1.3rem;
+    overflow-x: auto;
+    margin: 1rem 0 1.4rem;
+  }
+  pre code, code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: .88rem;
+    color: var(--cyan);
+    background: none;
+    padding: 0;
+  }
+  code {
+    background: var(--code-bg);
+    color: var(--cyan);
+    padding: .1em .35em;
+    border-radius: 4px;
+    font-size: .88em;
+  }
+
+  .win-box {
+    background: #040a10;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 1rem 0 1.4rem;
+    overflow: hidden;
+  }
+  .win-box-title {
+    background: var(--bg3);
+    padding: .35rem 1rem;
+    font-size: .78rem;
+    color: var(--muted);
+    font-family: 'Source Code Pro', monospace;
+    border-bottom: 1px solid var(--border);
+  }
+  .win-box pre {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    padding: 1rem 1.2rem;
+    background: transparent;
+  }
+
+  /* Casting-director binder visual */
+  .binder-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.2rem 0;
+    font-size: .91rem;
+  }
+  .binder-table th {
+    background: var(--bg3);
+    color: var(--cyan);
+    padding: .6rem 1rem;
+    text-align: left;
+    font-family: 'Source Code Pro', monospace;
+    border-bottom: 2px solid var(--border);
+  }
+  .binder-table td {
+    padding: .55rem 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .binder-table tr:last-child td { border-bottom: none; }
+  .binder-table td:first-child { font-family: 'Source Code Pro', monospace; color: var(--purple); font-weight: 500; }
+  .binder-table td:nth-child(2) { color: var(--orange); }
+  .binder-table td:nth-child(3) { color: var(--muted); }
+
+  /* field reference table */
+  table.field-ref { width: 100%; border-collapse: collapse; margin: 1rem 0 1.4rem; font-size: .92rem; }
+  table.field-ref th {
+    background: var(--bg3); color: var(--cyan);
+    padding: .55rem .9rem; text-align: left;
+    font-family: 'Source Code Pro', monospace; font-weight: 500;
+    border-bottom: 2px solid var(--border);
+  }
+  table.field-ref td { padding: .5rem .9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.field-ref tr:last-child td { border-bottom: none; }
+  table.field-ref td:first-child { font-family: 'Source Code Pro', monospace; color: var(--purple); }
+  table.field-ref td:nth-child(2) { color: var(--muted); font-size: .87rem; }
+
+  .qa-block { margin: 1.2rem 0; }
+  .qa-q { color: var(--gold); font-weight: 700; margin-bottom: .3rem; }
+  .qa-a { color: var(--text); padding-left: 1rem; border-left: 3px solid var(--border); }
+
+  .footer {
+    margin-top: 3.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-size: .9rem;
+    color: var(--muted);
+  }
+  .footer a { color: var(--cyan); }
+
+  .section-num {
+    display: inline-block;
+    background: var(--bg3);
+    color: var(--gold);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: .05rem .5rem;
+    font-family: 'Source Code Pro', monospace;
+    font-size: .8rem;
+    vertical-align: middle;
+    margin-right: .5rem;
+  }
+
+  /* scope-problem code split */
+  .scope-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .scope-split pre { margin: 0; }
+  .scope-label {
+    font-size: .8rem;
+    color: var(--muted);
+    font-family: 'Source Code Pro', monospace;
+    margin-bottom: .3rem;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── header ── -->
+  <p style="color:var(--muted);font-size:.85rem;margin-bottom:.4rem;">Bob's Compiler Course</p>
+  <h1>Module 03 — Symbol Table</h1>
+  <p style="color:var(--muted);margin-bottom:2rem;">Remembering what names mean — variables, functions, and where they live.</p>
+
+  <!-- ── 00: Before You Start ── -->
+  <h2><span class="section-num">00</span> Before You Start</h2>
+
+  <div class="prereq-bar">
+    Prerequisites: &nbsp;
+    <a href="../module_01%20-%20Source%20File%20Reader/tutorial.html">Module 01 — Source &amp; I/O</a>
+    &nbsp;|&nbsp;
+    <a href="../module_02%20-%20Lexer%20-%20Tokeniser/tutorial.html">Module 02 — Lexer / Tokeniser</a>
+    &nbsp;&nbsp;
+    You should know: the <code>Source</code> struct, the <code>Token</code> struct, and how to call <code>lexer_next</code> in a loop.
+  </div>
+
+  <div class="callout callout-gold">
+    <div class="callout-title">Must Know Before Continuing</div>
+    <p>The symbol table's job is to answer the question <em>"What does this name refer to?"</em> every time the parser or code generator needs to know. You need to understand Modules 01 and 02 because the demo in this module lexes a real source file and then scans the token stream to populate the table.</p>
+    <p>You should also know that at this stage we are building a <strong>flat, scope-unaware</strong> table on purpose. You will see the scope problem clearly in Section 03 — and the solution arrives in Module 07.</p>
+  </div>
+
+  <!-- ── 01: Big Analogy ── -->
+  <h2><span class="section-num">01</span> The Big Analogy — The Casting Director's Binder</h2>
+
+  <p>Imagine a film production. The <strong>Casting Director</strong> keeps a physical binder with one tab per actor. Each tab records: the actor's name, their role type (lead / extra), and their dressing room number so the production assistant can find them quickly.</p>
+
+  <p>When the director says <em>"Get me the actor playing Alice"</em>, the casting director does not re-read the entire script — she flips to the A section of the binder and reads off: <em>Alice — Lead — Dressing Room 12.</em></p>
+
+  <div class="callout callout-gold">
+    <div class="callout-title">Head First Moment</div>
+    <p>Your symbol table is that binder. Every time the compiler sees a declaration like <code>int result;</code>, it adds a tab: name = <em>result</em>, kind = <em>VAR</em>, dressing-room-number = <em>−8</em> (its offset in the stack frame). Later, when the code generator needs to emit an instruction that reads <code>result</code>, it opens the binder and looks up <em>result</em> to find where it lives.</p>
+  </div>
+
+  <p>Here is what the binder looks like for <code>sample.c</code>:</p>
+
+  <table class="binder-table">
+    <thead>
+      <tr><th>Name</th><th>Kind</th><th>Offset / Params</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>add</td>   <td>FUNC</td><td>params = 2</td></tr>
+      <tr><td>a</td>     <td>VAR</td> <td>offset = −8</td></tr>
+      <tr><td>b</td>     <td>VAR</td> <td>offset = −16</td></tr>
+      <tr><td>main</td>  <td>FUNC</td><td>params = 0</td></tr>
+      <tr><td>result</td><td>VAR</td> <td>offset = −8</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ── 02: The Symbol Struct ── -->
+  <h2><span class="section-num">02</span> The Symbol Struct</h2>
+
+  <pre><code>typedef struct {
+    char    name[64];  /* null-terminated identifier, max 63 usable chars  */
+    SymKind kind;      /* SYM_VAR or SYM_FUNC                              */
+    int     offset;    /* VAR: bytes below frame pointer; FUNC: param count */
+} Symbol;</code></pre>
+
+  <table class="field-ref">
+    <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>name[64]</td>
+        <td>The identifier as a null-terminated C string. 64 bytes are embedded directly in the struct so no heap allocation is needed. Names longer than 63 characters are truncated (rare in practice).</td>
+      </tr>
+      <tr>
+        <td>kind</td>
+        <td><code>SYM_VAR</code> for variables declared with <code>int</code>; <code>SYM_FUNC</code> for function names. Module 07 will add <code>SYM_TYPE</code> for user-defined types.</td>
+      </tr>
+      <tr>
+        <td>offset</td>
+        <td>Dual-purpose field. For <code>SYM_VAR</code>: the byte distance from the frame pointer to where the variable lives on the stack (negative because the stack grows downward). For <code>SYM_FUNC</code>: the number of parameters the function declares. In Module 07 this becomes a proper <code>Type *</code> field.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Why the 64-character limit?</h3>
+  <p>Embedding <code>char name[64]</code> directly in the struct means the entire <code>SymTab</code> is one contiguous block of memory — no pointer chasing, no heap fragmentation, excellent cache locality. The C99 standard requires implementations to support at least 63 significant characters for internal identifiers, so 64 bytes (63 usable + null terminator) meets the spec for the programs in this course. A production compiler uses an <em>identifier intern table</em> and stores only a pointer, removing the length limit entirely.</p>
+
+  <!-- ── 03: The Scope Problem ── -->
+  <h2><span class="section-num">03</span> The Scope Problem (Preview)</h2>
+
+  <p>Consider this program with two functions that each declare a local variable named <code>i</code>:</p>
+
+  <div class="scope-split">
+    <div>
+      <p class="scope-label">function_a</p>
+      <pre><code>int function_a(void) {
+    int i;
+    i = 10;
+    return i;
+}</code></pre>
+    </div>
+    <div>
+      <p class="scope-label">function_b</p>
+      <pre><code>int function_b(void) {
+    int i;
+    i = 99;
+    return i;
+}</code></pre>
+    </div>
+  </div>
+
+  <p>These two <code>i</code> variables are completely independent — they live at different stack offsets in different stack frames. Yet our flat <code>SymTab</code> treats them as the same name. The second call to <code>symtab_add("i", ...)</code> will return <code>-1</code> because a symbol named <code>i</code> already exists.</p>
+
+  <div class="callout callout-orange">
+    <div class="callout-title">This Is Intentional</div>
+    <p>We are building the flat table <em>knowing</em> it is wrong for nested scopes. The flat table is correct for the very simple programs we compile in Modules 03–06 (single-function programs with unique names). Module 07 replaces it with a <strong>scope stack</strong>: a stack of <code>SymTab</code> instances, one per block. <code>symtab_add</code> pushes into the top frame; <code>symtab_lookup</code> searches from top to bottom, finding the innermost binding. Building the flat version first means you understand exactly what problem the scope stack solves.</p>
+  </div>
+
+  <!-- ── 04: Adding and Looking Up ── -->
+  <h2><span class="section-num">04</span> Adding and Looking Up Symbols</h2>
+
+  <h3>symtab_add</h3>
+
+  <pre><code>int symtab_add(SymTab *st, const char *name, SymKind kind, int offset)
+{
+    /* reject if at capacity */
+    if (st-&gt;count &gt;= SYMTAB_MAX) return -1;
+
+    /* linear scan for duplicate names */
+    for (int i = 0; i &lt; st-&gt;count; i++) {
+        if (strcmp(st-&gt;entries[i].name, name) == 0)
+            return -1;  /* already exists */
+    }
+
+    /* insert at the next free slot */
+    Symbol *sym = &amp;st-&gt;entries[st-&gt;count];
+    strncpy(sym-&gt;name, name, sizeof(sym-&gt;name) - 1);
+    sym-&gt;name[sizeof(sym-&gt;name) - 1] = '\0'; /* force null termination */
+    sym-&gt;kind   = kind;
+    sym-&gt;offset = offset;
+
+    return st-&gt;count++;  /* return index of the new entry */
+}</code></pre>
+
+  <p>The return value is the <strong>index</strong> of the new entry, or <code>-1</code> on failure. Callers check for <code>-1</code> to detect redeclaration errors.</p>
+
+  <h3>symtab_lookup</h3>
+
+  <pre><code>Symbol *symtab_lookup(SymTab *st, const char *name)
+{
+    for (int i = 0; i &lt; st-&gt;count; i++) {
+        if (strcmp(st-&gt;entries[i].name, name) == 0)
+            return &amp;st-&gt;entries[i];  /* found — return pointer into array */
+    }
+    return NULL;  /* not found */
+}</code></pre>
+
+  <p>The returned pointer points directly into the <code>SymTab.entries</code> array. It is valid until the next call to <code>symtab_add</code> (which may shift nothing, since we only append) and until the <code>SymTab</code> itself goes out of scope. Do not free it.</p>
+
+  <h3>Typical usage pattern</h3>
+
+  <pre><code>SymTab st;
+symtab_init(&amp;st);
+
+/* add a variable declared as: int result; */
+int idx = symtab_add(&amp;st, "result", SYM_VAR, -8);
+if (idx &lt; 0) {
+    fprintf(stderr, "error: 'result' already declared\n");
+}
+
+/* later: look up result to find its stack offset */
+Symbol *sym = symtab_lookup(&amp;st, "result");
+if (sym == NULL) {
+    fprintf(stderr, "error: 'result' undeclared\n");
+} else {
+    printf("result lives at offset %d\n", sym-&gt;offset);
+    /* prints: result lives at offset -8 */
+}</code></pre>
+
+  <!-- ── 05: Why No Hash Table Yet ── -->
+  <h2><span class="section-num">05</span> Why No Hash Table Yet</h2>
+
+  <p>Linear scan is O(n). For a table with 50 symbols, the worst case is 50 comparisons. At 10 MHz of function calls per second, 50 comparisons takes 5 microseconds — completely invisible. So why do production compilers use hash tables?</p>
+
+  <p>Consider a large C++ file with 50,000 declarations and 1,000,000 name references. With linear scan, name resolution alone takes 50,000 × 1,000,000 / 2 ≈ 25 billion comparisons. With a hash table it is roughly 1,000,000 comparisons. That is the difference between seconds and milliseconds.</p>
+
+  <div class="callout callout-purple">
+    <div class="callout-title">What a Hash Table Would Need</div>
+    <p>To replace the linear array with a hash table you would need:</p>
+    <ul>
+      <li>A hash function for strings (e.g. FNV-1a, djb2).</li>
+      <li>A collision resolution strategy (open addressing with linear probing, or chaining with linked lists).</li>
+      <li>A resize/rehash policy when the load factor exceeds a threshold (typically 0.7).</li>
+      <li>An iterator that visits all entries in insertion order (for <code>symtab_dump</code>).</li>
+    </ul>
+    <p>That is easily 150 lines of carefully tested code. At Module 03 we buy simplicity by paying O(n) lookup. The DECISIONS.md file records this trade-off explicitly.</p>
+  </div>
+
+  <!-- ── Run It ── -->
+  <h2><span class="section-num">06</span> Run It</h2>
+
+  <div class="win-box">
+    <div class="win-box-title">terminal — module_03/</div>
+    <pre><code>$ make
+gcc -Wall -Wextra -Werror -std=c11 -c -o source.o source.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o lexer.o lexer.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o symtab.o symtab.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o main.o main.c
+gcc -Wall -Wextra -Werror -std=c11 -o symtab_demo source.o lexer.o symtab.o main.o
+
+$ make run
+./symtab_demo sample.c
+=== Symbol Table Demo — Module 03 ===
+
+Added: add (FUNC, 2 params)
+Added: a (VAR, offset -8)
+Added: b (VAR, offset -16)
+Added: main (FUNC, 0 params)
+Added: result (VAR, offset -8)
+
+Symbol Table:
+  [0] add        FUNC  params=2
+  [1] a          VAR   offset=-8
+  [2] b          VAR   offset=-16
+  [3] main       FUNC  params=0
+  [4] result     VAR   offset=-8
+Total: 5 symbols</code></pre>
+  </div>
+
+  <div class="callout callout-gold">
+    <div class="callout-title">Note on the heuristic scan</div>
+    <p>The demo uses a simple token-pattern scan, not a full parser. It detects <code>int IDENT</code> as a variable declaration and <code>IDENT (</code> as a function name. This catches the main patterns in <code>sample.c</code> but would misclassify some constructs in more complex programs. The full parser (Module 04) will populate the symbol table correctly.</p>
+  </div>
+
+  <!-- ── Brain Exercise ── -->
+  <h2><span class="section-num">07</span> Brain Exercise</h2>
+
+  <div class="callout callout-purple">
+    <div class="callout-title">Scenario</div>
+    <p>Two functions both declare a local variable called <code>i</code>. You call <code>symtab_add("i", SYM_VAR, -8)</code> for the first function, then <code>symtab_add("i", SYM_VAR, -8)</code> for the second function's declaration. What happens?</p>
+  </div>
+
+  <details style="margin:1rem 0;">
+    <summary style="cursor:pointer;color:var(--cyan);font-weight:700;">Show answer</summary>
+    <div style="margin-top:1rem;padding:1rem;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+      <p>The second call to <code>symtab_add</code> returns <code>-1</code>. The linear scan finds an existing entry with <code>name == "i"</code> and rejects the insert as a duplicate.</p>
+      <p>This is the fundamental limitation of the flat table: it cannot represent two different variables that happen to share the same name in different scopes. The flat table was correct for single-function programs, but as soon as two functions are involved, name collisions are inevitable.</p>
+      <p>This is precisely the motivation for Module 07's scope stack. With a scope stack, you <em>push</em> a fresh <code>SymTab</code> when entering a function body and <em>pop</em> it when leaving. Each function's <code>i</code> lives in its own frame, so there is never a collision.</p>
+    </div>
+  </details>
+
+  <!-- ── Q&A ── -->
+  <h2><span class="section-num">08</span> There Are No Dumb Questions</h2>
+
+  <div class="qa-block">
+    <p class="qa-q">Q: Why not just use a C array of strings to store the names?</p>
+    <div class="qa-a"><p>A plain array of strings only stores names. We also need to know <em>what kind</em> of thing each name is (variable or function) and <em>where it lives</em> (stack offset or parameter count). The <code>Symbol</code> struct bundles all three pieces of information together in one record so lookup returns everything the code generator needs in a single step.</p></div>
+  </div>
+
+  <div class="qa-block">
+    <p class="qa-q">Q: What does <code>offset</code> mean for a function?</p>
+    <div class="qa-a"><p>At Module 03, <code>offset</code> stores the parameter count for functions — a convenient integer that fits the field without requiring a separate field. In Module 07, when the compiler needs to call a function and set up its stack frame, <code>offset</code> for functions will be repurposed or replaced by a proper <code>Type *</code> that records the return type and parameter types. The field name is admittedly imprecise for the function case; production compilers use separate union members or a type pointer.</p></div>
+  </div>
+
+  <div class="qa-block">
+    <p class="qa-q">Q: Why linear search and not binary search?</p>
+    <div class="qa-a"><p>Binary search requires the entries to be in sorted order. To keep them sorted, we would either sort the array on every insert (expensive) or sort the whole array before every lookup batch (also expensive). For a table with fewer than 50 symbols, the O(n) linear scan is faster in practice because it has no sorting overhead and fits entirely in a single cache line. Binary search starts paying off at several hundred entries — by which point you should use a hash table instead.</p></div>
+  </div>
+
+  <!-- ── What's Next ── -->
+  <h2><span class="section-num">09</span> What's Next</h2>
+
+  <div class="callout callout-teal">
+    <div class="callout-title">Module 04 — Parser: Expressions</div>
+    <p>You can read tokens and remember names. Now you need to understand <em>structure</em>. The token stream for <code>3 + 4 * 2</code> is just five tokens in a row — it does not tell you that multiplication binds tighter than addition. The parser builds a tree that makes operator precedence explicit: the <code>*</code> node is a child of the <code>+</code> node, not a sibling.</p>
+    <p>That tree is called an <strong>Abstract Syntax Tree (AST)</strong>. Every subsequent module — type checking, optimisation, code generation — works on the AST rather than on the flat token stream.</p>
+    <p><a href="../module_04%20-%20Parser%20-%20Expressions/tutorial.html">Continue to Module 04 →</a></p>
+  </div>
+
+  <!-- ── footer ── -->
+  <div class="footer">
+    <a href="../module_02%20-%20Lexer%20-%20Tokeniser/tutorial.html">← Module 02</a>
+    <span>Module 03 — Symbol Table</span>
+    <a href="../module_04%20-%20Parser%20-%20Expressions/tutorial.html">Module 04 →</a>
+  </div>
+
+</div>
+</body>
+</html>
