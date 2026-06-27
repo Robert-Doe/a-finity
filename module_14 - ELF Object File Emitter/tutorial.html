@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 14: ELF Object File Emitter | my_compiler</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0b0f1a;
+    --gold:     #f5c842;
+    --cyan:     #38bdf8;
+    --teal:     #0d9488;
+    --red:      #f87171;
+    --green:    #4ade80;
+    --purple:   #a78bfa;
+    --text:     #e2e8f0;
+    --muted:    #7a9bbf;
+    --code-bg:  #060d1a;
+    --bg2:      #111827;
+    --bg3:      #1a2235;
+    --border:   #1e3a5f;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Lato', sans-serif;
+    font-weight: 400;
+    line-height: 1.75;
+    font-size: 17px;
+  }
+
+  /* ---- Header ---- */
+  header {
+    background: var(--bg2);
+    border-bottom: 2px solid var(--border);
+    padding: 2rem 0 1.5rem;
+    text-align: center;
+  }
+  .badge {
+    display: inline-block;
+    background: var(--teal);
+    color: #fff;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.9rem;
+    border-radius: 4px;
+    margin-bottom: 0.9rem;
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.6rem;
+    color: var(--gold);
+    line-height: 1.2;
+  }
+  header p.subtitle {
+    color: var(--muted);
+    margin-top: 0.5rem;
+    font-size: 1.05rem;
+  }
+
+  /* ---- Navigation ---- */
+  nav.module-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 820px;
+    margin: 1.2rem auto 0;
+    padding: 0 1.5rem;
+  }
+  nav.module-nav a {
+    color: var(--cyan);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.9rem;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  nav.module-nav a:hover { background: var(--bg3); }
+
+  /* ---- Main layout ---- */
+  main {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 5rem;
+  }
+
+  /* ---- Section headings ---- */
+  section { margin-top: 3.5rem; }
+  section:first-of-type { margin-top: 2rem; }
+  .sec-label {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    color: var(--teal);
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.85rem;
+    color: var(--gold);
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.4rem;
+  }
+  h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: var(--cyan);
+    margin: 1.6rem 0 0.6rem;
+  }
+
+  /* ---- Prose ---- */
+  p { margin-bottom: 1rem; }
+  strong { color: var(--gold); }
+  em { color: var(--purple); font-style: italic; }
+  ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+  li { margin-bottom: 0.4rem; }
+
+  /* ---- Code blocks ---- */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.2rem 1.4rem;
+    overflow-x: auto;
+    margin: 1rem 0 1.4rem;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: var(--green);
+  }
+  code {
+    font-family: 'Source Code Pro', monospace;
+    background: var(--code-bg);
+    color: var(--cyan);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  /* ---- Callout boxes ---- */
+  .box {
+    background: var(--bg3);
+    border-left: 4px solid var(--teal);
+    border-radius: 0 6px 6px 0;
+    padding: 1rem 1.3rem;
+    margin: 1.4rem 0;
+  }
+  .box.gold  { border-left-color: var(--gold); }
+  .box.red   { border-left-color: var(--red); }
+  .box.purple{ border-left-color: var(--purple); }
+  .box.green { border-left-color: var(--green); }
+  .box-title {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .box.gold   .box-title { color: var(--gold); }
+  .box.purple .box-title { color: var(--purple); }
+  .box.red    .box-title { color: var(--red); }
+  .box.green  .box-title { color: var(--green); }
+  .box        .box-title { color: var(--teal); }
+
+  /* ---- Diagram / table ---- */
+  .diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.2rem 1.4rem;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.83rem;
+    color: var(--text);
+    margin: 1rem 0 1.4rem;
+    white-space: pre;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.4rem;
+    font-size: 0.9rem;
+  }
+  th {
+    background: var(--bg3);
+    color: var(--gold);
+    text-align: left;
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--border);
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
+  }
+  td {
+    padding: 0.45rem 0.9rem;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: var(--bg2); }
+
+  /* ---- Q&A ---- */
+  details {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 0.8rem;
+  }
+  summary {
+    cursor: pointer;
+    padding: 0.9rem 1.2rem;
+    font-weight: 700;
+    color: var(--cyan);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  summary::before { content: "▶"; font-size: 0.7rem; transition: transform 0.2s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  details .answer {
+    padding: 0 1.2rem 1rem;
+    color: var(--text);
+    border-top: 1px solid var(--border);
+    padding-top: 0.8rem;
+    margin-top: 0;
+  }
+
+  /* ---- Run output ---- */
+  .terminal {
+    background: #020810;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.1rem 1.4rem;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.86rem;
+    line-height: 1.65;
+    margin: 1rem 0 1.4rem;
+  }
+  .terminal .prompt { color: var(--teal); }
+  .terminal .out    { color: var(--text); }
+  .terminal .good   { color: var(--green); }
+
+  /* ---- Footer nav ---- */
+  footer {
+    border-top: 1px solid var(--border);
+    margin-top: 4rem;
+    padding: 1.5rem 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  footer a { color: var(--cyan); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">MODULE 14 / 16</div>
+  <h1>ELF Object File Emitter</h1>
+  <p class="subtitle">Writing a valid ELF64 <code>.o</code> file entirely in binary — no NASM, no assembler</p>
+  <nav class="module-nav">
+    <a href="../module_13%20-%20Register%20Allocator%20(Graph%20Coloring)/tutorial.html">← Module 13</a>
+    <span style="color:var(--muted)">Module 14</span>
+    <a href="../module_15%20-%20Standard%20Library%20Shim/tutorial.html">Module 15 →</a>
+  </nav>
+</header>
+
+<main>
+
+<!-- ============================================================ -->
+<section id="s00">
+  <div class="sec-label">Section 00</div>
+  <h2>Before You Start</h2>
+
+  <p>Make sure you have completed <strong>Module 13: Register Allocation</strong>. This module builds directly on top of it, consuming the <code>RegMap</code> that <code>regalloc</code> produces.</p>
+
+  <div class="box gold">
+    <div class="box-title">Prerequisites</div>
+    <ul>
+      <li>Modules 01–13 compiling cleanly</li>
+      <li>Running on Linux or WSL (we use <code>&lt;elf.h&gt;</code> from glibc)</li>
+      <li><code>gcc</code> available for linking the output <code>.o</code></li>
+    </ul>
+  </div>
+
+  <p>By the end of this module you will produce a real ELF64 relocatable object file from scratch — every byte written by hand — and link it with <code>gcc -no-pie</code> to get a working binary.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s01">
+  <div class="sec-label">Section 01</div>
+  <h2>Analogy: The Post-Production House</h2>
+
+  <p>Imagine your compiler pipeline as a film studio:</p>
+
+  <ul>
+    <li>The <strong>source file</strong> is the script</li>
+    <li>The <strong>parser and IR</strong> are the director turning the script into raw footage</li>
+    <li>The <strong>optimizer</strong> is the film editor cutting unnecessary frames</li>
+    <li>The <strong>x86enc layer</strong> (Module 13) produces edited reels of actual film — bytes of machine code</li>
+  </ul>
+
+  <p>But edited reels alone cannot be shown in a cinema. They need to be <strong>packaged into a deliverable format</strong> that the cinema's projector can understand.</p>
+
+  <div class="box purple">
+    <div class="box-title">The Post-Production House</div>
+    <p>The <strong>ELF emitter</strong> (<code>elf_emit.c</code>) is the post-production house. It takes the edited film reels (machine code bytes) and packages them into a standard deliverable format (an ELF64 <code>.o</code> file). The distributor (the linker, <code>gcc -no-pie</code>) can then combine multiple reels from different studios (other <code>.o</code> files) into a finished film (a runnable binary executable).</p>
+  </div>
+
+  <p>The key insight: we don't need to produce the final movie ourselves. We just need to package our reels correctly so the distributor knows what they contain and where each scene starts.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s02">
+  <div class="sec-label">Section 02</div>
+  <h2>What Is an ELF File?</h2>
+
+  <p><strong>ELF</strong> stands for <em>Executable and Linkable Format</em>. It is the standard binary format on Linux (and WSL). There are two major variants relevant to us:</p>
+
+  <table>
+    <thead>
+      <tr><th>e_type</th><th>Name</th><th>Role</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>ET_REL</code></td>
+        <td>Relocatable object</td>
+        <td>A <code>.o</code> file — not directly runnable; contains machine code and symbol tables; must be linked</td>
+      </tr>
+      <tr>
+        <td><code>ET_EXEC</code></td>
+        <td>Executable</td>
+        <td>Directly runnable; all addresses resolved; produced by the linker from one or more <code>ET_REL</code> files</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>We produce <code>ET_REL</code>. The file has this overall structure:</p>
+
+<div class="diagram">
+┌─────────────────────────────────────────┐
+│            ELF Header (64 bytes)         │  e_type=ET_REL, e_machine=EM_X86_64
+│            e_shoff → section headers     │  points to the section header table
+├─────────────────────────────────────────┤
+│  .text  — SHT_PROGBITS                  │  raw machine code bytes
+├─────────────────────────────────────────┤
+│  .symtab — SHT_SYMTAB                   │  one Elf64_Sym per exported function
+├─────────────────────────────────────────┤
+│  .strtab — SHT_STRTAB                   │  null-terminated symbol names
+├─────────────────────────────────────────┤
+│  .shstrtab — SHT_STRTAB                 │  null-terminated section names
+├─────────────────────────────────────────┤
+│  Section Header Table (5 × 64 bytes)     │  null, .text, .symtab, .strtab, .shstrtab
+└─────────────────────────────────────────┘</div>
+
+  <p>The ELF header at the top points to the <strong>section header table</strong> at the bottom (via <code>e_shoff</code>). Each section header describes one section: its type, its byte offset in the file, its size, and any links to other sections.</p>
+
+  <h3>ET_REL vs ET_EXEC</h3>
+  <p>In <code>ET_REL</code> mode, symbol addresses (the <code>st_value</code> field in <code>.symtab</code>) are <em>offsets within their section</em>, not absolute addresses. The linker reads these offsets, determines the final load address for each section, and patches all call/jump targets accordingly. That is why we can emit <code>call rel32</code> with a zero displacement for calls between our own functions — the linker fills in the correct relative offset.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s03">
+  <div class="sec-label">Section 03</div>
+  <h2>The .text Section</h2>
+
+  <p>The <code>.text</code> section is where your machine code lives. In our emitter, functions are added one at a time with <code>elf_add_func()</code>, which simply concatenates each function's bytes into a flat <code>text[]</code> buffer:</p>
+
+<pre><code>void elf_add_func(ElfEmitter *e, const char *name,
+                  const uint8_t *code, size_t code_len) {
+    e-&gt;sym_offsets[e-&gt;n_syms] = e-&gt;text_size;  // where this func starts
+    e-&gt;sym_sizes  [e-&gt;n_syms] = code_len;
+    strncpy(e-&gt;sym_names[e-&gt;n_syms], name, 63);
+    memcpy(e-&gt;text + e-&gt;text_size, code, code_len);
+    e-&gt;text_size += code_len;
+    e-&gt;n_syms++;
+}</code></pre>
+
+  <p>Each function also gets a <strong>global symbol</strong> in <code>.symtab</code> so the linker can identify it by name. The symbol's <code>st_value</code> is the byte offset within <code>.text</code> where the function begins, and <code>st_size</code> is its length in bytes.</p>
+
+  <div class="box green">
+    <div class="box-title">Section flags</div>
+    <p><code>.text</code> has flags <code>SHF_ALLOC | SHF_EXECINSTR</code>: the OS should map it into memory (<code>ALLOC</code>) and the bytes are executable instructions (<code>EXECINSTR</code>).</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s04">
+  <div class="sec-label">Section 04</div>
+  <h2>Building the ELF Manually</h2>
+
+  <p>The core of Module 14 is <code>elf_write()</code>. Here is a walk-through of each step:</p>
+
+  <h3>Step 1 — Build the string tables in memory</h3>
+  <p>Before writing the ELF header we need to know the sizes of <code>.strtab</code> and <code>.shstrtab</code> so we can calculate file offsets.</p>
+
+<pre><code>// .strtab: \0, then each function name null-terminated
+strtab[0] = '\0';
+for each function i:
+    sym_name_off[i] = strtab_size;
+    append name + '\0' to strtab;
+
+// .shstrtab: fixed string "\0.text\0.symtab\0.strtab\0.shstrtab"</code></pre>
+
+  <h3>Step 2 — Compute file layout</h3>
+
+<div class="diagram">
+offset 0              → ELF header         (64 bytes)
+offset 64             → .text              (text_size bytes)
+offset 64+text_size   → .symtab            ((1 + n_syms) × 24 bytes)
+offset ...            → .strtab            (strtab_size bytes)
+offset ...            → .shstrtab          (fixed size)
+offset ... (8-aligned)→ Section Header Table  (5 × 64 bytes)</div>
+
+  <h3>Step 3 — Write the ELF header</h3>
+  <p>The header is 64 bytes. Key fields:</p>
+  <ul>
+    <li><code>e_ident</code>: magic bytes <code>7f 45 4c 46</code> + class/endian/version bytes</li>
+    <li><code>e_type = ET_REL</code>, <code>e_machine = EM_X86_64</code></li>
+    <li><code>e_shoff</code>: byte offset of the section header table</li>
+    <li><code>e_shnum = 5</code> (null, .text, .symtab, .strtab, .shstrtab)</li>
+    <li><code>e_shstrndx = 4</code> (index of .shstrtab section)</li>
+  </ul>
+
+  <h3>Step 4 — Write sections sequentially</h3>
+  <p>After the header, write: <code>.text</code> bytes → <code>.symtab</code> entries → <code>.strtab</code> → <code>.shstrtab</code> → pad to 8-byte alignment → section header table.</p>
+
+  <h3>Step 5 — Write section headers</h3>
+  <p>Five <code>Elf64_Shdr</code> structures, each 64 bytes:</p>
+
+  <table>
+    <thead>
+      <tr><th>Index</th><th>Name</th><th>sh_type</th><th>sh_flags</th><th>sh_link / sh_info</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>(null)</td><td><code>SHT_NULL</code></td><td>0</td><td>—</td></tr>
+      <tr><td>1</td><td>.text</td><td><code>SHT_PROGBITS</code></td><td><code>ALLOC|EXECINSTR</code></td><td>—</td></tr>
+      <tr><td>2</td><td>.symtab</td><td><code>SHT_SYMTAB</code></td><td>0</td><td>link=3 (.strtab), info=1 (first global)</td></tr>
+      <tr><td>3</td><td>.strtab</td><td><code>SHT_STRTAB</code></td><td>0</td><td>—</td></tr>
+      <tr><td>4</td><td>.shstrtab</td><td><code>SHT_STRTAB</code></td><td>0</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box">
+    <div class="box-title">Little-endian helpers</div>
+    <p>All multi-byte values in ELF64 on x86-64 are little-endian. We use simple helper functions — <code>write_u16</code>, <code>write_u32</code>, <code>write_u64</code> — that write each byte individually in the right order into the output buffer.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s05">
+  <div class="sec-label">Section 05</div>
+  <h2>Run It</h2>
+
+  <p>Compile the compiler, compile <code>sample.c</code>, link it, and run:</p>
+
+<div class="terminal">
+<span class="prompt">$ make link</span>
+<span class="out">gcc -Wall -Wextra -Werror -std=c11 -c source.c -o source.o</span>
+<span class="out">gcc -Wall -Wextra -Werror -std=c11 -c lexer.c -o lexer.o</span>
+<span class="out">... (compiling all modules) ...</span>
+<span class="out">gcc -Wall -Wextra -Werror -std=c11 -o mycc14 source.o lexer.o symtab.o ast.o parser.o sema.o ir.o opt.o regalloc.o x86enc.o codegen.o elf_emit.o main.o</span>
+<span class="out">./mycc14 sample.c -o sample14.o</span>
+<span class="out">compiled 2 functions to sample14.o</span>
+<span class="out">gcc -no-pie sample14.o -o sample14_bin && ./sample14_bin; echo "exit: $?"</span>
+<span class="good">exit: 55</span>
+</div>
+
+  <p><strong>Exit code 55</strong> is the 10th Fibonacci number — exactly what <code>fib(10)</code> should return. The machine code we emitted byte-by-byte runs correctly through the entire pipeline from source to ELF to binary.</p>
+
+  <div class="box green">
+    <div class="box-title">Verify with readelf</div>
+    <p>You can inspect your output object file:</p>
+<pre><code>readelf -a sample14.o</code></pre>
+    <p>Look for: <code>Type: REL (Relocatable file)</code>, section <code>.text</code>, and symbol entries for <code>fib</code> and <code>main</code> marked <code>GLOBAL FUNC</code>.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s06">
+  <div class="sec-label">Section 06</div>
+  <h2>Brain Exercise</h2>
+
+  <div class="box purple">
+    <div class="box-title">Question</div>
+    <p>The <code>.o</code> file stores function names in <code>.symtab</code>. <strong>Why does the linker need function names? Couldn't it just use byte offsets?</strong></p>
+  </div>
+
+  <p><strong>Answer:</strong> Byte offsets only make sense <em>within a single <code>.o</code> file</em>. When you write a program spread across multiple source files — say <code>main.c</code> calls <code>fib()</code> which is defined in <code>fib.c</code> — each file is compiled to its own <code>.o</code>. At the time <code>main.o</code> is produced, the compiler has no idea where <code>fib</code> will end up in memory. It cannot write a numeric offset because that offset is unknown.</p>
+
+  <p>Names solve this. <code>main.o</code> records a <em>symbolic reference</em> to the name <code>fib</code>. <code>fib.o</code> records a <em>symbol definition</em> for <code>fib</code> at a known offset within its own <code>.text</code>. The linker reads both files, matches the reference to the definition by name, calculates the final address, and patches the <code>call</code> instruction in <code>main.o</code> with the correct relative offset.</p>
+
+  <p>Without names, the linker would need some other shared coordinate system across files — which would require knowing the final layout before linking begins. That is a chicken-and-egg problem. Names are the clean solution.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s07">
+  <div class="sec-label">Section 07</div>
+  <h2>Q &amp; A</h2>
+
+  <details>
+    <summary>Why is the null section header (index 0) required?</summary>
+    <div class="answer">
+      <p>The ELF specification reserves section index 0 as a sentinel meaning "no section" or "undefined". Many fields use section index 0 as a null reference — for example, undefined symbols in <code>.symtab</code> have <code>st_shndx = SHN_UNDEF = 0</code>. The null section header physically occupies index 0 in the section header table to ensure every other section gets a non-zero index that can be used unambiguously as a reference.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>What does sh_info = 1 mean in the .symtab section header?</summary>
+    <div class="answer">
+      <p>For <code>SHT_SYMTAB</code>, the ELF specification defines <code>sh_info</code> as the index of the first <em>global</em> symbol in the symbol table. Symbols with index less than <code>sh_info</code> are local; those at <code>sh_info</code> and above are global. We have exactly one local entry — the mandatory null entry at index 0 — so <code>sh_info = 1</code>, meaning all subsequent entries (our function symbols) are global.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Why does .symtab's sh_link point to .strtab (section 3)?</summary>
+    <div class="answer">
+      <p>The ELF spec defines <code>sh_link</code> for <code>SHT_SYMTAB</code> as the section index of the associated string table. Each <code>Elf64_Sym</code> has an <code>st_name</code> field that is a byte offset into that string table. The linker (and tools like <code>readelf</code>) follow <code>sh_link</code> to find where those byte offsets should be looked up.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Why do we align the section header table to an 8-byte boundary?</summary>
+    <div class="answer">
+      <p>The ELF64 <code>Elf64_Shdr</code> struct contains 64-bit fields and is designed to be 8-byte aligned. While many tools tolerate unaligned section headers, the ELF specification recommends natural alignment and <code>readelf</code> may warn about misalignment. Since our section sizes are not necessarily multiples of 8, we pad with zero bytes between the last section and the section header table to ensure alignment.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<section id="s08">
+  <div class="sec-label">Section 08</div>
+  <h2>What's Next: Module 15</h2>
+
+  <div class="box gold">
+    <div class="box-title">Module 15 — Standard Library Shim</div>
+    <p>Right now our compiled programs can only communicate with the outside world through their exit code. In Module 15 we add a <strong>print_int</strong> function — a minimal standard-library shim — so compiled programs can produce visible output to stdout.</p>
+    <p>This requires handling <strong>external symbol references</strong>: our compiler will emit a <code>call print_int</code> that references a symbol not defined in our <code>.o</code> file. We will add <code>.rela.text</code> relocation entries so the linker knows to patch those call sites when it links against our shim library.</p>
+  </div>
+
+  <p>Topics in Module 15:</p>
+  <ul>
+    <li>Writing <code>.rela.text</code> (RELA relocation) section entries</li>
+    <li>Symbol types: <code>STB_GLOBAL</code> definitions vs. <code>SHN_UNDEF</code> references</li>
+    <li>Providing a tiny C shim (<code>runtime.c</code>) that implements <code>print_int</code> via <code>write()</code> syscall</li>
+    <li>Linking: <code>gcc -no-pie sample15.o runtime.o -o sample15_bin</code></li>
+  </ul>
+
+  <nav class="module-nav" style="margin-top:2rem; max-width:100%; padding:0;">
+    <a href="../module_13%20-%20Register%20Allocator%20(Graph%20Coloring)/tutorial.html">← Module 13: Register Allocation</a>
+    <a href="../module_15%20-%20Standard%20Library%20Shim/tutorial.html">Module 15: Standard Library Shim →</a>
+  </nav>
+</section>
+
+</main>
+
+<footer>
+  <p>my_compiler tutorial series &mdash; Module 14 of 16</p>
+  <p style="margin-top:0.4rem;"><a href="../module_13%20-%20Register%20Allocator%20(Graph%20Coloring)/tutorial.html">← Module 13</a> &nbsp;|&nbsp; <a href="../module_15%20-%20Standard%20Library%20Shim/tutorial.html">Module 15 →</a></p>
+</footer>
+
+</body>
+</html>
