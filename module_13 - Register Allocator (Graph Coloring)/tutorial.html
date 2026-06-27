@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 13 — Register Allocator (Graph Coloring)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #0b0f1a; --bg2: #111827; --bg3: #1a2235; --card: #141c2e; --border: #1e3a5f;
+  --gold: #f5c842; --cyan: #38bdf8; --teal: #0d9488; --red: #f87171; --green: #4ade80;
+  --purple: #a78bfa; --orange: #fb923c; --text: #e2e8f0; --muted: #7a9bbf; --code-bg: #060d1a;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Lato', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Header ── */
+.site-header {
+  background: var(--bg2);
+  border-bottom: 2px solid var(--border);
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.badge {
+  background: var(--purple);
+  color: #000;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.site-header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 900;
+  color: var(--purple);
+  line-height: 1.2;
+}
+
+.site-header .subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.2rem;
+}
+
+/* ── Layout ── */
+.page-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+/* ── Section cards ── */
+.section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.section-label {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.section h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--purple);
+  margin-bottom: 1rem;
+  line-height: 1.25;
+}
+
+.section p { margin-bottom: 0.9rem; }
+.section p:last-child { margin-bottom: 0; }
+
+/* ── Code blocks ── */
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.2rem 1.4rem;
+  overflow-x: auto;
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin: 1rem 0;
+  color: var(--text);
+}
+
+code {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  color: var(--orange);
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.kw  { color: var(--purple); }
+.cm  { color: var(--muted);  font-style: italic; }
+.str { color: var(--green);  }
+.num { color: var(--orange); }
+.fn  { color: var(--cyan);   }
+.reg { color: var(--gold);   }
+.lbl { color: var(--teal);   }
+
+/* ── Tables ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+th {
+  background: var(--bg3);
+  color: var(--purple);
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--border);
+}
+
+td {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+
+tr:nth-child(even) td { background: var(--bg3); }
+
+/* ── Call-out boxes ── */
+.callout {
+  border-left: 4px solid var(--gold);
+  background: var(--bg3);
+  border-radius: 0 6px 6px 0;
+  padding: 1rem 1.2rem;
+  margin: 1rem 0;
+}
+
+.callout.cyan   { border-color: var(--cyan);   }
+.callout.green  { border-color: var(--green);  }
+.callout.red    { border-color: var(--red);    }
+.callout.teal   { border-color: var(--teal);   }
+.callout.purple { border-color: var(--purple); }
+
+.callout-title {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.callout         .callout-title { color: var(--gold);   }
+.callout.cyan    .callout-title { color: var(--cyan);   }
+.callout.green   .callout-title { color: var(--green);  }
+.callout.red     .callout-title { color: var(--red);    }
+.callout.teal    .callout-title { color: var(--teal);   }
+.callout.purple  .callout-title { color: var(--purple); }
+
+/* ── Interference graph (SVG diagram) ── */
+.graph-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 1.2rem 0;
+}
+
+/* ── Step list ── */
+.step-list {
+  counter-reset: steps;
+  list-style: none;
+  padding: 0;
+}
+
+.step-list li {
+  counter-increment: steps;
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: flex-start;
+}
+
+.step-list li::before {
+  content: counter(steps);
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  background: var(--purple);
+  color: #000;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+}
+
+/* ── Q&A ── */
+.qa-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.qa-q {
+  background: var(--bg3);
+  padding: 0.9rem 1.1rem;
+  font-weight: 700;
+  color: var(--purple);
+  cursor: default;
+}
+
+.qa-a {
+  padding: 0.9rem 1.1rem;
+  color: var(--text);
+  background: var(--card);
+}
+
+/* ── Brain exercise ── */
+.brain {
+  background: var(--bg3);
+  border: 1px solid var(--teal);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.brain-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+.brain h3 {
+  font-family: 'Playfair Display', serif;
+  color: var(--teal);
+  font-size: 1.2rem;
+  margin-bottom: 0.6rem;
+}
+
+/* ── Prereqs ── */
+.prereq-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.prereq-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ── Next box ── */
+.next-box {
+  background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%);
+  border: 1px solid var(--teal);
+  border-radius: 10px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.next-box h3 {
+  font-family: 'Playfair Display', serif;
+  color: var(--teal);
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ── Footer nav ── */
+.footer-nav {
+  background: var(--bg2);
+  border-top: 2px solid var(--border);
+  padding: 1.2rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  margin-top: 2rem;
+}
+
+.footer-nav a {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1.1rem;
+  border-radius: 6px;
+  color: var(--cyan);
+  transition: border-color 0.2s;
+}
+
+.footer-nav a:hover { border-color: var(--cyan); text-decoration: none; }
+
+ul { padding-left: 1.4rem; }
+ul li { margin-bottom: 0.4rem; }
+
+.highlight { color: var(--gold); font-weight: 700; }
+.tag-live   { color: var(--green); font-weight: 700; }
+.tag-dead   { color: var(--red);   font-weight: 700; }
+.tag-spill  { color: var(--red);   }
+.tag-reg    { color: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header class="site-header">
+  <div class="badge">MODULE 13 / 16</div>
+  <div>
+    <h1>Register Allocator</h1>
+    <div class="subtitle">bob_compiler — live ranges, interference graphs, and greedy graph coloring</div>
+  </div>
+</header>
+
+<div class="page-wrap">
+
+<!-- ══════════════ §00 BEFORE YOU START ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 00</div>
+  <h2>Before You Start</h2>
+  <p>This module builds directly on <strong>Module 12</strong> (Function Calls &amp; the System V AMD64 Calling Convention). You should also be comfortable with Modules 01–11. Key prerequisites:</p>
+  <div class="prereq-list">
+    <span class="prereq-chip">Module 07 — IR design (temps, instructions)</span>
+    <span class="prereq-chip">Module 08 — IR generation</span>
+    <span class="prereq-chip">Module 10 — Basic codegen (stack slots)</span>
+    <span class="prereq-chip">Module 11 — Stack frames &amp; locals</span>
+    <span class="prereq-chip">Module 12 — Calling convention</span>
+  </div>
+  <p style="margin-top:1rem">By the end of Module 13 you will understand how the compiler assigns <em>temporaries</em> to real hardware registers instead of stack slots — and what happens when there are not enough registers to go around.</p>
+</section>
+
+<!-- ══════════════ §01 THE ANALOGY ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 01</div>
+  <h2>The Analogy: Prop Master</h2>
+
+  <p>A film has <strong>limited backstage space</strong>. The Prop Master decides which props stay backstage (within arm's reach, ready to grab) and which go to the warehouse (a long trip every time you need them).</p>
+
+  <div class="callout purple">
+    <div class="callout-title">The Prop Master's Rules</div>
+    <ul>
+      <li><strong>Backstage slots</strong> = hardware registers (<code>rbx</code>, <code>r12</code>–<code>r15</code>, <code>r10</code>). Fast to access — zero extra instructions.</li>
+      <li><strong>Warehouse</strong> = the stack (<code>[rbp-8]</code>, <code>[rbp-16]</code>, …). Every access costs a memory load or store.</li>
+      <li><strong>Props</strong> = IR temporaries (<code>t0</code>, <code>t1</code>, <code>t2</code>, …). Each one needs to live <em>somewhere</em>.</li>
+    </ul>
+  </div>
+
+  <p>Two scenes might need the <em>same prop simultaneously</em>. If scene A needs the golden sword during frames 10–50 and scene B also needs it during frames 30–70, you cannot keep only one copy backstage and share it — there is a conflict. That conflict is called an <strong>interference</strong>.</p>
+
+  <p>The Prop Master's job: assign each prop to a backstage slot, resolving interferences by sending one of the conflicting props to the warehouse. In compiler terms: assign each temporary to a register, and <em>spill</em> the ones that cannot fit.</p>
+
+  <div class="callout teal">
+    <div class="callout-title">Why Does It Matter?</div>
+    <p>A register access is a single CPU cycle. A stack load or store (even in L1 cache) is 4–5 cycles. A function that makes heavy use of temporaries can run <strong>3–5× faster</strong> with good register allocation versus naïve "everything on the stack" codegen.</p>
+  </div>
+</section>
+
+<!-- ══════════════ §02 WHAT IS REGISTER ALLOCATION? ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 02</div>
+  <h2>What Is Register Allocation? Why Does It Matter?</h2>
+
+  <p>Up through Module 12, every IR temporary maps directly to a stack slot. The code generator emits something like:</p>
+
+<pre><span class="cm">; Without register allocation (Module 12 style)</span>
+<span class="kw">mov</span>     <span class="reg">rax</span>, <span class="kw">qword</span> [<span class="reg">rbp</span>-8]   <span class="cm">; load t0</span>
+<span class="kw">mov</span>     <span class="reg">rcx</span>, <span class="kw">qword</span> [<span class="reg">rbp</span>-16]  <span class="cm">; load t1</span>
+<span class="kw">imul</span>    <span class="reg">rax</span>, <span class="reg">rcx</span>
+<span class="kw">mov</span>     <span class="kw">qword</span> [<span class="reg">rbp</span>-24], <span class="reg">rax</span>  <span class="cm">; store t2</span></pre>
+
+  <p>With register allocation, if <code>t0</code> is assigned to <code>r12</code> and <code>t1</code> is assigned to <code>r13</code>, the same computation becomes:</p>
+
+<pre><span class="cm">; With register allocation (Module 13)</span>
+<span class="kw">imul</span>    <span class="reg">r12</span>, <span class="reg">r13</span>              <span class="cm">; t2 = t0 * t1, all in registers</span></pre>
+
+  <p>Two instructions become one. The memory traffic disappears entirely.</p>
+
+  <p>Register allocation is an <strong>NP-complete problem</strong> in the general case (it is equivalent to graph coloring). Compilers use heuristics — greedy coloring, linear scan, or more sophisticated algorithms — to find good-enough solutions quickly.</p>
+
+  <p>Our allocator uses <strong>six registers</strong>: <code>rbx</code>, <code>r12</code>, <code>r13</code>, <code>r14</code>, <code>r15</code> (callee-saved) and <code>r10</code> (caller-saved scratch). We deliberately avoid the argument registers and <code>rax</code>/<code>rcx</code>/<code>rdx</code> because they carry ABI roles that would complicate the emit logic.</p>
+</section>
+
+<!-- ══════════════ §03 LIVE RANGES & INTERFERENCE ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 03</div>
+  <h2>Live Ranges and Interference</h2>
+
+  <p>Before we can color anything, we need to know <em>when each temporary is alive</em>.</p>
+
+  <div class="callout cyan">
+    <div class="callout-title">Definition: Live Range</div>
+    <p>The <strong>live range</strong> of temporary <code>t</code> is the closed interval <code>[first_def, last_use]</code> where <code>first_def</code> is the instruction index where <code>t</code> is first written, and <code>last_use</code> is the last instruction index where <code>t</code> is read.</p>
+  </div>
+
+  <p>Consider a simple 3-temporary example:</p>
+
+<pre><span class="cm">; Instruction index → what happens</span>
+<span class="num">0</span>:  <span class="fn">t0</span> = <span class="num">4</span>             <span class="cm">; first_def[t0]=0</span>
+<span class="num">1</span>:  <span class="fn">t1</span> = <span class="num">7</span>             <span class="cm">; first_def[t1]=1</span>
+<span class="num">2</span>:  <span class="fn">t2</span> = t0 * t1       <span class="cm">; last_use[t0]=2, last_use[t1]=2, first_def[t2]=2</span>
+<span class="num">3</span>:  <span class="fn">t0</span> = t2 + <span class="num">1</span>        <span class="cm">; last_use[t2]=3, last_use[t0] updated=3 (def+use)</span>
+<span class="num">4</span>:  return t0          <span class="cm">; last_use[t0]=4</span></pre>
+
+  <p>Live range table:</p>
+
+  <table>
+    <tr><th>Temp</th><th>first_def</th><th>last_use</th><th>Live during instructions</th></tr>
+    <tr><td><code>t0</code></td><td>0</td><td>4</td><td>0 – 4 (whole function)</td></tr>
+    <tr><td><code>t1</code></td><td>1</td><td>2</td><td>1 – 2</td></tr>
+    <tr><td><code>t2</code></td><td>2</td><td>3</td><td>2 – 3</td></tr>
+  </table>
+
+  <div class="callout cyan">
+    <div class="callout-title">Definition: Interference</div>
+    <p>Two temporaries <strong>interfere</strong> if their live ranges overlap. Ranges <code>[a,b]</code> and <code>[c,d]</code> overlap iff <code>a &le; d</code> AND <code>c &le; b</code>. Interfering temporaries cannot share the same register.</p>
+  </div>
+
+  <p>Interference check for our example:</p>
+
+  <table>
+    <tr><th>Pair</th><th>Overlap?</th><th>Interfere?</th></tr>
+    <tr><td><code>t0</code> [0–4] vs <code>t1</code> [1–2]</td><td>0≤2 AND 1≤4 → yes</td><td><span class="tag-live">YES</span></td></tr>
+    <tr><td><code>t0</code> [0–4] vs <code>t2</code> [2–3]</td><td>0≤3 AND 2≤4 → yes</td><td><span class="tag-live">YES</span></td></tr>
+    <tr><td><code>t1</code> [1–2] vs <code>t2</code> [2–3]</td><td>1≤3 AND 2≤2 → yes</td><td><span class="tag-live">YES</span></td></tr>
+  </table>
+
+  <p>All three pairs interfere — they all need different registers (or one spills). Here is the interference graph:</p>
+
+  <div class="graph-wrap">
+    <svg viewBox="0 0 420 240" width="420" height="240" xmlns="http://www.w3.org/2000/svg" style="max-width:100%">
+      <!-- edges -->
+      <line x1="210" y1="40"  x2="90"  y2="190" stroke="#1e3a5f" stroke-width="2"/>
+      <line x1="210" y1="40"  x2="330" y2="190" stroke="#1e3a5f" stroke-width="2"/>
+      <line x1="90"  y1="190" x2="330" y2="190" stroke="#1e3a5f" stroke-width="2"/>
+      <!-- nodes -->
+      <circle cx="210" cy="40"  r="30" fill="#141c2e" stroke="#a78bfa" stroke-width="2"/>
+      <circle cx="90"  cy="190" r="30" fill="#141c2e" stroke="#38bdf8" stroke-width="2"/>
+      <circle cx="330" cy="190" r="30" fill="#141c2e" stroke="#4ade80" stroke-width="2"/>
+      <!-- labels -->
+      <text x="210" y="46" text-anchor="middle" fill="#a78bfa" font-family="Source Code Pro,monospace" font-size="16" font-weight="600">t0</text>
+      <text x="90"  y="196" text-anchor="middle" fill="#38bdf8" font-family="Source Code Pro,monospace" font-size="16" font-weight="600">t1</text>
+      <text x="330" y="196" text-anchor="middle" fill="#4ade80" font-family="Source Code Pro,monospace" font-size="16" font-weight="600">t2</text>
+      <!-- edge labels -->
+      <text x="136" y="108" text-anchor="middle" fill="#7a9bbf" font-family="Lato,sans-serif" font-size="11">interfere</text>
+      <text x="284" y="108" text-anchor="middle" fill="#7a9bbf" font-family="Lato,sans-serif" font-size="11">interfere</text>
+      <text x="210" y="210" text-anchor="middle" fill="#7a9bbf" font-family="Lato,sans-serif" font-size="11">interfere</text>
+    </svg>
+  </div>
+
+  <p style="text-align:center; color:var(--muted); font-size:0.85rem">Each node is a temporary. Each edge means "these two cannot share a register."</p>
+</section>
+
+<!-- ══════════════ §04 GREEDY GRAPH COLORING ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 04</div>
+  <h2>Greedy Graph Coloring</h2>
+
+  <p>We have 6 colors (registers) and a graph of temporaries connected by interference edges. The goal: assign a color (register) to each node so that no two adjacent nodes share a color. If a node cannot be colored, it is <strong>spilled</strong> to the stack.</p>
+
+  <p>Our algorithm — <strong>greedy coloring in temp-number order</strong> — works as follows:</p>
+
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Build live ranges</strong> — scan every instruction, record <code>first_def[t]</code> and <code>last_use[t]</code> for each temporary <code>t</code>. (Done in <code>compute_live_ranges()</code> in <code>regalloc.c</code>.)</div>
+    </li>
+    <li>
+      <div>
+        <strong>Process temps in order</strong> — iterate <code>t = 0, 1, 2, …</code>. For each temp that has been defined (<code>first_def[t] &ge; 0</code>), collect the set of colors already used by interfering, already-colored temps.</div>
+    </li>
+    <li>
+      <div>
+        <strong>Assign the lowest free color</strong> — scan colors <code>0 … NUM_REGS-1</code>. Pick the first one not in the "used" set. Assign it to <code>t</code>.</div>
+    </li>
+    <li>
+      <div>
+        <strong>Spill if no color is free</strong> — if all 6 registers are claimed by interfering temps, assign <code>t</code> a stack slot at <code>[rbp - N]</code> and increment the spill counter.</div>
+    </li>
+  </ol>
+
+  <p>Stepping through our 3-temp example with 2 available colors (for illustration):</p>
+
+  <table>
+    <tr><th>Step</th><th>Temp</th><th>Colors used by interfering neighbors already colored</th><th>Assignment</th></tr>
+    <tr><td>1</td><td><code>t0</code></td><td>none yet</td><td><span class="tag-reg">color 0 → rbx</span></td></tr>
+    <tr><td>2</td><td><code>t1</code></td><td>t0 interferes → color 0 is taken</td><td><span class="tag-reg">color 1 → r12</span></td></tr>
+    <tr><td>3</td><td><code>t2</code></td><td>t0 interferes → color 0 taken; t1 interferes → color 1 taken</td><td><span class="tag-spill">SPILL → [rbp-8]</span></td></tr>
+  </table>
+
+  <p>With our full 6-register pool, <code>t2</code> would get <code>color 2 → r13</code> instead of spilling. The example above uses a 2-register limit only to illustrate what a spill looks like.</p>
+
+  <div class="callout green">
+    <div class="callout-title">In the Real dot() Function</div>
+    <p>The <code>dot</code> function in <code>sample.c</code> has 4 parameters and a handful of temporaries for the multiply-and-add. With 6 allocatable registers, every temp fits — zero spills. The generated assembly uses <code>rbx</code>, <code>r12</code>, <code>r13</code>, <code>r14</code> directly, with no stack traffic for temporaries.</p>
+  </div>
+</section>
+
+<!-- ══════════════ §05 RUN IT ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 05</div>
+  <h2>Run It</h2>
+
+  <p>Build the compiler and run it on <code>sample.c</code>:</p>
+
+<pre><span class="cm">$ </span><span class="fn">make run</span>
+gcc -Wall -Wextra -Werror -std=c11 -c source.c   -o source.o
+<span class="cm">... (compiling all objects) ...</span>
+gcc -Wall -Wextra -Werror -std=c11 -o regalloc_demo *.o
+./regalloc_demo sample.c -o sample13.asm &amp;&amp; cat sample13.asm
+
+=== Register allocation for 'dot' ===
+  t0   -> rbx
+  t1   -> r12
+  t2   -> r13
+  t3   -> r14
+  t4   -> rbx       <span class="cm">(t0's range ended; rbx reused)</span>
+  t5   -> r12       <span class="cm">(t1's range ended; r12 reused)</span>
+  t6   -> r13
+  (0 spilled)
+
+=== Register allocation for 'main' ===
+  t0   -> rbx
+  t1   -> r12
+  t2   -> r13
+  t3   -> rbx       <span class="cm">(reused)</span>
+  t4   -> r12
+  t5   -> r13
+  (0 spilled)</pre>
+
+  <p>The emitted assembly for <code>dot</code> looks like this (notice: no <code>[rbp-N]</code> for temporaries):</p>
+
+<pre><span class="kw">global</span> <span class="fn">dot</span>
+<span class="fn">dot</span>:
+    <span class="kw">push</span>    <span class="reg">rbp</span>
+    <span class="kw">mov</span>     <span class="reg">rbp</span>, <span class="reg">rsp</span>
+    <span class="kw">push</span>    <span class="reg">rbx</span>          <span class="cm">; callee-saved registers used by regmap</span>
+    <span class="kw">push</span>    <span class="reg">r12</span>
+    <span class="kw">push</span>    <span class="reg">r13</span>
+    <span class="kw">push</span>    <span class="reg">r14</span>
+    <span class="kw">sub</span>     <span class="reg">rsp</span>, <span class="num">32</span>       <span class="cm">; room for 4 local param slots</span>
+    <span class="kw">mov</span>     <span class="kw">qword</span> [<span class="reg">rbp</span>-8],  <span class="reg">rdi</span>  <span class="cm">; save param a</span>
+    <span class="kw">mov</span>     <span class="kw">qword</span> [<span class="reg">rbp</span>-16], <span class="reg">rsi</span>  <span class="cm">; save param b</span>
+    <span class="kw">mov</span>     <span class="kw">qword</span> [<span class="reg">rbp</span>-24], <span class="reg">rdx</span>  <span class="cm">; save param c</span>
+    <span class="kw">mov</span>     <span class="kw">qword</span> [<span class="reg">rbp</span>-32], <span class="reg">rcx</span>  <span class="cm">; save param d</span>
+    <span class="kw">mov</span>     <span class="reg">rax</span>, <span class="kw">qword</span> [<span class="reg">rbp</span>-8]   <span class="cm">; load a → rax</span>
+    <span class="kw">mov</span>     <span class="reg">rbx</span>, <span class="reg">rax</span>             <span class="cm">; t0 = a  (rbx)</span>
+    <span class="kw">mov</span>     <span class="reg">rax</span>, <span class="kw">qword</span> [<span class="reg">rbp</span>-24]  <span class="cm">; load c → rax</span>
+    <span class="kw">mov</span>     <span class="reg">r12</span>, <span class="reg">rax</span>             <span class="cm">; t2 = c  (r12)</span>
+    <span class="kw">mov</span>     <span class="reg">rax</span>, <span class="reg">rbx</span>             <span class="cm">; a*c</span>
+    <span class="kw">mov</span>     <span class="reg">rcx</span>, <span class="reg">r12</span>
+    <span class="kw">imul</span>    <span class="reg">rax</span>, <span class="reg">rcx</span>
+    <span class="kw">mov</span>     <span class="reg">r13</span>, <span class="reg">rax</span>             <span class="cm">; t4 = a*c (r13)</span>
+    <span class="cm">; ... b*d similarly into r14 ...</span>
+    <span class="kw">add</span>     <span class="reg">r13</span>, <span class="reg">r14</span>             <span class="cm">; t6 = a*c + b*d</span>
+    <span class="kw">mov</span>     <span class="reg">rax</span>, <span class="reg">r13</span>             <span class="cm">; return value</span>
+    <span class="kw">jmp</span>     <span class="lbl">.dot_epilogue</span>
+<span class="lbl">.dot_epilogue:</span>
+    <span class="kw">add</span>     <span class="reg">rsp</span>, <span class="num">32</span>
+    <span class="kw">pop</span>     <span class="reg">r14</span>
+    <span class="kw">pop</span>     <span class="reg">r13</span>
+    <span class="kw">pop</span>     <span class="reg">r12</span>
+    <span class="kw">pop</span>     <span class="reg">rbx</span>
+    <span class="kw">pop</span>     <span class="reg">rbp</span>
+    <span class="kw">ret</span></pre>
+
+  <p>Then assemble, link, and run:</p>
+
+<pre><span class="cm">$ </span><span class="fn">make assemble</span>
+nasm -f elf64 sample13.asm -o sample13.o
+gcc -no-pie sample13.o -o sample13_bin
+./sample13_bin
+echo "exit: $?"
+<span class="green">exit: 35</span></pre>
+
+  <div class="callout green">
+    <div class="callout-title">Why 35?</div>
+    <p><code>dot(2,3,4,5)</code> = 2×4 + 3×5 = 8 + 15 = <strong>23</strong><br>
+       <code>dot(1,1,6,6)</code> = 1×6 + 1×6 = 6 + 6 = <strong>12</strong><br>
+       <code>return x + y</code> = 23 + 12 = <strong>35</strong></p>
+  </div>
+</section>
+
+<!-- ══════════════ §06 BRAIN EXERCISE ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 06</div>
+  <h2>Brain Exercise</h2>
+
+  <div class="brain">
+    <div class="brain-icon">🧠</div>
+    <h3>One Register, Two Contestants</h3>
+    <p><code>t0</code> is live from instruction <strong>0 to 5</strong>. <code>t1</code> is live from instruction <strong>3 to 8</strong>. We have exactly <strong>1 allocatable register</strong>.</p>
+    <p style="margin-top:0.7rem"><strong>Question:</strong> Do <code>t0</code> and <code>t1</code> interfere? Which one gets the register, and which one spills?</p>
+
+    <details style="margin-top:1rem">
+      <summary style="cursor:pointer; color:var(--gold); font-weight:700">Reveal the Answer</summary>
+      <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid var(--border)">
+        <p><strong>Do they interfere?</strong> Check overlap: <code>0 &le; 8</code> AND <code>3 &le; 5</code> — both true. Their ranges overlap during instructions 3–5. <span class="tag-live">Yes, they interfere.</span></p>
+        <p style="margin-top:0.6rem"><strong>Who gets the register?</strong> Our greedy allocator processes temps in ascending order. <code>t0</code> is processed first (lower temp number = lower first_def). At that point no interfering neighbor has been colored yet, so <code>t0</code> picks up the only register — say <code>rbx</code>.</p>
+        <p style="margin-top:0.6rem"><strong>Who spills?</strong> When <code>t1</code> is processed, <code>t0</code> is already colored and interferes with <code>t1</code>, so color 0 (<code>rbx</code>) is off-limits. With only 1 register available, all colors are taken. <code>t1</code> is <span class="tag-spill">spilled to [rbp-8]</span>. Every instruction that reads or writes <code>t1</code> will get an extra <code>mov</code> to/from the stack slot.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ══════════════ §07 Q&A ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 07</div>
+  <h2>Q &amp; A</h2>
+
+  <div class="qa-block">
+    <div class="qa-q">Q: What does it mean for a temporary to be "spilled"?</div>
+    <div class="qa-a">Spilling means the register allocator could not find a free register for a temporary — all available registers were already occupied by interfering (simultaneously live) temporaries. The spilled temp is assigned a stack slot instead. The code generator then emits a <code>mov rax, [rbp-N]</code> before every use and a <code>mov [rbp-N], rax</code> after every definition of that temp. The program is still correct, but slower because of the extra memory traffic.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q: Why do we use callee-saved registers (rbx, r12–r15) rather than caller-saved ones (rax, rcx, rdx)?</div>
+    <div class="qa-a">Callee-saved registers survive across function calls — the callee is required to preserve them. This means if we allocate <code>t0</code> to <code>rbx</code> in the middle of a function that itself calls <code>dot</code> or <code>clamp</code>, the value of <code>t0</code> will still be in <code>rbx</code> after the nested call returns. Caller-saved registers like <code>rax</code>, <code>rcx</code>, <code>rdx</code> are freely clobbered by any callee. Using them for temporaries would require spilling them to the stack before every <code>IR_CALL</code> and reloading afterward — essentially doubling the spill complexity. By using callee-saved registers, we pay the cost once (push/pop in prologue/epilogue) rather than at every call site.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q: Is live-range analysis the same as full dataflow analysis?</div>
+    <div class="qa-a">No — live-range analysis as we implement it is a simplification. We compute a single interval <code>[first_def, last_use]</code> per temporary, which is exact for straight-line code and SSA-style temporaries (each temp written once). Full liveness dataflow (iterative gen/kill sets, backward fixed-point) handles loops and branches correctly — a variable may be live at a point even though its last use is elsewhere in a loop. For our IR, which uses explicit temporaries rather than reusing variable names across basic blocks, the interval approximation is precise enough and much simpler to implement and explain.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q: Could we do better than greedy coloring?</div>
+    <div class="qa-a">Yes. Chaitin's original graph-coloring allocator (1982) builds a full interference graph, repeatedly removes nodes of degree less than K (where K is the number of registers), and produces an optimal coloring order. It handles spilling more intelligently by choosing which temp to spill based on usage frequency rather than temp-number order. Linear scan allocation (Poletto &amp; Sarkar 1999, used by early LLVM and JVMs) is O(n) and particularly fast for JIT scenarios. Our greedy approach is O(n²) in the number of temps but trivially correct and easy to read. For tutorial programs with a handful of temporaries per function, it produces near-optimal results anyway.</div>
+  </div>
+</section>
+
+<!-- ══════════════ §08 WHAT'S NEXT ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 08</div>
+  <h2>What's Next</h2>
+
+  <div class="next-box">
+    <h3>Module 14 — ELF Object File Emitter</h3>
+    <p>So far we emit NASM assembly text and rely on <code>nasm</code> + <code>gcc</code> to produce an executable. Module 14 cuts out the middle-man: we write an <strong>ELF64 object file directly</strong> — filling in section headers, symbol tables, and relocation entries by hand. The result is a <code>.o</code> file that <code>ld</code> can link without ever touching NASM.</p>
+    <p style="margin-top:0.8rem; color:var(--muted)">Key concept coming up: <em>ELF section layout</em>, <em>Elf64_Sym</em>, <em>Elf64_Rela</em>, and <em>R_X86_64_PLT32 relocations</em>.</p>
+  </div>
+</section>
+
+</div><!-- /.page-wrap -->
+
+<!-- ══════════════ FOOTER NAV ══════════════ -->
+<nav class="footer-nav">
+  <a href="../module_12%20-%20Function%20Calls%20&amp;%20the%20System%20V%20AMD64%20Calling%20Convention/tutorial.html">← Module 12</a>
+  <span style="color:var(--muted); font-size:0.8rem">MODULE 13 / 16 — Register Allocator</span>
+  <a href="../module_14%20-%20ELF%20Object%20File%20Emitter/tutorial.html">Module 14 →</a>
+</nav>
+
+</body>
+</html>
