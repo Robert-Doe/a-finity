@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Module 01 — Source File Reader | my_compiler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Code+Pro:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── CSS variables — all colours come from here, nowhere else ── */
+    :root {
+      --bg:      #0b0f1a;
+      --bg2:     #111827;
+      --bg3:     #1a2235;
+      --card:    #141c2e;
+      --border:  #1e3a5f;
+      --gold:    #f5c842;
+      --cyan:    #38bdf8;
+      --teal:    #0d9488;
+      --red:     #f87171;
+      --green:   #4ade80;
+      --purple:  #a78bfa;
+      --orange:  #fb923c;
+      --text:    #e2e8f0;
+      --muted:   #7a9bbf;
+      --code-bg: #060d1a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Lato', sans-serif;
+      font-size: 1rem;
+      line-height: 1.75;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 5rem;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      color: var(--gold);
+      line-height: 1.2;
+      margin-bottom: 0.4rem;
+    }
+    h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.55rem;
+      color: var(--cyan);
+      margin: 2.8rem 0 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--purple);
+      margin: 1.6rem 0 0.5rem;
+    }
+    p  { margin-bottom: 1rem; }
+    ul, ol { margin: 0.5rem 0 1rem 1.4rem; }
+    li { margin-bottom: 0.3rem; }
+    a  { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { color: var(--text); }
+
+    .module-badge {
+      display: inline-block;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'Source Code Pro', monospace;
+      font-size: 0.78rem;
+      padding: 0.2rem 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      letter-spacing: 0.04em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-bottom: 2.5rem;
+    }
+
+    /* ── Prereq bar ── */
+    .prereq-bar {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .prereq-bar strong { color: var(--text); margin-right: 0.5rem; }
+
+    /* ── Callout boxes ── */
+    .callout {
+      border-radius: 8px;
+      padding: 1.1rem 1.3rem;
+      margin: 1.5rem 0;
+      border-left: 4px solid;
+    }
+    .callout-label {
+      font-size: 0.73rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+    .callout.gold   { background: #120e00; border-color: var(--gold);   }
+    .callout.gold   .callout-label { color: var(--gold);   }
+    .callout.teal   { background: #001412; border-color: var(--teal);   }
+    .callout.teal   .callout-label { color: var(--teal);   }
+    .callout.cyan   { background: #00111a; border-color: var(--cyan);   }
+    .callout.cyan   .callout-label { color: var(--cyan);   }
+    .callout.purple { background: #0c0814; border-color: var(--purple); }
+    .callout.purple .callout-label { color: var(--purple); }
+    .callout.red    { background: #140404; border-color: var(--red);    }
+    .callout.red    .callout-label { color: var(--red);    }
+
+    /* ── Code blocks ── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.2rem 1.3rem;
+      overflow-x: auto;
+      margin: 1rem 0 1.6rem;
+      font-size: 0.87rem;
+      line-height: 1.65;
+    }
+    code {
+      font-family: 'Source Code Pro', monospace;
+      color: var(--text);
+    }
+    pre code { font-size: inherit; }
+    p code, li code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      color: var(--cyan);
+      padding: 0.1em 0.4em;
+      border-radius: 3px;
+      font-size: 0.88em;
+    }
+
+    /* ── Film crew diagram ── */
+    .crew-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+      margin: 1.3rem 0;
+    }
+    .crew-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+    }
+    .crew-card.active {
+      background: #120e00;
+      border-color: var(--gold);
+    }
+    .crew-card .dept {
+      font-size: 0.73rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 0.15rem;
+    }
+    .crew-card .role-name {
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 0.1rem;
+    }
+    .crew-card.active .role-name { color: var(--gold); }
+    .crew-card:not(.active) .role-name { color: var(--muted); }
+    .crew-card .equiv {
+      font-family: 'Source Code Pro', monospace;
+      font-size: 0.8rem;
+    }
+    .crew-card.active .equiv { color: var(--cyan); }
+    .crew-card:not(.active) .equiv { color: var(--border); }
+
+    /* ── Pipeline ── */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin: 1.2rem 0;
+      font-family: 'Source Code Pro', monospace;
+      font-size: 0.82rem;
+    }
+    .pipeline-step {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.8rem;
+      border-radius: 4px;
+      color: var(--muted);
+    }
+    .pipeline-step.active {
+      background: #120e00;
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    .pipeline-arrow {
+      color: var(--border);
+      padding: 0 0.3rem;
+    }
+
+    /* ── Run It box ── */
+    .win-box {
+      background: #080d0a;
+      border: 1px solid var(--green);
+      border-radius: 8px;
+      padding: 1.2rem 1.4rem;
+      margin: 1.2rem 0 1.6rem;
+    }
+    .win-box .win-title {
+      font-size: 0.73rem;
+      color: var(--green);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.8rem;
+    }
+    .win-box pre {
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin: 0;
+      font-size: 0.88rem;
+    }
+    .cmd { color: var(--green); }
+    .out { color: var(--muted); }
+    .hi  { color: var(--cyan);  }
+
+    /* ── Brain exercise ── */
+    .brain {
+      background: var(--bg3);
+      border: 1px solid var(--purple);
+      border-radius: 8px;
+      padding: 1.3rem 1.5rem;
+      margin: 1.5rem 0;
+    }
+    .brain-label {
+      font-size: 0.73rem;
+      font-weight: 700;
+      color: var(--purple);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.8rem;
+    }
+    .brain .answer {
+      color: var(--muted);
+      font-size: 0.93rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+      margin-top: 1rem;
+    }
+    .brain .answer strong { color: var(--text); }
+
+    /* ── Q&A ── */
+    .qa-pair { margin-top: 1.5rem; }
+    .qa-q {
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.4rem;
+    }
+    .qa-q::before {
+      content: "Q  ";
+      font-family: 'Source Code Pro', monospace;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .qa-a {
+      color: var(--text);
+      padding-left: 1.1rem;
+      border-left: 2px solid var(--border);
+    }
+    .qa-a::before {
+      content: "A  ";
+      font-family: 'Source Code Pro', monospace;
+      color: var(--muted);
+    }
+
+    /* ── Footer ── */
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 3.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .page-footer .disabled { color: var(--border); }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+  </style>
+</head>
+<body>
+
+  <div class="module-badge">MODULE 01 / 16 &nbsp;·&nbsp; my_compiler &nbsp;·&nbsp; Source File Reader</div>
+  <h1>Source File Reader</h1>
+  <p class="subtitle">
+    Read every byte of a <code>.c</code> file into a heap buffer —
+    the one thing your compiler must do before it can do anything else.
+  </p>
+
+  <!-- ═══════════════════════════════ SECTION 00 ═══════════════════════════════ -->
+  <h2>00 — Before You Start</h2>
+
+  <div class="prereq-bar">
+    <strong>Direct prerequisites:</strong>
+    <span>None — this is Module 01, the beginning of the pipeline.</span>
+  </div>
+
+  <div class="callout gold">
+    <div class="callout-label">Before You Open Any Source File</div>
+    <p>This module assumes you are already comfortable with the following.
+    If any feel shaky, spend 20 minutes reviewing before continuing —
+    everything here depends on them.</p>
+    <ul>
+      <li>Writing and compiling a C program: <code>gcc hello.c -o hello &amp;&amp; ./hello</code></li>
+      <li>What <code>malloc(n)</code> does and why you must call <code>free()</code> on the result</li>
+      <li>The basic <code>FILE*</code> pattern: <code>fopen</code> → read → <code>fclose</code></li>
+      <li>What a C <code>struct</code> is and how to return one from a function by value</li>
+      <li>What a null terminator (<code>'\0'</code>) is and why C strings end with one</li>
+    </ul>
+  </div>
+
+
+  <!-- ═══════════════════════════════ SECTION 01 ═══════════════════════════════ -->
+  <h2>01 — The Big Analogy</h2>
+
+  <div class="callout gold">
+    <div class="callout-label">Head First Moment</div>
+    <p>Picture a film production crew on day one of shooting. The director is pacing.
+    The camera crew is setting up lights. The actors are in makeup. But nobody has
+    read the screenplay yet — it's still sitting on a shelf in a binder.</p>
+
+    <p>Before anyone calls "action", someone has to pick up that binder, make a clean
+    photocopy of every page, and put that copy somewhere the whole crew can reach.
+    That person is the <strong>Script Reader</strong>. They don't analyse the plot.
+    They don't check whether the dialogue makes sense. They just get the words off
+    the shelf and into the room.</p>
+
+    <p><strong>Your source file reader is that Script Reader.</strong>
+    It picks up your <code>.c</code> file from disk, copies every byte into a buffer
+    in RAM, and hands that buffer to the rest of the compiler. No analysis happens yet.
+    No tokens. No tree. Just: words in memory.</p>
+  </div>
+
+  <p>Every module in <strong>my_compiler</strong> maps to a department in the film crew.
+  You're staffing one department per module. Right now you're hiring the Script Reader —
+  the very first person through the door:</p>
+
+  <div class="crew-grid">
+    <div class="crew-card active">
+      <div class="dept">Module 01 — you are here</div>
+      <div class="role-name">Script Reader</div>
+      <div class="equiv">source.c → reads the screenplay</div>
+    </div>
+    <div class="crew-card">
+      <div class="dept">Module 02</div>
+      <div class="role-name">Script Supervisor</div>
+      <div class="equiv">lexer.c → marks every scene break</div>
+    </div>
+    <div class="crew-card">
+      <div class="dept">Modules 03 – 06</div>
+      <div class="role-name">Story Analyst</div>
+      <div class="equiv">parser.c → maps the story structure</div>
+    </div>
+    <div class="crew-card">
+      <div class="dept">Module 07</div>
+      <div class="role-name">Script Doctor</div>
+      <div class="equiv">sema.c → fixes plot holes</div>
+    </div>
+    <div class="crew-card">
+      <div class="dept">Modules 08 – 09</div>
+      <div class="role-name">Storyboard Artist</div>
+      <div class="equiv">ir.c → lays out every shot</div>
+    </div>
+    <div class="crew-card">
+      <div class="dept">Modules 10 – 13</div>
+      <div class="role-name">Camera Crew</div>
+      <div class="equiv">codegen.c → captures the action</div>
+    </div>
+    <div class="crew-card">
+      <div class="dept">Module 14</div>
+      <div class="role-name">Film Editor</div>
+      <div class="equiv">elf.c → assembles the final cut</div>
+    </div>
+    <div class="crew-card">
+      <div class="dept">Modules 15 – 16</div>
+      <div class="role-name">Distribution</div>
+      <div class="equiv">runtime + pipeline → ships the film</div>
+    </div>
+  </div>
+
+  <p>The compiler pipeline flows left to right like a shooting schedule.
+  Today you're building stage one:</p>
+
+  <div class="pipeline">
+    <div class="pipeline-step active">source.c</div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">lexer.c</div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">parser.c</div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">sema.c</div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">ir.c</div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">codegen.c</div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">binary</div>
+  </div>
+
+
+  <!-- ═══════════════════════════════ SECTION 02 ═══════════════════════════════ -->
+  <h2>02 — The Source Struct: Your Screenplay in a Labelled Folder</h2>
+
+  <p>A good Script Reader doesn't hand the director a loose pile of pages.
+  They put everything in a labelled folder: the pages, the title, the page count.
+  Your <code>Source</code> struct (a <strong>struct</strong> — a bundle of related
+  data grouped under one name in C) is that folder.</p>
+
+  <p>Get it right now and you'll never touch it again. Every module from here to
+  Module 16 passes a <code>Source</code> down the pipeline.</p>
+
+<pre><code>/* source.h — the Source struct.
+ * Every later module receives a pointer to one of these.              */
+
+#ifndef MY_COMPILER_SOURCE_H
+#define MY_COMPILER_SOURCE_H
+
+#include &lt;stddef.h&gt;    /* size_t: the right unsigned type for memory counts */
+
+typedef struct {
+    char       *text;      /* heap-allocated, null-terminated file contents  */
+    size_t      len;       /* byte count — always use this, NEVER strlen()   */
+    const char *filename;  /* original path, needed for error messages later */
+} Source;
+
+Source source_open(const char *path);   /* load a file, return a Source      */
+void   source_free(Source *src);        /* release heap memory when done      */
+
+#endif</code></pre>
+
+  <div class="callout cyan">
+    <div class="callout-label">Why Three Fields and Not Just a char*?</div>
+    <p>You might wonder why we need a struct at all. Three reasons:</p>
+    <ul>
+      <li><strong>text alone is not enough.</strong> A C source file can legally contain a
+          null byte inside a string literal: <code>"hello\0world"</code>. If you call
+          <code>strlen(text)</code> you'll stop at that embedded null, not the real end of
+          the file. <code>len</code> is always the ground truth.</li>
+      <li><strong>filename is needed for every error message</strong> your compiler will
+          ever print. "error on line 5" is useless. "error in main.c on line 5" tells
+          the user where to look.</li>
+      <li><strong>a struct lets you add fields later</strong> without changing every
+          function signature. In Module 07 we'll add a line-offset table — every caller
+          gets it for free.</li>
+    </ul>
+  </div>
+
+
+  <!-- ═══════════════════════════════ SECTION 03 ═══════════════════════════════ -->
+  <h2>03 — Reading the File: Measure, Allocate, Read, Terminate</h2>
+
+  <p>The Script Reader's process is always the same: count the pages, get a folder big
+  enough to hold them, copy every page in, then stamp "END" on the last one. Your
+  <code>source_open()</code> does exactly four things in exactly this order.</p>
+
+<pre><code>Source source_open(const char *path)
+{
+    Source src;
+    FILE  *fp;
+    long   size;
+    size_t bytes_read;
+
+    /* ── Step 1: Open ──────────────────────────────────────────────
+     * "rb" = read, binary mode.  On Windows, text mode silently
+     * converts every \r\n pair to a single \n, shifting the byte
+     * offset of every character that follows.  Binary mode gives
+     * us the raw, unmodified bytes; the lexer handles line endings. */
+    fp = fopen(path, "rb");
+    if (fp == NULL) {
+        fprintf(stderr, "error: cannot open '%s'\n", path);
+        exit(1);   /* no source file = nothing to compile; stop now  */
+    }
+
+    /* ── Step 2: Measure ────────────────────────────────────────────
+     * Seek to the end to learn the file size, then rewind so the
+     * next read starts at byte 0.                                    */
+    fseek(fp, 0, SEEK_END);    /* jump to the last byte              */
+    size = ftell(fp);          /* distance from start = total length */
+    fseek(fp, 0, SEEK_SET);    /* rewind: next read starts at byte 0 */
+
+    /* ── Step 3: Allocate ───────────────────────────────────────────
+     * size bytes for the file content, plus one extra byte for the
+     * null terminator we add in step 4.                              */
+    src.text = malloc((size_t)size + 1);
+    if (src.text == NULL) {
+        fprintf(stderr, "error: out of memory reading '%s'\n", path);
+        fclose(fp);
+        exit(1);   /* malloc returned NULL; cannot proceed without RAM */
+    }
+
+    /* ── Step 4: Read ───────────────────────────────────────────────
+     * fread returns how many 1-byte items it successfully read.
+     * A correct full read returns exactly (size_t)size.              */
+    bytes_read = fread(src.text, 1, (size_t)size, fp);
+    if ((long)bytes_read != size) {
+        fprintf(stderr, "error: partial read of '%s' (%zu of %ld bytes)\n",
+                path, bytes_read, size);
+        free(src.text);    /* we allocated this; free it before exiting */
+        fclose(fp);
+        exit(1);
+    }
+
+    /* ── Step 5: Null-terminate ─────────────────────────────────────
+     * Place '\0' one position past the last byte we read.
+     * This makes C string functions safe and gives the lexer a
+     * reliable end-of-file sentinel to detect when it's done.        */
+    src.text[size] = '\0';
+    src.len        = (size_t)size;
+    src.filename   = path;    /* borrow caller's pointer; they own it */
+
+    fclose(fp);               /* release the OS file handle           */
+    return src;
+}</code></pre>
+
+  <div class="callout cyan">
+    <div class="callout-label">Why One fread Instead of a Loop?</div>
+    <p>Some tutorials read files line by line with <code>fgets()</code>. Don't.
+    Your lexer doesn't think in lines — it thinks in individual characters, and it
+    needs to look one character ahead to decide whether <code>=</code> is assignment
+    or the start of <code>==</code>. A flat buffer gives you free random access to
+    any character by index. One <code>fread</code> is also faster than thousands of
+    <code>fgetc</code> calls because it makes one system call instead of one per byte.</p>
+  </div>
+
+
+  <!-- ═══════════════════════════════ SECTION 04 ═══════════════════════════════ -->
+  <h2>04 — Freeing Memory: Strike the Set When You're Done</h2>
+
+  <p>When a film shoot wraps, the crew strikes the set — they return every piece of
+  equipment and leave nothing behind. Every <code>source_open()</code> must have a
+  matching <code>source_free()</code>. Build this discipline now so it's automatic
+  when you're juggling a dozen files in Module 16.</p>
+
+<pre><code>void source_free(Source *src)
+{
+    free(src-&gt;text);    /* release the heap buffer malloc'd by source_open  */
+
+    /* Pointer poisoning: set text to NULL right after freeing.
+     * If any code accidentally uses src-&gt;text after this point, it
+     * will dereference NULL and crash immediately on that line —
+     * loud, traceable, and fixable.  Without poisoning, the stale
+     * pointer still holds the old address.  Reads might silently
+     * succeed and corrupt something completely unrelated.            */
+    src-&gt;text = NULL;
+
+    src-&gt;len  = 0;      /* mark the struct obviously invalid             */
+}</code></pre>
+
+  <div class="callout purple">
+    <div class="callout-label">Pointer Poisoning — Build This Habit Now</div>
+    <p>Setting a pointer to <code>NULL</code> after <code>free()</code> costs one assignment.
+    It buys you a crash that points directly at the bug rather than silent corruption
+    that shows up three modules later in a completely different function. Every professional
+    C codebase does this. Start now.</p>
+  </div>
+
+
+  <!-- ═══════════════════════════════ SECTION 05 ═══════════════════════════════ -->
+  <h2>05 — Run It on GCC / WSL</h2>
+
+  <p>Open a terminal in WSL (or Linux), navigate to <code>module_01</code>, and type:</p>
+
+  <div class="win-box">
+    <div class="win-title">WSL / Linux Terminal</div>
+<pre><code><span class="cmd">$ cd my_compiler/module_01</span>
+<span class="cmd">$ make run</span>
+<span class="out">gcc -Wall -Wextra -Werror -std=c11 -c source.c -o source.o</span>
+<span class="out">gcc -Wall -Wextra -Werror -std=c11 -c main.c   -o main.o</span>
+<span class="out">gcc -Wall -Wextra -Werror -std=c11 -o reader source.o main.o</span>
+<span class="out">./reader sample.c</span>
+<span class="hi">=== Source File Reader - Module 01 ===</span>
+<span class="hi">file    : sample.c</span>
+<span class="hi">size    : 119 bytes</span>
+<span class="hi">lines   : 8</span>
+<span class="hi">preview : /* sample.c — tiny test program ... */\nint add(int a ...</span></code></pre>
+  </div>
+
+  <p>The exact byte count may differ slightly depending on your editor's line endings.
+  What matters: <strong>size is non-zero, lines is 8, and the preview shows real C code</strong>.
+  If you see those three things, your reader works.</p>
+
+  <div class="win-box">
+    <div class="win-title">Try it on any file you have</div>
+<pre><code><span class="cmd">$ ./reader /path/to/any_file.c</span>
+<span class="cmd">$ ./reader /usr/include/stdio.h</span>   <span class="out"># a big system header — try it!</span></code></pre>
+  </div>
+
+
+  <!-- ═══════════════════════════════ SECTION 06 ═══════════════════════════════ -->
+  <h2>06 — Brain Exercise</h2>
+
+  <div class="brain">
+    <div class="brain-label">Brain Exercise — Spot the Trap</div>
+    <p>Your teammate runs <code>./reader</code> on an <strong>empty file</strong> — a
+    <code>.c</code> file that is exactly 0 bytes on disk. They're certain the program
+    will crash. Here's their reasoning step by step:</p>
+    <ul>
+      <li><code>ftell()</code> returns 0</li>
+      <li><code>malloc(0 + 1)</code> allocates 1 byte — odd but probably fine</li>
+      <li><code>fread(buf, 1, 0, fp)</code> tries to read 0 bytes and returns 0</li>
+      <li>Your check <code>if ((long)bytes_read != size)</code> compares <code>0 != 0</code></li>
+    </ul>
+    <p>They bet you it crashes or prints garbage. Walk through all four steps for a
+    0-byte file. What actually happens? What will the output look like?</p>
+
+    <div class="answer">
+      <strong>Answer — your teammate loses the bet.</strong>
+      <br><br>
+      Every step works correctly on an empty file. <code>malloc(1)</code> is legal and
+      returns a valid 1-byte buffer. <code>fread(..., 1, 0, fp)</code> reads
+      <em>zero items</em> and returns <code>0</code> — which is exactly right, because
+      you asked it to read zero items. The partial-read check compares
+      <code>(long)0 != 0</code>, which is false, so we don't exit. We write
+      <code>src.text[0] = '\0'</code> (legal — we allocated 1 byte), set
+      <code>src.len = 0</code>, and close. Output:
+      <br><br>
+      <code>size: 0 bytes &nbsp;|&nbsp; lines: 0 &nbsp;|&nbsp; preview: </code>
+      <br><br>
+      <strong>The trap:</strong> it's easy to assume <code>fread()</code> returning 0
+      means failure. It doesn't. It means "I read exactly as many items as you asked
+      for." For an empty file that's zero items — a perfectly normal result.
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════ SECTION 07 ═══════════════════════════════ -->
+  <h2>07 — There Are No Dumb Questions</h2>
+
+  <div class="qa-pair">
+    <div class="qa-q">Why read the whole file into RAM at once? That seems wasteful for large files.</div>
+    <div class="qa-a">Your lexer (Module 02) needs to look one character ahead of its current
+      position to decide if <code>=</code> is assignment or the start of <code>==</code>.
+      If you stream byte by byte you need to buffer that lookahead anyway — and you end up
+      recreating a flat buffer. A flat buffer also lets every module refer to any character
+      by index, which is how you later print "error at line 5, column 12." Source files in
+      practice are under a few megabytes. When they're not (generated code, large data
+      tables), the fix is <code>mmap()</code> — same flat-buffer interface, zero copy cost,
+      covered in Module 14.</div>
+  </div>
+
+  <div class="qa-pair">
+    <div class="qa-q">The buffer is null-terminated. Why do I also need src.len? Can't I just use strlen()?</div>
+    <div class="qa-a">Not safely. A C source file can contain null bytes inside string
+      literals: <code>"hello\0world"</code> is a valid C initialiser. If you call
+      <code>strlen(src.text)</code> on a file containing this, <code>strlen</code> stops
+      at the embedded <code>'\0'</code> and returns the wrong count. <code>src.len</code>
+      came from <code>ftell()</code>, which doesn't care what bytes are in the file.
+      Use <code>src.len</code> everywhere you iterate; use the null terminator only as
+      a sentinel for functions that require one.</div>
+  </div>
+
+  <div class="qa-pair">
+    <div class="qa-q">Why does source_open() call exit(1) on error? Isn't that bad practice in a library?</div>
+    <div class="qa-a">You're right that a library must never call <code>exit()</code> — it
+      makes the code untestable and kills any long-running process that uses it. But right
+      now <code>source_open()</code> is not a library; it's part of a single-shot tool.
+      Inventing a result type, an error enum, and a recovery strategy before we've built
+      anything else would mean writing three more modules before reading a single file.
+      DECISIONS.md entry #3 names the exact production fix: a <code>bool</code>
+      out-parameter or a <code>longjmp</code>-based error context. We'll apply it in
+      Module 16 when we assemble the full pipeline.</div>
+  </div>
+
+  <div class="qa-pair">
+    <div class="qa-q">Why use fseek/ftell to get the file size? I've seen code that uses stat().</div>
+    <div class="qa-a"><code>stat()</code> is POSIX, not part of the C11 standard. Using it
+      requires <code>#include &lt;sys/stat.h&gt;</code>, a platform dependency we haven't
+      formally introduced yet. <code>fseek</code>/<code>ftell</code> is guaranteed by the
+      C standard and compiles on Linux, WSL, and macOS without changes. The downside —
+      and DECISIONS.md is honest about it — is that <code>fseek(SEEK_END)</code> on a
+      binary stream is technically implementation-defined under C11. It works on every OS
+      you'll encounter. We switch to <code>fstat()</code> in Module 14 when we go
+      deliberately Linux-specific for ELF output.</div>
+  </div>
+
+
+  <!-- ═══════════════════════════════ SECTION 08 ═══════════════════════════════ -->
+  <h2>08 — What's Next</h2>
+
+  <div class="callout teal">
+    <div class="callout-label">Coming Up: Module 02 — Lexer / Tokeniser</div>
+    <p>Right now your compiler can read a file. It has no idea what's <em>in</em> the file.
+    It just sees a flat river of bytes: <code>i</code>, <code>n</code>, <code>t</code>,
+    <code>&nbsp;</code>, <code>m</code>, <code>a</code>, <code>i</code>, <code>n</code>,
+    <code>(</code> …</p>
+    <p>Module 02 changes that. The <strong>Lexer</strong> (your Script Supervisor) walks
+    through <code>Source.text</code> from byte 0 to byte <code>src.len - 1</code> and
+    groups those bytes into meaningful chunks called <strong>tokens</strong> (the smallest
+    units of meaning in a program) — <code>int</code> becomes a keyword token,
+    <code>main</code> becomes an identifier token, <code>(</code> becomes a punctuation
+    token.</p>
+    <p>Now is exactly the right moment: you have a clean, null-terminated buffer with a
+    known length. The lexer just needs an integer cursor that starts at 0 and walks
+    forward. Everything it needs already lives in your <code>Source</code> struct.</p>
+  </div>
+
+
+  <!-- ═══════════════════════════════ Footer ═══════════════════════════════════ -->
+  <div class="page-footer">
+    <span class="disabled">← no previous module</span>
+    <a href="../module_02%20-%20Lexer%20-%20Tokeniser/tutorial.html">Module 02 — Lexer / Tokeniser →</a>
+  </div>
+
+</body>
+</html>
