@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Module 11 — Code Generation: Control Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0b0f1a;
+    --gold:     #f5c842;
+    --cyan:     #38bdf8;
+    --teal:     #0d9488;
+    --red:      #f87171;
+    --green:    #4ade80;
+    --purple:   #a78bfa;
+    --text:     #e2e8f0;
+    --muted:    #7a9bbf;
+    --code-bg:  #060d1a;
+    --bg2:      #111827;
+    --bg3:      #1a2235;
+    --border:   #1e3a5f;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Lato', sans-serif;
+    font-weight: 400;
+    font-size: 17px;
+    line-height: 1.75;
+  }
+
+  /* ──────────── TOP BAR ──────────── */
+  .topbar {
+    background: var(--bg2);
+    border-bottom: 2px solid var(--border);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .badge {
+    background: var(--gold);
+    color: #0b0f1a;
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .topbar-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: var(--cyan);
+    flex: 1;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 16px;
+    font-size: 14px;
+  }
+
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    transition: color .2s;
+  }
+
+  .nav-links a:hover { color: var(--gold); }
+
+  /* ──────────── HERO ──────────── */
+  .hero {
+    background: linear-gradient(135deg, #0b0f1a 0%, #0d1e38 50%, #0b1a2e 100%);
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    padding: 72px 32px 56px;
+  }
+
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1.15;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 span { color: var(--cyan); }
+
+  .hero p {
+    color: var(--muted);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* ──────────── LAYOUT ──────────── */
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ──────────── SECTIONS ──────────── */
+  .section {
+    margin-top: 64px;
+  }
+
+  .section-label {
+    font-family: 'Lato', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 8px;
+  }
+
+  .section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    color: var(--gold);
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+
+  p { margin-bottom: 1rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ──────────── CODE BLOCKS ──────────── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--teal);
+    border-radius: 6px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin: 20px 0;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  code {
+    font-family: 'Source Code Pro', monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 0.88em;
+    color: var(--cyan);
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  /* Syntax highlight classes */
+  .kw  { color: var(--purple); font-weight: 600; }
+  .cm  { color: var(--muted);  font-style: italic; }
+  .str { color: var(--green); }
+  .num { color: var(--gold); }
+  .lbl { color: var(--cyan); font-weight: 600; }
+  .ins { color: var(--text); }
+  .reg { color: var(--red); }
+  .op  { color: var(--teal); }
+
+  /* ──────────── CALLOUT BOXES ──────────── */
+  .box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin: 24px 0;
+  }
+
+  .box.gold   { border-left: 4px solid var(--gold);   }
+  .box.cyan   { border-left: 4px solid var(--cyan);   }
+  .box.green  { border-left: 4px solid var(--green);  }
+  .box.red    { border-left: 4px solid var(--red);    }
+  .box.purple { border-left: 4px solid var(--purple); }
+
+  .box-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .box.gold   .box-title { color: var(--gold);   }
+  .box.cyan   .box-title { color: var(--cyan);   }
+  .box.green  .box-title { color: var(--green);  }
+  .box.red    .box-title { color: var(--red);    }
+  .box.purple .box-title { color: var(--purple); }
+
+  /* ──────────── TWO-COLUMN COMPARE ──────────── */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+
+  @media (max-width: 640px) {
+    .compare { grid-template-columns: 1fr; }
+  }
+
+  .compare-col { }
+  .compare-col h4 {
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    color: var(--muted);
+  }
+  .compare-col.left  h4 { color: var(--cyan); }
+  .compare-col.right h4 { color: var(--green); }
+
+  /* ──────────── ARROW ──────────── */
+  .arrow-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+
+  .arrow-row .ar-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 13px;
+  }
+
+  .arrow-row .arrow {
+    color: var(--gold);
+    font-size: 1.4rem;
+  }
+
+  /* ──────────── BRAIN EXERCISE ──────────── */
+  .brain {
+    background: linear-gradient(135deg, #1a1035 0%, #0b0f1a 100%);
+    border: 2px solid var(--purple);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 32px 0;
+  }
+
+  .brain-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    color: var(--purple);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brain-emoji { font-size: 1.6rem; }
+
+  details {
+    margin-top: 20px;
+  }
+
+  summary {
+    cursor: pointer;
+    color: var(--gold);
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+    padding: 10px 0;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  summary::before {
+    content: '▶';
+    font-size: 0.7rem;
+    transition: transform .2s;
+    color: var(--gold);
+  }
+
+  details[open] summary::before { transform: rotate(90deg); }
+
+  .answer {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-top: 12px;
+    color: var(--text);
+  }
+
+  /* ──────────── Q&A ──────────── */
+  .qa-item {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+  }
+
+  .qa-item:last-child { border-bottom: none; }
+
+  .question {
+    font-weight: 700;
+    color: var(--cyan);
+    margin-bottom: 8px;
+    display: flex;
+    gap: 12px;
+  }
+
+  .q-num {
+    background: var(--teal);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+    align-self: flex-start;
+    margin-top: 3px;
+  }
+
+  /* ──────────── FOOTER NAV ──────────── */
+  .footer-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 80px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .footer-nav a {
+    color: var(--cyan);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color .2s;
+  }
+
+  .footer-nav a:hover { color: var(--gold); }
+
+  /* ──────────── STEP DIAGRAM ──────────── */
+  .step-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0 20px;
+    margin: 24px 0;
+  }
+
+  .step-num {
+    width: 36px;
+    height: 36px;
+    background: var(--teal);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  .step-content {
+    padding-bottom: 24px;
+    border-left: 2px solid var(--border);
+    padding-left: 20px;
+    margin-left: -22px; /* align with circle */
+  }
+
+  .step-content h4 {
+    color: var(--gold);
+    font-size: 1rem;
+    margin-bottom: 8px;
+  }
+
+  /* ──────────── TABLE ──────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 0.92rem;
+  }
+
+  th {
+    background: var(--bg3);
+    color: var(--cyan);
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 2px solid var(--border);
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.88rem;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: var(--bg3); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ TOP BAR ═══════════════════════════ -->
+<div class="topbar">
+  <div class="badge">Module 11 / 16</div>
+  <div class="topbar-title">Code Generation — Control Flow</div>
+  <nav class="nav-links">
+    <a href="#s00">Start</a>
+    <a href="#s02">IR &amp; Labels</a>
+    <a href="#s03">JUMPZ</a>
+    <a href="#s04">Comparisons</a>
+    <a href="#s05">Run It</a>
+    <a href="#s06">Brain</a>
+    <a href="#s07">Q&amp;A</a>
+  </nav>
+</div>
+
+<!-- ═══════════════════════════ HERO ═══════════════════════════ -->
+<div class="hero">
+  <h1>Wiring the <span>Branches</span></h1>
+  <p>How <code>if</code>, <code>else</code>, and <code>while</code> turn into
+     jump instructions that the CPU can actually follow.</p>
+</div>
+
+<div class="container">
+
+<!-- ─────────────────────────── SECTION 00 ─────────────────────────── -->
+<div class="section" id="s00">
+  <div class="section-label">Section 00</div>
+  <h2>Before You Start</h2>
+
+  <p>This module picks up directly from Module 10 (basic code generation).
+     You should already be comfortable with:</p>
+  <ul style="margin: 12px 0 12px 24px; line-height: 2.2;">
+    <li>The <strong>IR instruction set</strong> — temps, slots, three-address form.</li>
+    <li>How <strong>stack frames</strong> work: <code>push rbp</code>, <code>mov rbp,rsp</code>,
+        <code>sub rsp,N</code>.</li>
+    <li>Basic x86-64 instructions: <code>mov</code>, <code>add</code>, <code>imul</code>,
+        <code>idiv</code>.</li>
+  </ul>
+
+  <p>If any of those feel shaky, go review Module 10 first.
+     In this module we add three new IR opcodes that make control flow possible:</p>
+
+  <table>
+    <thead><tr><th>IR Opcode</th><th>Meaning</th><th>x86-64 Output</th></tr></thead>
+    <tbody>
+      <tr><td>IR_LABEL name</td><td>Define a jump target</td><td><code>.name:</code></td></tr>
+      <tr><td>IR_JUMP  name</td><td>Always jump there</td><td><code>jmp .name</code></td></tr>
+      <tr><td>IR_JUMPZ src, name</td><td>Jump if src == 0</td><td><code>test rax,rax / jz .name</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="box cyan">
+    <div class="box-title">Files in This Module</div>
+    All 15 source files are in <code>module_11/</code>.  Build with:
+    <pre><code>make          # build codegen11
+make run      # compile sample.c → sample11.asm and print it
+make assemble # assemble + link + run; shows exit code</code></pre>
+  </div>
+</div>
+
+<!-- ─────────────────────────── SECTION 01 ANALOGY ─────────────────────────── -->
+<div class="section" id="s01">
+  <div class="section-label">Section 01</div>
+  <h2>The Stunt Coordinator Analogy</h2>
+
+  <p>Picture a movie script.  It says:</p>
+  <blockquote style="border-left:4px solid var(--gold); padding-left:20px; color:var(--muted); font-style:italic; margin:20px 0;">
+    "If the hero fails to catch the ledge, cut to Scene 42."
+  </blockquote>
+
+  <p>That sentence is high-level intention.  But on set, nobody just
+     <em>decides</em> the hero fails and teleports to Scene 42.  A
+     <strong>stunt coordinator</strong> builds the physical mechanism:
+     a wire rig, a trapdoor, a camera cut triggered by a radio signal at
+     the exact right moment.</p>
+
+  <p>Your C compiler is that stunt coordinator for <code>if</code> statements.
+     The C source code is the script — it says "if x is less than zero,
+     do this, otherwise do that."  The compiler's job is to build the
+     physical mechanism in assembly: actual labels that mark where to
+     jump, and actual <code>jz</code> instructions that read a CPU flag
+     and either take the jump or fall through.</p>
+
+  <div class="box gold">
+    <div class="box-title">The Central Insight</div>
+    <p>A CPU has no concept of "if."  It only has:
+       "set this flag based on the last operation, then optionally
+       jump to this address if that flag is set."</p>
+    <p style="margin-top:10px;">Your compiler translates the <em>intent</em>
+       of <code>if</code>/<code>while</code> into the <em>mechanism</em>
+       of flags and jumps.</p>
+  </div>
+
+  <p>The key actors in this mechanism are:</p>
+  <ul style="margin: 12px 0 12px 24px; line-height: 2.4;">
+    <li><strong>Labels</strong> — named positions in the code (like "Scene 42").</li>
+    <li><strong>Comparison instructions</strong> (<code>cmp</code>, <code>test</code>)
+        — compute a result and set CPU flags.</li>
+    <li><strong>Conditional jump instructions</strong> (<code>jz</code>, <code>jl</code>, <code>jg</code>, …)
+        — read those flags and jump (or not).</li>
+  </ul>
+</div>
+
+<!-- ─────────────────────────── SECTION 02 ─────────────────────────── -->
+<div class="section" id="s02">
+  <div class="section-label">Section 02</div>
+  <h2>How <code>if</code>/<code>while</code> Become IR Labels and Jumps</h2>
+
+  <p>Let's trace a simple <code>if/else</code> through the compiler.
+     Start with this C code:</p>
+
+  <pre><code><span class="kw">int</span> abs_val(<span class="kw">int</span> x) {
+    <span class="kw">if</span> (x &lt; <span class="num">0</span>) {
+        <span class="kw">return</span> <span class="num">0</span> - x;
+    } <span class="kw">else</span> {
+        <span class="kw">return</span> x;
+    }
+}</code></pre>
+
+  <p>After parsing and IR generation, the IR for <code>abs_val</code>
+     looks like this (simplified — actual temp numbers may differ):</p>
+
+  <pre><code><span class="cm">; Parameter x is stored at slot 0 (local named "x")</span>
+<span class="lbl">FUNC abs_val:</span>
+  <span class="ins">STORE</span>  x = <span class="reg">rdi</span>            <span class="cm">; save incoming parameter</span>
+  <span class="ins">LOAD</span>   t1 = x
+  <span class="ins">ICONST</span> t2 = 0
+  <span class="ins">LT</span>     t3 = t1, t2       <span class="cm">; t3 = (x &lt; 0) → 1 or 0</span>
+  <span class="ins">JUMPZ</span>  t3, <span class="lbl">L0</span>            <span class="cm">; jump to L0 (else) if t3 == 0 (condition is false)</span>
+  <span class="cm">; ── then branch ──</span>
+  <span class="ins">ICONST</span> t4 = 0
+  <span class="ins">LOAD</span>   t5 = x
+  <span class="ins">SUB</span>    t6 = t4, t5       <span class="cm">; 0 - x</span>
+  <span class="ins">RETURN</span> t6
+  <span class="ins">JUMP</span>   <span class="lbl">L1</span>               <span class="cm">; skip else branch</span>
+<span class="lbl">L0:</span>                        <span class="cm">; else label</span>
+  <span class="ins">LOAD</span>   t7 = x
+  <span class="ins">RETURN</span> t7
+<span class="lbl">L1:</span>                        <span class="cm">; end label</span></code></pre>
+
+  <div class="box cyan">
+    <div class="box-title">The Key Inversion</div>
+    <p>Notice that <code>JUMPZ t3, L0</code> jumps to the <em>else</em> branch
+       when the condition is <strong>false</strong> (zero), NOT to the then-branch
+       when the condition is true.</p>
+    <p style="margin-top:10px;">This is the natural structure: the then-branch
+       comes right after the condition check (no jump needed if true), and
+       we use a jump to <em>skip over</em> it when the condition is false.
+       Section 06 explores why irgen works this way.</p>
+  </div>
+
+  <p>Now let's look at a <code>while</code> loop — <code>sum_to</code> from
+     our sample program:</p>
+
+  <pre><code><span class="kw">while</span> (i &lt; n) {
+    s = s + i;
+    i = i + <span class="num">1</span>;
+}</code></pre>
+
+  <p>IR translation:</p>
+
+  <pre><code><span class="lbl">L2:</span>                         <span class="cm">; top of loop (test label)</span>
+  <span class="ins">LOAD</span>   t8  = i
+  <span class="ins">LOAD</span>   t9  = n
+  <span class="ins">LT</span>     t10 = t8, t9      <span class="cm">; t10 = (i &lt; n)</span>
+  <span class="ins">JUMPZ</span>  t10, <span class="lbl">L3</span>           <span class="cm">; exit loop if i >= n (t10 is false/zero)</span>
+  <span class="cm">; ── loop body ──</span>
+  <span class="ins">LOAD</span>   t11 = s
+  <span class="ins">LOAD</span>   t12 = i
+  <span class="ins">ADD</span>    t13 = t11, t12
+  <span class="ins">STORE</span>  s   = t13
+  <span class="ins">LOAD</span>   t14 = i
+  <span class="ins">ICONST</span> t15 = 1
+  <span class="ins">ADD</span>    t16 = t14, t15
+  <span class="ins">STORE</span>  i   = t16
+  <span class="ins">JUMP</span>   <span class="lbl">L2</span>               <span class="cm">; back to top</span>
+<span class="lbl">L3:</span>                         <span class="cm">; after loop</span></code></pre>
+
+  <p>The loop structure is: emit the test label, compute condition, jump past
+     body if false, run body, unconditionally jump back to test, emit end label.
+     This is exactly how C compilers have done it since the 1970s.</p>
+</div>
+
+<!-- ─────────────────────────── SECTION 03 ─────────────────────────── -->
+<div class="section" id="s03">
+  <div class="section-label">Section 03</div>
+  <h2>From IR_JUMPZ to x86 <code>jz</code> — the <code>test+jz</code> Pattern</h2>
+
+  <p>When the code generator sees <code>IR_JUMPZ src1, name</code>, it emits
+     three x86-64 instructions:</p>
+
+  <pre><code><span class="cm">; IR: JUMPZ t3, L0</span>
+<span class="ins">mov</span>  <span class="reg">rax</span>, <span class="op">qword [rbp - 32]</span>   <span class="cm">; load t3 from its stack slot</span>
+<span class="ins">test</span> <span class="reg">rax</span>, <span class="reg">rax</span>                <span class="cm">; compute rax AND rax, set ZF if result = 0</span>
+<span class="ins">jz</span>   .L0                       <span class="cm">; jump if ZF is set (rax was zero)</span></code></pre>
+
+  <p>Let's understand each instruction:</p>
+
+  <div class="box cyan">
+    <div class="box-title">mov rax, [rbp - N]</div>
+    <p>Load the value of temp <code>t3</code> from its stack slot into <code>rax</code>.
+       Temp <code>n</code> lives at <code>[rbp - (n+1)*8]</code>.</p>
+  </div>
+
+  <div class="box green">
+    <div class="box-title">test rax, rax</div>
+    <p><code>test</code> performs bitwise AND of its two operands and sets CPU flags
+       based on the result, but does NOT store the result anywhere.</p>
+    <ul style="margin-top:10px; margin-left:20px; line-height:2.2;">
+      <li>If <code>rax == 0</code>: result is 0, so the <strong>Zero Flag (ZF) is set to 1</strong>.</li>
+      <li>If <code>rax != 0</code>: result is non-zero, so <strong>ZF is cleared to 0</strong>.</li>
+    </ul>
+    <p style="margin-top:10px;">Why not <code>cmp rax, 0</code>?  Both set ZF identically
+       when rax is zero.  But <code>test rax, rax</code> is <strong>3 bytes</strong>
+       while <code>cmp rax, 0</code> is <strong>7 bytes</strong> (the immediate zero
+       needs a 32-bit encoding).  Shorter code fits better in the instruction cache.</p>
+  </div>
+
+  <div class="box gold">
+    <div class="box-title">jz .L0</div>
+    <p><code>jz</code> (jump-if-zero) jumps to the label if ZF is set — i.e., if the
+       last <code>test</code> or <code>cmp</code> found a zero result.</p>
+    <p style="margin-top:10px;"><strong>Why jz instead of je?</strong>  They're the same
+       opcode.  We say <code>jz</code> because we're testing for <em>zero</em>
+       (a boolean false), not testing for <em>equality</em> between two values.
+       The word choice documents the intent.</p>
+  </div>
+
+  <p>Put together, the pattern says: "load the boolean into rax; if it's zero
+     (false), take the jump."  This is compact, idiomatic, and exactly what
+     every C compiler for x86 does.</p>
+
+  <div class="arrow-row">
+    <div class="ar-box">IR_JUMPZ t3, L0</div>
+    <div class="arrow">→</div>
+    <div class="ar-box">mov rax, [slot]</div>
+    <div class="arrow">→</div>
+    <div class="ar-box">test rax, rax</div>
+    <div class="arrow">→</div>
+    <div class="ar-box">jz .L0</div>
+  </div>
+</div>
+
+<!-- ─────────────────────────── SECTION 04 ─────────────────────────── -->
+<div class="section" id="s04">
+  <div class="section-label">Section 04</div>
+  <h2>Comparison Instructions — <code>cmp</code> + <code>set*</code> + <code>movzx</code></h2>
+
+  <p>Before we can branch on a condition like <code>x &lt; 0</code>, we need
+     to evaluate it and store the result (0 or 1) in a temp.  The IR
+     represents this as <code>IR_LT dst, src1, src2</code>.  Here's how
+     we lower it to assembly:</p>
+
+  <pre><code><span class="cm">; IR: LT  t3 = t1, t2   (t3 = t1 &lt; t2, as 0 or 1)</span>
+<span class="ins">mov</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 16]</span>  <span class="cm">; load t1</span>
+<span class="ins">cmp</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 24]</span>  <span class="cm">; compare with t2 (sets flags)</span>
+<span class="ins">setl</span>  <span class="reg">al</span>                      <span class="cm">; al = 1 if rax &lt; [t2], else al = 0</span>
+<span class="ins">movzx</span> <span class="reg">rax</span>, <span class="reg">al</span>                 <span class="cm">; zero-extend byte result to 64 bits</span>
+<span class="ins">mov</span>   <span class="op">qword [rbp - 32]</span>, <span class="reg">rax</span>  <span class="cm">; store result into t3's slot</span></code></pre>
+
+  <p>Let's break down the non-obvious parts:</p>
+
+  <div class="box cyan">
+    <div class="box-title">cmp rax, [memory]</div>
+    <p><code>cmp a, b</code> computes <code>a - b</code> and sets the CPU flags
+       (Carry, Zero, Sign, Overflow) but discards the result.
+       The flags capture the relationship between a and b.</p>
+  </div>
+
+  <div class="box green">
+    <div class="box-title">set* al</div>
+    <p>The <code>set*</code> family reads the flags and writes a single byte
+       (0 or 1) into a byte register.  <code>al</code> is the low byte of
+       <code>rax</code>.  Available variants:</p>
+    <table>
+      <thead><tr><th>Instruction</th><th>Condition</th><th>C equivalent</th></tr></thead>
+      <tbody>
+        <tr><td>setl</td><td>Less than (signed)</td><td>&lt;</td></tr>
+        <tr><td>setg</td><td>Greater than (signed)</td><td>&gt;</td></tr>
+        <tr><td>setle</td><td>Less-or-equal (signed)</td><td>&lt;=</td></tr>
+        <tr><td>setge</td><td>Greater-or-equal (signed)</td><td>&gt;=</td></tr>
+        <tr><td>sete</td><td>Equal (zero flag)</td><td>==</td></tr>
+        <tr><td>setne</td><td>Not equal</td><td>!=</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="box gold">
+    <div class="box-title">movzx rax, al</div>
+    <p><code>movzx</code> (move with zero-extension) copies <code>al</code>
+       (8 bits, value 0 or 1) into <code>rax</code> (64 bits), filling the
+       upper 56 bits with zeros.</p>
+    <p style="margin-top:10px;">Without this step, <code>rax</code> might have garbage in
+       the upper bytes, which would break subsequent arithmetic.</p>
+  </div>
+
+  <p>The full pattern for each comparison IR op:</p>
+
+  <div class="compare">
+    <div class="compare-col left">
+      <h4>IR Opcode</h4>
+      <pre><code>IR_LT   dst, s1, s2
+IR_GT   dst, s1, s2
+IR_LEQ  dst, s1, s2
+IR_GEQ  dst, s1, s2
+IR_EQ   dst, s1, s2
+IR_NEQ  dst, s1, s2</code></pre>
+    </div>
+    <div class="compare-col right">
+      <h4>x86-64 set* used</h4>
+      <pre><code>setl   al
+setg   al
+setle  al
+setge  al
+sete   al
+setne  al</code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────── SECTION 05 ─────────────────────────── -->
+<div class="section" id="s05">
+  <div class="section-label">Section 05</div>
+  <h2>Run It — Assembly Output for <code>abs_val</code></h2>
+
+  <p>After running <code>make run</code>, the compiler emits a
+     <code>sample11.asm</code> file.  Here's the annotated assembly for
+     <code>abs_val</code>, showing every branch instruction in context:</p>
+
+  <pre><code><span class="kw">global</span> abs_val
+<span class="lbl">abs_val:</span>
+    <span class="ins">push</span>  <span class="reg">rbp</span>
+    <span class="ins">mov</span>   <span class="reg">rbp</span>, <span class="reg">rsp</span>
+    <span class="ins">sub</span>   <span class="reg">rsp</span>, <span class="num">128</span>              <span class="cm">; reserve frame (rounded to 16 bytes)</span>
+
+    <span class="cm">; save parameter x (rdi) into its stack slot</span>
+    <span class="ins">mov</span>   <span class="op">qword [rbp - 8]</span>, <span class="reg">rdi</span>
+
+    <span class="cm">; t1 = x</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 8]</span>
+    <span class="ins">mov</span>   <span class="op">qword [rbp - 16]</span>, <span class="reg">rax</span>
+
+    <span class="cm">; t2 = 0</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="num">0</span>
+    <span class="ins">mov</span>   <span class="op">qword [rbp - 24]</span>, <span class="reg">rax</span>
+
+    <span class="cm">; t3 = (t1 &lt; t2)  →  x &lt; 0</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 16]</span>
+    <span class="ins">cmp</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 24]</span>
+    <span class="ins">setl</span>  <span class="reg">al</span>
+    <span class="ins">movzx</span> <span class="reg">rax</span>, <span class="reg">al</span>
+    <span class="ins">mov</span>   <span class="op">qword [rbp - 32]</span>, <span class="reg">rax</span>
+
+    <span class="cm">; JUMPZ: if condition (t3) is zero (false), jump to .L0 (else branch)</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 32]</span>
+    <span class="ins">test</span>  <span class="reg">rax</span>, <span class="reg">rax</span>
+    <span class="ins">jz</span>    .L0
+
+    <span class="cm">; ── then branch: return 0 - x ──</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="num">0</span>
+    <span class="ins">mov</span>   <span class="op">qword [rbp - 40]</span>, <span class="reg">rax</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 8]</span>
+    <span class="ins">mov</span>   <span class="op">qword [rbp - 48]</span>, <span class="reg">rax</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 40]</span>
+    <span class="ins">sub</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 48]</span>
+    <span class="ins">mov</span>   <span class="op">qword [rbp - 56]</span>, <span class="reg">rax</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 56]</span>  <span class="cm">; return value</span>
+    <span class="ins">mov</span>   <span class="reg">rsp</span>, <span class="reg">rbp</span>
+    <span class="ins">pop</span>   <span class="reg">rbp</span>
+    <span class="ins">ret</span>
+
+    <span class="cm">; unconditional jump past else branch</span>
+    <span class="ins">jmp</span>   .L1
+
+<span class="lbl">.L0:</span>                           <span class="cm">; else branch</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 8]</span>
+    <span class="ins">mov</span>   <span class="op">qword [rbp - 64]</span>, <span class="reg">rax</span>
+    <span class="ins">mov</span>   <span class="reg">rax</span>, <span class="op">qword [rbp - 64]</span>  <span class="cm">; return x</span>
+    <span class="ins">mov</span>   <span class="reg">rsp</span>, <span class="reg">rbp</span>
+    <span class="ins">pop</span>   <span class="reg">rbp</span>
+    <span class="ins">ret</span>
+
+<span class="lbl">.L1:</span>                           <span class="cm">; end of if/else</span>
+    <span class="cm">; fallthrough return 0</span>
+    <span class="ins">xor</span>   <span class="reg">rax</span>, <span class="reg">rax</span>
+    <span class="ins">mov</span>   <span class="reg">rsp</span>, <span class="reg">rbp</span>
+    <span class="ins">pop</span>   <span class="reg">rbp</span>
+    <span class="ins">ret</span></code></pre>
+
+  <div class="box green">
+    <div class="box-title">Local Labels (.L0, .L1, …)</div>
+    <p>In NASM, labels starting with <code>.</code> are <em>local</em> — they
+       are scoped to the nearest preceding global label (<code>abs_val</code>
+       in this case).  This means <code>.L0</code> inside <code>abs_val</code>
+       and <code>.L0</code> inside <code>sum_to</code> are completely different
+       labels and never conflict.  It's also why they can't collide with
+       user function names, which are always declared globally without a dot.</p>
+  </div>
+
+  <p>To run the complete pipeline and see the exit code:</p>
+  <pre><code>make assemble
+<span class="cm"># Expected output:</span>
+<span class="cm"># exit code: 50   (abs_val(-5)=5, sum_to(10)=45, 5+45=50)</span></code></pre>
+</div>
+
+<!-- ─────────────────────────── SECTION 06 BRAIN ─────────────────────────── -->
+<div class="section" id="s06">
+  <div class="brain">
+    <div class="brain-title">
+      <span class="brain-emoji">🧠</span>
+      Brain Exercise
+    </div>
+
+    <p><strong>The Question:</strong></p>
+    <p>IR_JUMPZ jumps when <code>src1</code> is <strong>zero</strong> (false).
+       But in C, an <code>if</code> statement executes the then-branch when the
+       condition is <strong>true</strong> (non-zero).  These are opposite!</p>
+    <p style="margin-top:12px;">So how does irgen bridge this gap?  Why does the
+       generated IR use <code>JUMPZ</code> to handle an <code>if</code> statement
+       whose condition is true?  Doesn't that jump in the wrong direction?</p>
+
+    <details>
+      <summary>Think about it, then reveal the answer</summary>
+      <div class="answer">
+        <p><strong>irgen inverts the structure of the jump.</strong></p>
+        <p style="margin-top:12px;">Instead of "jump INTO the then-branch when true,"
+           irgen generates "jump OVER the then-branch when false."</p>
+        <p style="margin-top:12px;">The then-branch is placed <em>immediately after</em>
+           the condition check, so no jump is needed when the condition is true —
+           execution just falls through.  The JUMPZ is emitted to skip past the
+           then-branch to the else label when the condition IS false (zero).</p>
+        <pre style="margin-top:12px;"><code>  t = condition
+  JUMPZ t, Lelse      ; jump OVER then when condition is FALSE
+  &lt;then stmts&gt;        ; reached by FALL-THROUGH when condition is TRUE
+  JUMP  Lend
+Lelse:
+  &lt;else stmts&gt;
+Lend:</code></pre>
+        <p style="margin-top:12px;">This is the canonical pattern used by virtually
+           every C compiler.  The key insight: <em>the then-branch never needs a
+           jump to reach it</em>.  Only the else-branch and the end need labels,
+           because those are positions you jump TO, not fall into.</p>
+        <p style="margin-top:12px;">If you tried to use "jump when true" instead,
+           you'd need to jump into the then-branch (placing it out of order) or
+           use a NOT instruction to flip the condition — both are more complicated
+           and produce worse code.</p>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- ─────────────────────────── SECTION 07 Q&A ─────────────────────────── -->
+<div class="section" id="s07">
+  <div class="section-label">Section 07</div>
+  <h2>Q &amp; A</h2>
+
+  <div class="qa-item">
+    <div class="question">
+      <span class="q-num">Q1</span>
+      <span>What happens at runtime if a function has no explicit <code>return</code>
+      statement?  Does our compiler handle it?</span>
+    </div>
+    <p>In C, reaching the end of a non-void function without a return is
+       undefined behavior.  Our compiler handles it gracefully by emitting
+       a <em>fallthrough return</em> at the end of every function:</p>
+    <pre><code><span class="ins">xor</span>   <span class="reg">rax</span>, <span class="reg">rax</span>   <span class="cm">; rax = 0 (return 0)</span>
+<span class="ins">mov</span>   <span class="reg">rsp</span>, <span class="reg">rbp</span>
+<span class="ins">pop</span>   <span class="reg">rbp</span>
+<span class="ins">ret</span></code></pre>
+    <p>This is after all IR instructions, so it's only reached if no
+       <code>IR_RETURN</code> was executed.  It prevents a crash, but the
+       return value (0) is arbitrary.  A production compiler would warn about
+       this at the semantic analysis stage.</p>
+  </div>
+
+  <div class="qa-item">
+    <div class="question">
+      <span class="q-num">Q2</span>
+      <span>Why does the frame size get rounded up to a multiple of 16?</span>
+    </div>
+    <p>The <strong>System V AMD64 ABI</strong> (the Linux calling convention)
+       requires that <code>rsp</code> must be <strong>16-byte aligned</strong>
+       immediately before any <code>call</code> instruction.  When our function
+       is called, <code>push rbp</code> decrements <code>rsp</code> by 8 bytes
+       (to save the old rbp).  If we then subtract an odd multiple of 8 from rsp,
+       the result won't be aligned to 16.  Rounding the frame size up to the
+       next multiple of 16 ensures alignment is always maintained.</p>
+    <p>Misaligned rsp causes a <code>SIGBUS</code> (on some CPUs) or
+       performance penalties when SSE/AVX instructions access the stack.</p>
+  </div>
+
+  <div class="qa-item">
+    <div class="question">
+      <span class="q-num">Q3</span>
+      <span>Could we use <code>cmp rax, 0</code> + <code>je</code> instead of
+      <code>test rax, rax</code> + <code>jz</code>?  Would the assembly work
+      identically?</span>
+    </div>
+    <p>Yes, it would produce <strong>identical runtime behavior</strong>.
+       Both sequences:</p>
+    <div class="compare">
+      <div class="compare-col left">
+        <h4>Our approach (preferred)</h4>
+        <pre><code>test rax, rax
+jz   .L0</code></pre>
+      </div>
+      <div class="compare-col right">
+        <h4>Alternative (also correct)</h4>
+        <pre><code>cmp rax, 0
+je  .L0</code></pre>
+      </div>
+    </div>
+    <p>…set the Zero Flag identically and branch identically.
+       We prefer <code>test rax, rax</code> because it's 4 bytes shorter
+       (no 32-bit immediate needed), uses idiomatic x86 style, and the
+       choice of <code>jz</code> communicates "this is a zero-test" rather
+       than "this is an equality comparison."</p>
+  </div>
+
+  <div class="qa-item">
+    <div class="question">
+      <span class="q-num">Q4</span>
+      <span>What would need to change to support <code>break</code> and
+      <code>continue</code> inside <code>while</code> loops?</span>
+    </div>
+    <p>We'd need to track the <em>loop end label</em> and <em>loop test label</em>
+       in the code generator's context as we descend into loop bodies:</p>
+    <ul style="margin: 12px 0 12px 24px; line-height: 2.2;">
+      <li><code>break</code> → emit <code>IR_JUMP Lend</code>
+          (where <code>Lend</code> is the label after the loop).</li>
+      <li><code>continue</code> → emit <code>IR_JUMP Ltest</code>
+          (where <code>Ltest</code> is the condition-check label at the top).</li>
+    </ul>
+    <p>In irgen, this means passing <code>lend_id</code> and <code>ltest_id</code>
+       down through the statement generator whenever we enter a while loop.
+       In the parser, <code>break</code> and <code>continue</code> would become
+       new AST node kinds (<code>AST_BREAK</code>, <code>AST_CONTINUE</code>).
+       Nested loops would use a stack of label pairs.</p>
+  </div>
+</div>
+
+<!-- ─────────────────────────── SECTION 08 NEXT ─────────────────────────── -->
+<div class="section" id="s08">
+  <div class="section-label">Section 08</div>
+  <h2>What's Next</h2>
+
+  <div class="box purple">
+    <div class="box-title">Module 12 — Function Calls and the Calling Convention</div>
+    <p>We've been emitting <code>call foo</code> and using <code>rdi/rsi/rdx</code>
+       for arguments, but Module 12 goes deep on <em>why</em> those registers
+       and what happens when you have more than 6 arguments, or when a function
+       calls itself recursively, or when you mix your compiled code with system
+       library functions.</p>
+    <p style="margin-top:12px;">Topics in Module 12:</p>
+    <ul style="margin-top:8px; margin-left:20px; line-height:2.2;">
+      <li>The System V AMD64 ABI in detail — caller-saved vs callee-saved registers.</li>
+      <li>Stack argument passing for functions with more than 6 parameters.</li>
+      <li>Why we don't need to save <code>rbx</code>, <code>r12</code>–<code>r15</code>
+          right now, and when we will.</li>
+      <li>Calling C standard library functions (<code>printf</code>, <code>exit</code>)
+          from generated code.</li>
+      <li>Recursive function calls and why our frame setup already handles them correctly.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ─────────────────────────── FOOTER NAV ─────────────────────────── -->
+<div class="footer-nav">
+  <a href="#">← Module 10: Basic Code Generation</a>
+  <a href="#">Module 12: The Calling Convention →</a>
+</div>
+
+</div><!-- /container -->
+</body>
+</html>
