@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 07 — Semantic Analysis | Bob's Compiler</title>
+<style>
+  /* ── Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a2e;
+    color: #e0e0f0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 18px;
+    line-height: 1.75;
+  }
+
+  /* ── Layout ── */
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* ── Navigation ── */
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: #16213e;
+    border-bottom: 3px solid #e94560;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+  }
+  nav a {
+    color: #e94560;
+    text-decoration: none;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+  }
+  nav a:hover { text-decoration: underline; }
+  nav .mod-title { color: #a0c4ff; }
+
+  /* ── Chapter headings ── */
+  h1 {
+    font-size: 2.6rem;
+    color: #e94560;
+    margin: 2rem 0 0.5rem;
+    line-height: 1.2;
+  }
+  h2 {
+    font-size: 1.7rem;
+    color: #a0c4ff;
+    margin: 3rem 0 0.75rem;
+    border-left: 5px solid #e94560;
+    padding-left: 0.75rem;
+  }
+  h3 {
+    font-size: 1.2rem;
+    color: #ffd166;
+    margin: 2rem 0 0.5rem;
+  }
+
+  /* ── Prose ── */
+  p { margin-bottom: 1.1rem; }
+  strong { color: #ffd166; }
+  em { color: #a0c4ff; font-style: normal; font-weight: bold; }
+
+  /* ── Analogy box ── */
+  .analogy {
+    background: #16213e;
+    border: 2px solid #e94560;
+    border-radius: 10px;
+    padding: 1.5rem 2rem;
+    margin: 2rem 0;
+    position: relative;
+  }
+  .analogy::before {
+    content: "🎬 ANALOGY";
+    position: absolute;
+    top: -0.75rem;
+    left: 1.5rem;
+    background: #e94560;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 0.1rem 0.6rem;
+    border-radius: 4px;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── Info / note box ── */
+  .note {
+    background: #0f3460;
+    border-left: 5px solid #a0c4ff;
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+
+  /* ── Warning box ── */
+  .warning {
+    background: #3a1a00;
+    border-left: 5px solid #ffd166;
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .warning::before {
+    content: "⚠ ";
+    color: #ffd166;
+  }
+
+  /* ── Code blocks ── */
+  pre {
+    background: #0d0d1a;
+    border: 1px solid #333366;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    overflow-x: auto;
+    margin: 1.25rem 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  code {
+    font-family: 'Courier New', monospace;
+    background: #111133;
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #a0c4ff;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+    color: #c9d1e0;
+  }
+
+  /* Syntax highlight helpers inside <pre> */
+  .kw  { color: #e94560; font-weight: bold; }
+  .cm  { color: #5a7a6a; font-style: italic; }
+  .str { color: #ffd166; }
+  .fn  { color: #a0c4ff; }
+  .num { color: #06d6a0; }
+  .err { color: #ef233c; background: #3a0010; border-radius: 3px; padding: 0 3px; }
+
+  /* ── Brain Exercise ── */
+  .brain {
+    background: #1a0a2e;
+    border: 2px dashed #9b5de5;
+    border-radius: 10px;
+    padding: 1.5rem 2rem;
+    margin: 2.5rem 0;
+  }
+  .brain h3 {
+    color: #9b5de5;
+    margin-top: 0;
+  }
+  .brain h3::before { content: "🧠 "; }
+
+  /* ── Q&A ── */
+  .qa {
+    margin: 1.5rem 0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .qa-q {
+    background: #16213e;
+    border-left: 5px solid #e94560;
+    padding: 0.9rem 1.25rem;
+    font-weight: bold;
+    color: #ffd166;
+  }
+  .qa-q::before { content: "Q: "; color: #e94560; }
+  .qa-a {
+    background: #0f1a30;
+    border-left: 5px solid #06d6a0;
+    padding: 0.9rem 1.25rem;
+  }
+  .qa-a::before { content: "A: "; color: #06d6a0; font-weight: bold; }
+
+  /* ── Step list ── */
+  .steps { list-style: none; counter-reset: steps; margin: 1rem 0 1.5rem 0; }
+  .steps li {
+    counter-increment: steps;
+    margin-bottom: 0.75rem;
+    padding-left: 2.5rem;
+    position: relative;
+  }
+  .steps li::before {
+    content: counter(steps);
+    position: absolute;
+    left: 0;
+    top: 0.1rem;
+    width: 1.8rem;
+    height: 1.8rem;
+    background: #e94560;
+    color: #fff;
+    border-radius: 50%;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Two-pass diagram ── */
+  .diagram {
+    background: #0d0d1a;
+    border: 1px solid #333366;
+    border-radius: 10px;
+    padding: 2rem;
+    margin: 2rem 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    text-align: center;
+    line-height: 2;
+  }
+  .diagram .box {
+    display: inline-block;
+    background: #16213e;
+    border: 2px solid #a0c4ff;
+    border-radius: 6px;
+    padding: 0.4rem 1.2rem;
+    margin: 0.2rem 0.4rem;
+    color: #e0e0f0;
+  }
+  .diagram .box.red { border-color: #e94560; }
+  .diagram .box.green { border-color: #06d6a0; }
+  .diagram .arrow { color: #ffd166; font-size: 1.2rem; }
+  .diagram .label { color: #a0c4ff; font-size: 0.8rem; margin-top: 0.3rem; }
+
+  /* ── Error sample ── */
+  .error-output {
+    background: #1a0000;
+    border: 1px solid #ef233c;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88rem;
+    line-height: 1.8;
+    margin: 1.25rem 0;
+  }
+  .error-line { color: #ef233c; }
+  .ok-line { color: #06d6a0; }
+
+  /* ── Divider ── */
+  hr {
+    border: none;
+    border-top: 2px solid #333366;
+    margin: 3rem 0;
+  }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    color: #555577;
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #222244;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Navigation ── -->
+<nav>
+  <a href="../module_06%20-%20Parser%20-%20Functions/tutorial.html">← Module 06</a>
+  <span class="mod-title">Module 07 — Semantic Analysis</span>
+  <a href="../module_08%20-%20IR%20Generation/tutorial.html">Module 08 →</a>
+</nav>
+
+<div class="page">
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h1>Module 07<br>Semantic Analysis</h1>
+<p><em>The Script Doctor who finds plot holes in your code before the audience does.</em></p>
+
+<!-- ─── Section 1: The Big Picture ─── -->
+<h2>1. What Is Semantic Analysis?</h2>
+
+<div class="analogy">
+  <p>Imagine a film crew that has just finished writing a storyboard — every panel drawn, every scene blocked out, every line of dialogue written down.  The <strong>Script Doctor</strong> now reads the whole storyboard from start to finish, not to check spelling or grammar (that was the parser's job), but to look for <em>plot holes</em>:</p>
+  <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+    <li>"In scene 3 you reference a character named Marcus — but Marcus was never introduced!"</li>
+    <li>"In scene 7 you call the prop master with three requests, but the prop department only accepts two."</li>
+    <li>"You wrote this scene as a comedy but then killed the main character — inconsistent tone!"</li>
+  </ul>
+  <p style="margin-top:0.75rem;">The Script Doctor does <em>not</em> rewrite the storyboard; they just produce a list of problems.  Our <strong>semantic analyser</strong> does exactly the same thing to the AST.</p>
+</div>
+
+<p>By the time we reach semantic analysis:</p>
+<ul style="margin:0 0 1rem 1.5rem;">
+  <li>The source text has been <strong>tokenised</strong> (Module 03).</li>
+  <li>The tokens have been <strong>parsed</strong> into an AST (Modules 05–06).</li>
+</ul>
+<p>The AST is <em>syntactically valid</em> — it has the right shape — but it may still reference names that don't exist, or call functions with the wrong number of arguments.  Those are <strong>semantic</strong> errors: the structure is fine but the meaning is broken.</p>
+
+<div class="note">
+  <strong>Key insight:</strong> The parser can tell you that <code>x = foo(1, 2, 3);</code> is syntactically correct (it follows the grammar).  Only the semantic analyser can tell you that <code>foo</code> was defined to take two parameters, not three.
+</div>
+
+<!-- ─── Section 2: What We Check ─── -->
+<h2>2. The Three Things We Verify</h2>
+
+<p>Our simplified language has only <code>int</code> variables and functions, which means we only need to verify three families of property:</p>
+
+<h3>2.1 Variable Declaration Before Use</h3>
+<p>Every variable (every bare name that is not a function call) must have been declared with <code>int x;</code> before it is read or assigned.  Using an undeclared variable is the most common beginner mistake:</p>
+<pre><code><span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    x = <span class="num">5</span>;  <span class="cm">// ERROR — x was never declared</span>
+    <span class="kw">return</span> x;
+}</code></pre>
+
+<h3>2.2 Function Call Validity</h3>
+<p>Every call site must reference a <em>known</em> function, and the number of arguments at the call must exactly match the number of parameters in the definition:</p>
+<pre><code><span class="kw">int</span> <span class="fn">add</span>(<span class="kw">int</span> a, <span class="kw">int</span> b) { <span class="kw">return</span> a + b; }
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="kw">int</span> r;
+    r = <span class="fn">add</span>(<span class="num">1</span>);        <span class="cm">// ERROR — add wants 2 args, got 1</span>
+    r = <span class="fn">mystery</span>(<span class="num">1</span>);  <span class="cm">// ERROR — mystery is not defined</span>
+    <span class="kw">return</span> r;
+}</code></pre>
+
+<h3>2.3 No Duplicate Declarations in the Same Scope</h3>
+<p>You cannot declare the same variable name twice in the same scope:</p>
+<pre><code><span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="kw">int</span> x;
+    <span class="kw">int</span> x;  <span class="cm">// ERROR — x is already declared here</span>
+    <span class="kw">return</span> x;
+}</code></pre>
+
+<!-- ─── Section 3: Two-Pass Algorithm ─── -->
+<h2>3. The Two-Pass Algorithm</h2>
+
+<p>Here is the key problem: a function might be <em>called</em> before it is <em>defined</em> in the file (think of <code>main</code> calling <code>multiply</code> which is defined further down).  A single-pass walk would see the call before it has recorded the function's definition — and flag it as an error incorrectly.</p>
+
+<p>We solve this with <strong>two passes</strong> over the AST:</p>
+
+<div class="diagram">
+  <div>
+    <span class="box red">AST_PROGRAM</span>
+    <span class="arrow">↓</span>
+  </div>
+  <div style="margin:0.5rem 0;">
+    <span class="box">Pass 1: collect all function names &amp; param counts</span>
+  </div>
+  <div style="margin:0.4rem 0; font-size:0.8rem; color:#a0c4ff;">
+    builds: <code>FuncEntry funcs[]</code> in SemaCtx
+  </div>
+  <div style="margin:1rem 0;">
+    <span class="arrow">↓</span>
+  </div>
+  <div style="margin:0.5rem 0;">
+    <span class="box green">Pass 2: walk each function body — check variables &amp; calls</span>
+  </div>
+  <div style="margin:0.4rem 0; font-size:0.8rem; color:#a0c4ff;">
+    uses: <code>SymTab</code> (scope stack) + <code>FuncEntry funcs[]</code>
+  </div>
+</div>
+
+<h3>Pass 1 in code</h3>
+<pre><code><span class="cm">/* In check_node for AST_PROGRAM: */</span>
+<span class="cm">/* Pass 1 */</span>
+<span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n-&gt;nargs; i++) {
+    Node *fn = n-&gt;args[i];
+    <span class="kw">if</span> (fn &amp;&amp; fn-&gt;kind == AST_FUNC)
+        <span class="fn">register_func</span>(ctx, fn-&gt;sval, fn-&gt;nargs);
+}
+<span class="cm">/* Pass 2 */</span>
+<span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n-&gt;nargs; i++)
+    <span class="fn">check_node</span>(ctx, st, n-&gt;args[i]);</code></pre>
+
+<p>After pass 1 we know <em>every</em> function name and how many parameters it takes.  Pass 2 can then validate call sites from any function, regardless of source order.</p>
+
+<!-- ─── Section 4: The Scope Stack ─── -->
+<h2>4. Tracking Variables with a Scope Stack</h2>
+
+<p>Variables in C are <em>scoped</em>: a variable declared inside an <code>if</code> block is not visible outside it.  We track this with a <strong>scope stack</strong>:</p>
+
+<ul style="margin:0 0 1rem 1.5rem;">
+  <li>Entering a function → <strong>push</strong> a parameter scope, seed it with parameter names.</li>
+  <li>Entering a block <code>{ }</code> → <strong>push</strong> a new scope.</li>
+  <li>Seeing <code>int x;</code> → <strong>define</strong> <code>x</code> in the current (top) scope.</li>
+  <li>Seeing a bare name <code>x</code> → <strong>lookup</strong> from the top scope downward.</li>
+  <li>Leaving a block → <strong>pop</strong> its scope; all names in it vanish.</li>
+</ul>
+
+<pre><code><span class="cm">/* symtab.h API */</span>
+<span class="kw">void</span> <span class="fn">symtab_push_scope</span>(SymTab *st);          <span class="cm">// open a new level</span>
+<span class="kw">void</span> <span class="fn">symtab_pop_scope</span> (SymTab *st);          <span class="cm">// close the current level</span>
+<span class="kw">int</span>  <span class="fn">symtab_define</span>   (SymTab *st, <span class="kw">const</span> <span class="kw">char</span> *name); <span class="cm">// 0=duplicate</span>
+<span class="kw">int</span>  <span class="fn">symtab_lookup</span>   (SymTab *st, <span class="kw">const</span> <span class="kw">char</span> *name); <span class="cm">// 0=not found</span></code></pre>
+
+<div class="note">
+  <strong>Why two scopes per function?</strong><br>
+  The parameter scope is pushed <em>before</em> entering the body block.  The body block's <code>{ }</code> then pushes a <em>second</em> scope on top.  This means a local variable with the same name as a parameter is a duplicate in the inner scope — which is exactly what C compilers report.
+</div>
+
+<!-- ─── Section 5: Walking the AST ─── -->
+<h2>5. Walking the AST — Node by Node</h2>
+
+<p>The central function is <code>check_node(ctx, st, n)</code>.  It is a big <code>switch</code> on <code>n-&gt;kind</code>.  Here are the interesting cases:</p>
+
+<h3>AST_IDENT — bare variable reference</h3>
+<pre><code><span class="kw">case</span> AST_IDENT:
+    <span class="kw">if</span> (!<span class="fn">symtab_lookup</span>(st, n-&gt;sval))
+        <span class="fn">SEMA_ERR</span>(ctx, n-&gt;line,
+                 <span class="str">"'%s' used before declaration"</span>, n-&gt;sval);
+    <span class="kw">break</span>;</code></pre>
+
+<h3>AST_CALL — function call</h3>
+<pre><code><span class="kw">case</span> AST_CALL: {
+    FuncEntry *fe = <span class="fn">lookup_func</span>(ctx, n-&gt;sval);
+    <span class="kw">if</span> (!fe) {
+        <span class="fn">SEMA_ERR</span>(ctx, n-&gt;line,
+                 <span class="str">"call to undefined function '%s'"</span>, n-&gt;sval);
+    } <span class="kw">else if</span> (n-&gt;nargs != fe-&gt;nparams) {
+        <span class="fn">SEMA_ERR</span>(ctx, n-&gt;line,
+                 <span class="str">"'%s' called with %d args but defined with %d"</span>,
+                 n-&gt;sval, n-&gt;nargs, fe-&gt;nparams);
+    }
+    <span class="fn">check_args</span>(ctx, st, n-&gt;args, n-&gt;nargs); <span class="cm">// still check args</span>
+    <span class="kw">break</span>;
+}</code></pre>
+
+<h3>AST_BLOCK — new scope</h3>
+<pre><code><span class="kw">case</span> AST_BLOCK:
+    <span class="fn">symtab_push_scope</span>(st);
+    <span class="fn">check_args</span>(ctx, st, n-&gt;args, n-&gt;nargs);
+    <span class="fn">symtab_pop_scope</span>(st);
+    <span class="kw">break</span>;</code></pre>
+
+<!-- ─── Section 6: Running the Samples ─── -->
+<h2>6. Running the Samples</h2>
+
+<h3>Clean program: <code>sample.c</code></h3>
+<pre><code><span class="kw">int</span> <span class="fn">multiply</span>(<span class="kw">int</span> a, <span class="kw">int</span> b) {
+    <span class="kw">return</span> a * b;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="kw">int</span> x;
+    <span class="kw">int</span> result;
+    x = <span class="num">6</span>;
+    result = <span class="fn">multiply</span>(x, <span class="num">7</span>);
+    <span class="kw">if</span> (result &gt; <span class="num">40</span>) {
+        <span class="kw">return</span> result;
+    } <span class="kw">else</span> {
+        <span class="kw">return</span> <span class="num">0</span>;
+    }
+}</code></pre>
+
+<div class="error-output">
+  <span class="ok-line">$ ./sema sample.c</span><br>
+  <span class="ok-line">semantic check passed</span>
+</div>
+
+<h3>Broken program: <code>sample_bad.c</code></h3>
+<pre><code><span class="kw">int</span> <span class="fn">foo</span>(<span class="kw">int</span> a) {
+    <span class="kw">return</span> <span class="err">b</span>;         <span class="cm">// ERROR: b is not declared</span>
+}
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="kw">int</span> x;
+    x = <span class="fn">foo</span>(<span class="num">1</span>, <span class="num">2</span>);   <span class="cm">// ERROR: foo takes 1 arg, not 2</span>
+    <span class="kw">return</span> <span class="err">y</span>;         <span class="cm">// ERROR: y is not declared</span>
+}</code></pre>
+
+<div class="error-output">
+  <span class="ok-line">$ ./sema sample_bad.c</span><br>
+  <span class="error-line">sema error: 'b' used before declaration (line 2)</span><br>
+  <span class="error-line">sema error: 'foo' called with 2 args but defined with 1 (line 7)</span><br>
+  <span class="error-line">sema error: 'y' used before declaration (line 8)</span><br>
+  <span class="ok-line">3 semantic errors</span>
+</div>
+
+<p>Notice that we found <strong>all three errors in one run</strong>.  We didn't stop after the first one.</p>
+
+<!-- ─── Section 7: Brain Exercise ─── -->
+<h2>7. Brain Exercises</h2>
+
+<div class="brain">
+  <h3>Brain Exercise 1 — Duplicate function names</h3>
+  <p>What happens if two functions in the same file have the same name?</p>
+  <pre><code><span class="kw">int</span> <span class="fn">add</span>(<span class="kw">int</span> a, <span class="kw">int</span> b) { <span class="kw">return</span> a + b; }
+<span class="kw">int</span> <span class="fn">add</span>(<span class="kw">int</span> x)         { <span class="kw">return</span> x + <span class="num">1</span>; }</code></pre>
+  <p>In Pass 1, <code>register_func</code> checks the function table before inserting.  If the name already exists it prints:</p>
+  <div class="error-output">
+    <span class="error-line">sema error: function 'add' defined more than once</span>
+  </div>
+  <p>The <em>first</em> definition's parameter count stays in the table.  This means call sites checked in Pass 2 are validated against the first definition.  A production compiler would also mark the original definition's location in the error — a useful improvement for a later module.</p>
+</div>
+
+<div class="brain">
+  <h3>Brain Exercise 2 — Nested blocks</h3>
+  <p>Consider this code:</p>
+  <pre><code><span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="kw">int</span> x;
+    x = <span class="num">10</span>;
+    <span class="kw">if</span> (x &gt; <span class="num">5</span>) {
+        <span class="kw">int</span> y;   <span class="cm">// y is only visible inside this if-block</span>
+        y = x + <span class="num">1</span>;
+    }
+    <span class="kw">return</span> <span class="err">y</span>;  <span class="cm">// ERROR — y is out of scope here</span>
+}</code></pre>
+  <p>Draw the scope stack at each point and trace through <code>symtab_lookup</code>.  Why does the lookup for <code>y</code> in the <code>return</code> statement fail?</p>
+  <p><em>Answer:</em> when the if-block's <code>AST_BLOCK</code> node is processed, its scope is pushed, <code>y</code> is defined, and then the scope is popped before returning to the outer level.  When the <code>return y</code> statement is checked, the stack only contains the outer scopes where <code>y</code> was never defined.</p>
+</div>
+
+<!-- ─── Section 8: Q&amp;A ─── -->
+<h2>8. Questions &amp; Answers</h2>
+
+<div class="qa">
+  <div class="qa-q">Why don't we stop at the first error?</div>
+  <div class="qa-a">Because fixing one error, recompiling, finding the next error, and repeating is exhausting.  We want to hand the programmer a complete list.  The cost is that some later errors may be <em>caused</em> by an earlier one (e.g. if <code>x</code> is undeclared, every use of <code>x</code> will also error), but that's a small price for seeing everything at once.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">What if a function has no return statement?  Do we catch that?</div>
+  <div class="qa-a">Not in this module.  Verifying that every execution path through a function reaches a <code>return</code> requires building a <em>control-flow graph</em> — that's a bigger analysis step we save for a later module.  For now, if a function falls off the end, the compiler silently allows it (just like early versions of C).</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">Why does the scope stack push twice per function (once for parameters, once for the body block)?</div>
+  <div class="qa-a">The <code>AST_BLOCK</code> handler always pushes a scope when it enters a block.  The body <code>{ }</code> is an <code>AST_BLOCK</code>, so it pushes one level.  But parameters must be visible <em>inside</em> that block, so they need to live in an enclosing scope.  We push a parameter scope in <code>AST_FUNC</code> before walking the body, giving parameters a scope that wraps the body scope.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">Could we add type checking later without rewriting sema.c?</div>
+  <div class="qa-a">Yes.  The logical extension is to attach a <code>Type</code> field to each <code>Node</code> and fill it in during the semantic walk (type <em>synthesis</em>).  Then binary-expression nodes can verify that both operands have compatible types (type <em>checking</em>).  The walk structure in <code>check_node</code> would stay the same; we'd just add type propagation logic inside each case.  That is planned for when we add pointers.</div>
+</div>
+
+<hr>
+
+<h2>Recap — What Module 07 Built</h2>
+
+<ol class="steps">
+  <li><strong>symtab.c</strong> — a scope-stack symbol table with push/pop/define/lookup</li>
+  <li><strong>sema.h / sema.c</strong> — two-pass semantic analyser:
+    <ul style="margin:0.3rem 0 0 1.2rem;">
+      <li>Pass 1 collects all function signatures into <code>SemaCtx.funcs[]</code></li>
+      <li>Pass 2 walks every function body with a live <code>SymTab</code>, emitting errors as it goes</li>
+    </ul>
+  </li>
+  <li>Errors are <strong>accumulated</strong>, not aborted — all errors printed before exit</li>
+  <li><strong>main.c</strong> exits with code 0 on success, 1 on any error</li>
+  <li><code>sample.c</code> passes cleanly; <code>sample_bad.c</code> produces exactly three errors</li>
+</ol>
+
+<div class="note">
+  <strong>Next up — Module 08:</strong> now that we know the AST is <em>semantically correct</em>, we can generate intermediate code.  The next module introduces a simple three-address code (TAC) IR and shows how to lower our AST expressions into flat instruction sequences.
+</div>
+
+</div><!-- .page -->
+
+<footer>
+  Bob's Compiler Course &mdash; Module 07 &mdash; Semantic Analysis<br>
+  Built with C11 &bull; -Wall -Wextra -Werror &bull; no libraries beyond libc
+</footer>
+
+</body>
+</html>
