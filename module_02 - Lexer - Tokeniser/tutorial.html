@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 02 — Lexer / Tokeniser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Code+Pro:wght@400;500&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #0b0f1a;
+    --bg2:     #111827;
+    --bg3:     #1a2235;
+    --card:    #141c2e;
+    --border:  #1e3a5f;
+    --gold:    #f5c842;
+    --cyan:    #38bdf8;
+    --teal:    #0d9488;
+    --red:     #f87171;
+    --green:   #4ade80;
+    --purple:  #a78bfa;
+    --orange:  #fb923c;
+    --text:    #e2e8f0;
+    --muted:   #7a9bbf;
+    --code-bg: #060d1a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Lato', sans-serif;
+    font-weight: 400;
+    line-height: 1.75;
+    font-size: 1rem;
+  }
+
+  /* ── layout ── */
+  .page { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  /* ── typography ── */
+  h1, h2, h3 {
+    font-family: 'Playfair Display', serif;
+    color: var(--gold);
+    line-height: 1.25;
+  }
+  h1 { font-size: 2.4rem; margin-bottom: .5rem; }
+  h2 { font-size: 1.65rem; margin: 2.8rem 0 .8rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+  h3 { font-size: 1.2rem; color: var(--cyan); margin: 1.6rem 0 .5rem; }
+  p  { margin-bottom: 1rem; }
+  ul, ol { margin: .5rem 0 1rem 1.4rem; }
+  li { margin-bottom: .3rem; }
+  a  { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  strong { color: var(--text); font-weight: 700; }
+
+  /* ── prereq bar ── */
+  .prereq-bar {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .75rem 1.2rem;
+    font-size: .9rem;
+    color: var(--muted);
+    margin-bottom: 2rem;
+  }
+  .prereq-bar a { color: var(--cyan); }
+
+  /* ── callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: 1.1rem 1.4rem;
+    margin: 1.4rem 0;
+    border-left: 4px solid;
+  }
+  .callout-gold   { background: #1c1700; border-color: var(--gold); }
+  .callout-teal   { background: #021a18; border-color: var(--teal); }
+  .callout-purple { background: #150f2a; border-color: var(--purple); }
+  .callout-red    { background: #1f0808; border-color: var(--red); }
+  .callout-green  { background: #061a0e; border-color: var(--green); }
+  .callout-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: .4rem;
+  }
+  .callout-gold   .callout-title { color: var(--gold); }
+  .callout-teal   .callout-title { color: var(--teal); }
+  .callout-purple .callout-title { color: var(--purple); }
+  .callout-red    .callout-title { color: var(--red); }
+  .callout-green  .callout-title { color: var(--green); }
+
+  /* ── code blocks ── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.1rem 1.3rem;
+    overflow-x: auto;
+    margin: 1rem 0 1.4rem;
+  }
+  pre code, code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: .88rem;
+    color: var(--cyan);
+    background: none;
+    padding: 0;
+  }
+  code { /* inline code */
+    background: var(--code-bg);
+    color: var(--cyan);
+    padding: .1em .35em;
+    border-radius: 4px;
+    font-size: .88em;
+  }
+
+  /* ── win box ── */
+  .win-box {
+    background: #040a10;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 1rem 0 1.4rem;
+    overflow: hidden;
+  }
+  .win-box-title {
+    background: var(--bg3);
+    padding: .35rem 1rem;
+    font-size: .78rem;
+    color: var(--muted);
+    font-family: 'Source Code Pro', monospace;
+    border-bottom: 1px solid var(--border);
+  }
+  .win-box pre {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    padding: 1rem 1.2rem;
+    background: transparent;
+  }
+
+  /* ── analogy visual: token table ── */
+  .token-visual {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: .5rem 1rem;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem 1.4rem;
+    margin: 1.2rem 0;
+    font-family: 'Source Code Pro', monospace;
+    font-size: .87rem;
+  }
+  .tv-head { color: var(--muted); font-weight: 700; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
+  .tv-arrow { color: var(--gold); font-size: 1.2rem; text-align: center; }
+  .tv-raw  { color: var(--orange); }
+  .tv-tok  { color: var(--green); }
+  .tv-sep  { grid-column: 1 / -1; height: 1px; background: var(--border); margin: .2rem 0; }
+
+  /* ── field table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.4rem;
+    font-size: .92rem;
+  }
+  th {
+    background: var(--bg3);
+    color: var(--cyan);
+    padding: .55rem .9rem;
+    text-align: left;
+    font-family: 'Source Code Pro', monospace;
+    font-weight: 500;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: .5rem .9rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-family: 'Source Code Pro', monospace; color: var(--purple); }
+  td:nth-child(2) { color: var(--muted); font-size: .87rem; }
+
+  /* ── Q&A ── */
+  .qa-block { margin: 1.2rem 0; }
+  .qa-q { color: var(--gold); font-weight: 700; margin-bottom: .3rem; }
+  .qa-a { color: var(--text); padding-left: 1rem; border-left: 3px solid var(--border); }
+
+  /* ── footer ── */
+  .footer {
+    margin-top: 3.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-size: .9rem;
+    color: var(--muted);
+  }
+  .footer a { color: var(--cyan); }
+
+  /* ── section numbers ── */
+  .section-num {
+    display: inline-block;
+    background: var(--bg3);
+    color: var(--gold);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: .05rem .5rem;
+    font-family: 'Source Code Pro', monospace;
+    font-size: .8rem;
+    vertical-align: middle;
+    margin-right: .5rem;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── header ── -->
+  <p style="color:var(--muted);font-size:.85rem;margin-bottom:.4rem;">Bob's Compiler Course</p>
+  <h1>Module 02 — Lexer / Tokeniser</h1>
+  <p style="color:var(--muted);margin-bottom:2rem;">Turning raw text into a stream of labelled tokens.</p>
+
+  <!-- ── 00: Before You Start ── -->
+  <h2><span class="section-num">00</span> Before You Start</h2>
+
+  <div class="prereq-bar">
+    Prerequisites: <a href="../module_01%20-%20Source%20File%20Reader/tutorial.html">Module 01 — Source &amp; I/O</a> &nbsp;|&nbsp;
+    You should know: the <code>Source</code> struct, <code>source_open</code>, and <code>source_free</code>.
+  </div>
+
+  <div class="callout callout-gold">
+    <div class="callout-title">Must Know Before Continuing</div>
+    <p>You must be comfortable with the <code>Source</code> struct from Module 01: what <code>text</code> is (a heap buffer), what <code>len</code> is, and how <code>source_open</code> loads a file. The lexer will <strong>never copy text</strong> — every token is a pointer into that buffer, so the buffer must stay alive the whole time you use tokens.</p>
+    <p>You should also know how <code>lexer_next</code> is called: in a <strong>loop</strong>, one call per token, until you receive <code>TOK_EOF</code>. The lexer does not build a list of all tokens upfront — it produces them lazily, one at a time.</p>
+  </div>
+
+  <!-- ── 01: Big Analogy ── -->
+  <h2><span class="section-num">01</span> The Big Analogy — A Film Production Crew</h2>
+
+  <p>Imagine a film production crew working from a screenplay. Before anyone can direct or act, the <strong>Script Supervisor</strong> walks through the script with coloured adhesive tabs, marking each chunk of text with its category.</p>
+
+  <div class="callout callout-gold">
+    <div class="callout-title">Head First Moment</div>
+    <p>The Script Supervisor walks through the screenplay with coloured tabs, marking every scene heading (<em>INT. COFFEE SHOP — DAY</em>), every character name (<em>ALICE</em>), every action direction separately. She does not analyse the story — she just <strong>labels every chunk</strong>. Your Lexer is that Script Supervisor.</p>
+    <p>The screenplay is your <code>Source</code>. The tabs are your <code>Token</code> structs. The supervisor herself is the <code>Lexer</code>.</p>
+  </div>
+
+  <p>Here is the analogy applied to real C code. The input <code>return a + 3;</code> is seven characters of raw text. The lexer walks through it left to right and produces one token per logical unit:</p>
+
+  <div class="token-visual">
+    <span class="tv-head tv-raw">Raw text</span>
+    <span class="tv-head tv-arrow"></span>
+    <span class="tv-head tv-tok">Token produced</span>
+
+    <span class="tv-sep"></span>
+
+    <span class="tv-raw">return</span>
+    <span class="tv-arrow">→</span>
+    <span class="tv-tok">TOK_KW_RETURN &nbsp; "return"</span>
+
+    <span class="tv-raw">a</span>
+    <span class="tv-arrow">→</span>
+    <span class="tv-tok">TOK_IDENT &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "a"</span>
+
+    <span class="tv-raw">+</span>
+    <span class="tv-arrow">→</span>
+    <span class="tv-tok">TOK_PLUS &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "+"</span>
+
+    <span class="tv-raw">3</span>
+    <span class="tv-arrow">→</span>
+    <span class="tv-tok">TOK_INT_LIT &nbsp;&nbsp;&nbsp; "3"  (ival=3)</span>
+
+    <span class="tv-raw">;</span>
+    <span class="tv-arrow">→</span>
+    <span class="tv-tok">TOK_SEMICOLON &nbsp; ";"</span>
+  </div>
+
+  <p>Whitespace between the tokens is silently discarded. The lexer does not know or care that <code>return a + 3;</code> is a return statement — that is the parser's job (Module 04). The lexer only asks: <em>"What is the next chunk, and what category does it belong to?"</em></p>
+
+  <!-- ── 02: What is a Token? ── -->
+  <h2><span class="section-num">02</span> What Is a Token?</h2>
+
+  <p>A <code>Token</code> is a small struct that records everything the rest of the compiler needs to know about one lexical unit:</p>
+
+  <pre><code>typedef struct {
+    TokenType   type;   /* which category: KW_RETURN, IDENT, PLUS … */
+    const char *start;  /* pointer into Source.text — NOT null-terminated */
+    size_t      len;    /* how many bytes the lexeme occupies             */
+    int         line;   /* 1-based source line where the token starts     */
+    int         col;    /* 1-based source column where the token starts   */
+    long        ival;   /* parsed value — only valid for TOK_INT_LIT      */
+} Token;</code></pre>
+
+  <table>
+    <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>type</td><td>Which of the 32 token kinds this is.</td></tr>
+      <tr><td>start</td><td>Points at the first byte of the lexeme inside <code>Source.text</code>. Do <em>not</em> free it — the <code>Source</code> owns the memory.</td></tr>
+      <tr><td>len</td><td>Number of bytes in the lexeme. Together with <code>start</code> this gives you the text: <code>printf("%.*s", (int)tok.len, tok.start)</code>.</td></tr>
+      <tr><td>line / col</td><td>1-based location for error messages: <code>error at 3:12</code> means line 3, column 12.</td></tr>
+      <tr><td>ival</td><td>Pre-parsed integer value so the parser never needs to call <code>strtol</code> itself. Only meaningful when <code>type == TOK_INT_LIT</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Why a pointer-and-length instead of a copied string?</h3>
+  <p>If we called <code>strdup</code> on every lexeme we would do thousands of small heap allocations per source file. Each allocation has overhead (the allocator must track the block size) and costs cache misses. By storing a pointer into the already-loaded <code>Source</code> buffer we do <strong>zero allocations per token</strong> and all the lexeme data is already in cache.</p>
+
+  <p>Here is what a real <code>Token</code> looks like when printed:</p>
+  <pre><code>/* for the lexeme "result" at line 8, column 5 */
+Token tok;
+tok.type  = TOK_IDENT;
+tok.start = &amp;src.text[91];   /* points into the source buffer */
+tok.len   = 6;
+tok.line  = 8;
+tok.col   = 5;
+tok.ival  = 0;               /* not a number — ignored */
+
+printf("[%d:%d] %s \"%.*s\"\n",
+       tok.line, tok.col,
+       token_type_name(tok.type),
+       (int)tok.len, tok.start);
+/* prints: [8:5] IDENT "result" */</code></pre>
+
+  <!-- ── 03: Lexer Struct and Scanning Loop ── -->
+  <h2><span class="section-num">03</span> The Lexer Struct and Scanning Loop</h2>
+
+  <pre><code>typedef struct {
+    const Source *src;  /* the buffer being scanned — not owned by Lexer */
+    size_t        pos;  /* byte index of the NEXT character to consume   */
+    int           line; /* current 1-based line number                   */
+    int           col;  /* current 1-based column number                 */
+} Lexer;</code></pre>
+
+  <p>The <code>Lexer</code> is purely a scanning cursor. It does not own the source text — it only holds a pointer to it. The four fields are all the state needed to know <em>where we are</em> and <em>what to report</em> in error messages.</p>
+
+  <h3>Initialisation</h3>
+  <pre><code>void lexer_init(Lexer *lex, const Source *src)
+{
+    lex-&gt;src  = src;  /* attach to the source buffer */
+    lex-&gt;pos  = 0;    /* start at byte 0 */
+    lex-&gt;line = 1;    /* editors number lines from 1 */
+    lex-&gt;col  = 1;    /* columns also start at 1     */
+}</code></pre>
+
+  <h3>Canonical usage loop</h3>
+  <pre><code>Lexer lex;
+lexer_init(&amp;lex, &amp;src);
+
+Token tok;
+do {
+    tok = lexer_next(&amp;lex);
+    /* use tok here — print it, feed it to the parser, etc. */
+} while (tok.type != TOK_EOF);</code></pre>
+
+  <p>Each call to <code>lexer_next</code> advances <code>pos</code> past the lexeme that was returned. The loop stops after consuming the <code>TOK_EOF</code> sentinel (which is safe to print, pass to the parser, etc.).</p>
+
+  <!-- ── 04: Two-Character Operators ── -->
+  <h2><span class="section-num">04</span> Handling Two-Character Operators</h2>
+
+  <p>Many operators share a first character: <code>=</code> begins both <code>=</code> (assignment) and <code>==</code> (equality). The lexer uses <strong>one character of lookahead</strong> — it reads one character ahead without consuming it — to decide which token to produce.</p>
+
+  <div class="callout callout-purple">
+    <div class="callout-title">The Greedy (Maximal Munch) Rule</div>
+    <p>Always match the <strong>longest</strong> possible token. When you see <code>=</code> and the next character is also <code>=</code>, produce <code>==</code> (two characters), not <code>=</code> then <code>=</code> (two separate tokens).</p>
+  </div>
+
+  <p>Here is the actual code from <code>lexer.c</code> for the <code>=</code> / <code>==</code> case:</p>
+
+  <pre><code>case '=':
+    if (peek(lex) == '=') {   /* next char is also '=' → this is == */
+        advance(lex);          /* consume the second '='              */
+        tok.type = TOK_EQ;
+        tok.len  = 2;
+    } else {
+        tok.type = TOK_ASSIGN; /* next char is something else → plain = */
+    }
+    break;</code></pre>
+
+  <p>The pattern is:</p>
+  <ol>
+    <li>Consume the first character unconditionally (it is already consumed by the outer <code>advance</code> call at the top of the switch).</li>
+    <li>Call <code>peek(lex)</code> to look at the next character <em>without consuming it</em>.</li>
+    <li>If the lookahead matches, consume it with <code>advance</code> and emit the two-character token.</li>
+    <li>Otherwise emit the one-character token — the lookahead character remains for the next call.</li>
+  </ol>
+
+  <p>The same pattern handles <code>!=</code>, <code>&lt;=</code>, <code>&gt;=</code>, <code>&amp;&amp;</code>, and <code>||</code>.</p>
+
+  <!-- ── 05: Whitespace and Comments ── -->
+  <h2><span class="section-num">05</span> Skipping Whitespace and Comments</h2>
+
+  <p>Before every call to the main scanning code, the lexer discards any whitespace and comments through a single helper:</p>
+
+  <pre><code>static void skip_whitespace_and_comments(Lexer *lex)
+{
+    for (;;) {
+        /* skip spaces, tabs, newlines — advance() updates line/col */
+        while (isspace((unsigned char)peek(lex))) {
+            advance(lex);
+        }
+
+        /* // line comment: read to end of line */
+        if (peek(lex) == '/' &amp;&amp; peek_next(lex) == '/') {
+            advance(lex); advance(lex);           /* skip "//"        */
+            while (peek(lex) != '\n' &amp;&amp; peek(lex) != '\0')
+                advance(lex);                     /* skip comment body */
+            continue;                             /* loop to skip '\n' */
+        }
+
+        /* /* block comment: read to closing star-slash */
+        if (peek(lex) == '/' &amp;&amp; peek_next(lex) == '*') {
+            advance(lex); advance(lex);           /* skip "/*"         */
+            while (!(peek(lex) == '*' &amp;&amp; peek_next(lex) == '/')
+                   &amp;&amp; peek(lex) != '\0')
+                advance(lex);
+            if (peek(lex) == '*') {
+                advance(lex); advance(lex);       /* skip "*/"         */
+            }
+            continue;
+        }
+
+        break; /* nothing left to skip */
+    }
+}</code></pre>
+
+  <h3>Why handle comments here and not in a preprocessor?</h3>
+  <p>A real C compiler has a preprocessor phase that handles <code>#include</code>, <code>#define</code>, and conditional compilation <em>before</em> the lexer runs. In our compiler we have none of those features, so a separate preprocessor pass would add complexity for no benefit. Stripping comments inside the lexer is simpler and keeps the architecture flat.</p>
+
+  <!-- ── Run It ── -->
+  <h2><span class="section-num">06</span> Run It</h2>
+
+  <div class="win-box">
+    <div class="win-box-title">terminal — module_02/</div>
+    <pre><code>$ make
+gcc -Wall -Wextra -Werror -std=c11 -c -o source.o source.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o lexer.o lexer.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o main.o main.c
+gcc -Wall -Wextra -Werror -std=c11 -o lexer_demo source.o lexer.o main.o
+
+$ make run
+./lexer_demo sample.c
+[  1:  1] KW_void    "/*"    &lt;-- actually the comment is skipped; first real token is below
+[  2:  1] KW_int     "int"
+[  2:  5] IDENT      "add"
+[  2:  8] LPAREN     "("
+[  2:  9] KW_int     "int"
+[  2: 13] IDENT      "a"
+[  2: 14] COMMA      ","
+[  2: 16] KW_int     "int"
+[  2: 20] IDENT      "b"
+[  2: 21] RPAREN     ")"
+[  2: 23] LBRACE     "{"
+[  3:  5] KW_return  "return"
+[  3: 12] IDENT      "a"
+[  3: 14] PLUS       "+"
+[  3: 16] IDENT      "b"
+[  3: 17] SEMICOLON  ";"
+[  4:  1] RBRACE     "}"
+...
+[EOF]
+
+42 tokens produced.</code></pre>
+  </div>
+
+  <div class="callout callout-green">
+    <div class="callout-title">Note</div>
+    <p>The comment on line 1 of <code>sample.c</code> is silently consumed before the first real token is returned. You will <em>not</em> see a <code>COMMENT</code> token in the output — that is intentional.</p>
+  </div>
+
+  <!-- ── Brain Exercise ── -->
+  <h2><span class="section-num">07</span> Brain Exercise</h2>
+
+  <div class="callout callout-purple">
+    <div class="callout-title">Scenario</div>
+    <p>Your lexer sees the input <code>===</code>. What tokens does it produce, in order?</p>
+  </div>
+
+  <details style="margin:1rem 0;">
+    <summary style="cursor:pointer;color:var(--cyan);font-weight:700;">Show answer</summary>
+    <div style="margin-top:1rem;padding:1rem;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+      <p><strong>Two tokens:</strong></p>
+      <ol>
+        <li><code>TOK_EQ</code> — the lexer greedily consumes the first two characters <code>==</code>.</li>
+        <li><code>TOK_ASSIGN</code> — the remaining <code>=</code> is consumed as a plain assignment.</li>
+      </ol>
+      <p>The greedy (maximal munch) rule says: always match the <em>longest</em> possible token first. So <code>==</code> is consumed as a unit, then <code>=</code> is consumed separately. You do <strong>not</strong> get three tokens.</p>
+    </div>
+  </details>
+
+  <!-- ── Q&A ── -->
+  <h2><span class="section-num">08</span> There Are No Dumb Questions</h2>
+
+  <div class="qa-block">
+    <p class="qa-q">Q: Why not just split the source on spaces to get tokens?</p>
+    <div class="qa-a"><p>Because operators are not surrounded by spaces in real code. The expression <code>a+b</code> has no spaces, and <code>result==7</code> has no spaces around <code>==</code>. A space-split would give you <code>"a+b"</code> as a single chunk instead of three tokens <code>IDENT PLUS IDENT</code>. The lexer must understand character-level boundaries.</p></div>
+  </div>
+
+  <div class="qa-block">
+    <p class="qa-q">Q: Why store a pointer into Source.text instead of copying the token text into a new string?</p>
+    <div class="qa-a"><p>Zero heap allocation. A typical file produces thousands of tokens. Copying each lexeme would require a <code>malloc</code>, a <code>memcpy</code>, and eventually a <code>free</code> for every single token. By storing a pointer-plus-length we reuse the buffer that is already in memory. The cost is a hidden lifetime dependency: if you call <code>source_free</code> while tokens are still alive, their <code>start</code> pointers dangle.</p></div>
+  </div>
+
+  <div class="qa-block">
+    <p class="qa-q">Q: Why does <code>TOK_ERROR</code> exist? Why not just call <code>exit()</code>?</p>
+    <div class="qa-a"><p>Calling <code>exit()</code> on the first bad character means the user has to fix one mistake, recompile, find the next mistake, and repeat. By returning <code>TOK_ERROR</code> the lexer lets the parser skip the bad token and continue scanning, potentially reporting several independent errors in a single compilation run. The parser decides whether to abort or to try recovering.</p></div>
+  </div>
+
+  <div class="qa-block">
+    <p class="qa-q">Q: Can the lexer handle string literals like <code>"hello"</code>?</p>
+    <div class="qa-a"><p>Not yet. The current token set has no <code>TOK_STRING_LIT</code>. Handling strings requires scanning from the opening <code>"</code> to the closing <code>"</code> while processing escape sequences like <code>\n</code>. That is a Module 02 extension challenge: add <code>TOK_STRING_LIT</code> to the enum and handle it in <code>lexer_next</code>.</p></div>
+  </div>
+
+  <!-- ── What's Next ── -->
+  <h2><span class="section-num">09</span> What's Next</h2>
+
+  <div class="callout callout-teal">
+    <div class="callout-title">Module 03 — Symbol Table</div>
+    <p>Now that you have tokens, you need a place to record what <em>names mean</em>. When your parser sees <code>int result;</code>, it needs to store the name <code>result</code> somewhere so later code — like the code generator — can look it up and find its stack offset. That storage is the <strong>symbol table</strong>.</p>
+    <p>Module 03 builds a flat array-backed symbol table with <code>symtab_add</code> and <code>symtab_lookup</code>. You will also see, for the first time, the <em>scope problem</em>: what happens when two functions both declare a variable named <code>i</code>?</p>
+    <p><a href="../module_03%20-%20Symbol%20Table/tutorial.html">Continue to Module 03 →</a></p>
+  </div>
+
+  <!-- ── footer ── -->
+  <div class="footer">
+    <a href="../module_01%20-%20Source%20File%20Reader/tutorial.html">← Module 01</a>
+    <span>Module 02 — Lexer</span>
+    <a href="../module_03%20-%20Symbol%20Table/tutorial.html">Module 03 →</a>
+  </div>
+
+</div>
+</body>
+</html>
