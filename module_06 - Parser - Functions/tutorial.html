@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 06 — Parser: Functions</title>
+<style>
+  :root {
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --border:   #30363d;
+    --text:     #c9d1d9;
+    --muted:    #8b949e;
+    --accent:   #58a6ff;
+    --green:    #3fb950;
+    --yellow:   #d29922;
+    --red:      #f85149;
+    --purple:   #bc8cff;
+    --orange:   #ffa657;
+    --code-bg:  #1f2428;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 2rem; color: var(--accent); margin-bottom: 0.25rem; }
+  h2 { font-size: 1.4rem; color: var(--accent); margin: 2.5rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+  h3 { font-size: 1.1rem; color: var(--orange); margin: 1.5rem 0 0.5rem; }
+  p  { margin-bottom: 1rem; }
+  a  { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* prereq bar */
+  .prereq-bar {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 2rem;
+    align-items: center;
+  }
+  .prereq-bar span { color: var(--muted); font-size: 0.85rem; margin-right: 0.5rem; }
+  .prereq-bar a {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 0.2rem 0.6rem; font-size: 0.85rem;
+    color: var(--accent);
+  }
+
+  /* code blocks */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto;
+    margin: 1rem 0; font-size: 0.88rem; line-height: 1.6;
+  }
+  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+  p code, li code {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 0.1rem 0.35rem; font-size: 0.87em;
+  }
+
+  /* call-out boxes */
+  .box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px; padding: 1rem 1.25rem; margin: 1.25rem 0;
+  }
+  .box.green  { border-left-color: var(--green);  }
+  .box.yellow { border-left-color: var(--yellow); }
+  .box.red    { border-left-color: var(--red);    }
+  .box.purple { border-left-color: var(--purple); }
+
+  /* annotation diagram */
+  .func-diagram {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.5rem; margin: 1.25rem 0;
+    font-family: monospace; font-size: 0.92rem; position: relative;
+    overflow-x: auto;
+  }
+  .func-diagram .line { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+  .func-diagram .tok-ret   { color: var(--purple); }
+  .func-diagram .tok-name  { color: var(--green);  }
+  .func-diagram .tok-paren { color: var(--muted);  }
+  .func-diagram .tok-param { color: var(--orange); }
+  .func-diagram .tok-body  { color: var(--accent); }
+  .func-diagram .arrow-row {
+    display: flex; gap: 0; font-size: 0.78rem; color: var(--yellow);
+    margin-top: 0.4rem; flex-wrap: wrap;
+  }
+  .func-diagram .arrow-cell { min-width: 80px; text-align: center; }
+
+  /* two-column table */
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid var(--border); padding: 0.6rem 0.85rem; text-align: left; font-size: 0.9rem; }
+  th { background: var(--surface); color: var(--accent); }
+  td:first-child { font-family: monospace; color: var(--green); }
+
+  /* inline highlight spans */
+  .kw  { color: var(--purple); }
+  .id  { color: var(--green);  }
+  .lit { color: var(--orange); }
+  .cm  { color: var(--muted);  font-style: italic; }
+
+  /* Q&A */
+  details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0.75rem 0; }
+  summary { padding: 0.75rem 1rem; cursor: pointer; color: var(--accent); font-weight: 600; list-style: none; }
+  summary::before { content: "▶ "; font-size: 0.8em; }
+  details[open] summary::before { content: "▼ "; }
+  details .answer { padding: 0 1rem 1rem; }
+
+  /* footer */
+  footer {
+    margin-top: 3rem; padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between;
+    font-size: 0.9rem; color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Module 06 — Parser: Functions</h1>
+<p style="color:var(--muted)">Parsing complete function definitions and assembling a full program AST.</p>
+
+<!-- SECTION 00: Prereqs -->
+<div class="prereq-bar">
+  <span>Prerequisites:</span>
+  <a href="../module_01%20-%20Source%20File%20Reader/tutorial.html">01 Source</a>
+  <a href="../module_02%20-%20Lexer%20-%20Tokeniser/tutorial.html">02 Lexer</a>
+  <a href="../module_03%20-%20Symbol%20Table/tutorial.html">03 SymTab</a>
+  <a href="../module_04%20-%20Parser%20-%20Expressions/tutorial.html">04 AST</a>
+  <a href="../module_05%20-%20Parser%20-%20Statements/tutorial.html">05 Parser Stmts</a>
+</div>
+
+<!-- SECTION 01: Big Analogy -->
+<h2>Section 01 — The Screenplay Analyst</h2>
+
+<p>In Module 05, our <strong>Script Analyst</strong> was reading individual <em>scenes</em> — statements and expressions inside a single function. Now she reads the whole <strong>screenplay</strong>.</p>
+
+<p>A screenplay is made of multiple <strong>acts</strong>. Each act has:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>A <strong>title</strong> — the function name</li>
+  <li>A <strong>cast list</strong> — the parameters</li>
+  <li>A sequence of <strong>scenes</strong> — the body statements</li>
+</ul>
+
+<p><code>parse_program</code> walks the whole screenplay, handing each act to <code>parse_function</code>. <code>parse_function</code> reads one act — the return type, the name, the cast list, and the body.</p>
+
+<div class="func-diagram">
+  <div class="line">
+    <span class="tok-ret">int</span>
+    <span class="tok-name">add</span>
+    <span class="tok-paren">(</span>
+    <span class="tok-param">int a, int b</span>
+    <span class="tok-paren">)</span>
+    <span class="tok-body">{ return a + b; }</span>
+  </div>
+  <div class="arrow-row">
+    <div class="arrow-cell">↑<br>return type<br><em style="color:var(--muted)">op='i'</em></div>
+    <div class="arrow-cell">↑<br>func name<br><em style="color:var(--muted)">sval</em></div>
+    <div class="arrow-cell" style="min-width:120px">↑<br>parameters<br><em style="color:var(--muted)">args[] of VAR_DECL</em></div>
+    <div class="arrow-cell" style="min-width:150px">↑<br>body block<br><em style="color:var(--muted)">right → AST_BLOCK</em></div>
+  </div>
+</div>
+
+<!-- SECTION 02: Grammar -->
+<h2>Section 02 — Grammar for Functions</h2>
+
+<pre><code>program     = function*
+
+function    = ('int' | 'void') IDENT '(' param_list ')' block
+
+param_list  = ( type IDENT (',' type IDENT)* )?
+            | 'void'                         /* zero-parameter marker */
+
+type        = 'int' | 'void'
+
+block       = '{' stmt* '}'</code></pre>
+
+<p>In plain English:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>A <strong>program</strong> is zero or more function definitions, one after another.</li>
+  <li>A <strong>function</strong> starts with a return type (<code>int</code> or <code>void</code>), followed by the function name, then a parenthesised parameter list, then a block body.</li>
+  <li>A <strong>param_list</strong> is either empty, a single <code>void</code> (meaning no parameters — the C99 convention), or a comma-separated list of <code>type name</code> pairs.</li>
+  <li>Parameters are just variable declarations without initialisers. We reuse <code>AST_VAR_DECL</code> for them.</li>
+</ul>
+
+<div class="box yellow">
+  <strong>Note on void parameters:</strong> <code>int f(void)</code> and <code>int f()</code> both mean "zero parameters" in our language. We detect the <code>(void)</code> case by peeking: if <em>current</em> is <code>void</code> and <em>next</em> is <code>)</code>, we consume the <code>void</code> and set <code>nargs = 0</code>.
+</div>
+
+<!-- SECTION 03: parse_function -->
+<h2>Section 03 — <code>parse_function</code> Implementation</h2>
+
+<pre><code><span class="cm">/* parse_function: parse one function definition.
+ * Returns an AST_FUNC node. */</span>
+Node *parse_function(Parser *p) {
+    int line = p-&gt;current.line;
+
+    <span class="cm">/* Step 1 — Return type */</span>
+    char ret_type;
+    <span class="kw">if</span> (check(p, TOK_KW_INT)) {
+        ret_type = <span class="lit">'i'</span>;          <span class="cm">/* 'i' = int return */</span>
+        advance(p);
+    } <span class="kw">else if</span> (check(p, TOK_KW_VOID)) {
+        ret_type = <span class="lit">'v'</span>;          <span class="cm">/* 'v' = void return */</span>
+        advance(p);
+    } <span class="kw">else</span> {
+        error(...); ret_type = <span class="lit">'i'</span>;  <span class="cm">/* recover */</span>
+    }
+
+    <span class="cm">/* Step 2 — Function name */</span>
+    Token name_tok = p-&gt;current;
+    expect(p, TOK_IDENT, <span class="lit">"function name"</span>);
+
+    Node *func = node_new(AST_FUNC, line);
+    func-&gt;sval = my_strndup(name_tok.start, name_tok.len); <span class="cm">/* heap-copy */</span>
+    func-&gt;op   = ret_type;      <span class="cm">/* store return type as char */</span>
+
+    <span class="cm">/* Step 3 — Parameter list */</span>
+    expect(p, TOK_LPAREN, <span class="lit">"'('"</span>);
+
+    func-&gt;args  = malloc(cap * <span class="kw">sizeof</span>(Node *));
+    func-&gt;nargs = 0;
+
+    <span class="cm">/* (void) means zero params */</span>
+    <span class="kw">if</span> (check(p, TOK_KW_VOID) &amp;&amp; p-&gt;next.type == TOK_RPAREN) {
+        advance(p);           <span class="cm">/* consume 'void', nargs stays 0 */</span>
+    } <span class="kw">else if</span> (!check(p, TOK_RPAREN)) {
+        <span class="kw">do</span> {
+            int param_line = p-&gt;current.line;
+            advance(p);       <span class="cm">/* consume type keyword */</span>
+            Token pname = p-&gt;current;
+            expect(p, TOK_IDENT, <span class="lit">"parameter name"</span>);
+
+            Node *param = node_new(AST_VAR_DECL, param_line);
+            param-&gt;sval = my_strndup(pname.start, pname.len);
+            param-&gt;left = NULL;  <span class="cm">/* no initialiser */</span>
+
+            func-&gt;args[func-&gt;nargs++] = param;  <span class="cm">/* append param */</span>
+        } <span class="kw">while</span> (match(p, TOK_COMMA));   <span class="cm">/* loop on ',' */</span>
+    }
+
+    expect(p, TOK_RPAREN, <span class="lit">"')'"</span>);
+
+    <span class="cm">/* Step 4 — Body */</span>
+    func-&gt;right = parse_block(p);   <span class="cm">/* brace-enclosed body */</span>
+
+    return func;
+}</code></pre>
+
+<p>Key points:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>The return type is encoded as a char in <code>node-&gt;op</code> — reusing an existing field.</li>
+  <li>Parameters are built as <code>AST_VAR_DECL</code> nodes with <code>left = NULL</code>.</li>
+  <li>We grow the <code>args[]</code> array dynamically with <code>realloc</code> when it fills up.</li>
+  <li>The <code>do { ... } while (match(TOK_COMMA))</code> loop elegantly handles one-or-more parameters with separating commas.</li>
+</ul>
+
+<!-- SECTION 04: parse_program -->
+<h2>Section 04 — <code>parse_program</code>: Looping Over Functions</h2>
+
+<pre><code>Node *parse_program(Parser *p) {
+    Node *prog = node_new(AST_PROGRAM, p-&gt;current.line);
+
+    prog-&gt;args  = malloc(cap * <span class="kw">sizeof</span>(Node *));
+    prog-&gt;nargs = 0;
+
+    <span class="cm">/* Keep parsing functions while we see a type keyword. */</span>
+    <span class="kw">while</span> (check(p, TOK_KW_INT) || check(p, TOK_KW_VOID)) {
+        prog-&gt;args[prog-&gt;nargs++] = parse_function(p);
+    }
+
+    <span class="cm">/* Warn if we stopped before EOF. */</span>
+    <span class="kw">if</span> (!check(p, TOK_EOF)) {
+        fprintf(stderr, <span class="lit">"warning: unexpected token at top level\n"</span>);
+    }
+
+    return prog;
+}</code></pre>
+
+<p>The loop condition <code>check(p, TOK_KW_INT) || check(p, TOK_KW_VOID)</code> is the natural gate for a language where every top-level construct starts with a type keyword. When we reach EOF (or any unexpected token), the loop exits and we return the collected program node.</p>
+
+<div class="box">
+  <strong>What happens at EOF?</strong> <code>check(p, TOK_EOF)</code> is false for both <code>TOK_KW_INT</code> and <code>TOK_KW_VOID</code>, so the loop naturally stops. We then check <code>check(p, TOK_EOF)</code> to decide whether to emit the "unexpected token" warning.
+</div>
+
+<!-- SECTION 05: Full AST -->
+<h2>Section 05 — The Complete AST for <code>sample.c</code></h2>
+
+<p>Running <code>./parser_func sample.c</code> produces this AST (abbreviated for readability):</p>
+
+<pre><code>=== AST for 'sample.c' ===
+
+PROGRAM (3 functions)
+  FUNC 'add' ret='i' (2 params)
+    VAR_DECL 'a'
+    VAR_DECL 'b'
+    body:
+      BLOCK (1 stmts)
+        RETURN
+          BINARY '+'
+            IDENT 'a'
+            IDENT 'b'
+  FUNC 'max' ret='i' (2 params)
+    VAR_DECL 'a'
+    VAR_DECL 'b'
+    body:
+      BLOCK (2 stmts)
+        IF
+          cond:
+            BINARY '&gt;'
+              IDENT 'a'
+              IDENT 'b'
+          then:
+            BLOCK (1 stmts)
+              RETURN
+                IDENT 'a'
+        RETURN
+          IDENT 'b'
+  FUNC 'main' ret='i' (0 params)
+    body:
+      BLOCK (4 stmts)
+        VAR_DECL 'x'
+        VAR_DECL 'y'
+        ASSIGN 'x'
+          CALL 'add' (2 args)
+            INT 3
+            INT 4
+        ASSIGN 'y'
+          CALL 'max' (2 args)
+            IDENT 'x'
+            INT 10
+        RETURN
+          IDENT 'y'
+
+Parsed 3 functions, had_error = 0</code></pre>
+
+<p>Walking through the tree:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>The root is <code>PROGRAM (3 functions)</code> — three <code>AST_FUNC</code> children.</li>
+  <li><code>FUNC 'add' ret='i' (2 params)</code> — name is <em>add</em>, returns int, has two params.</li>
+  <li>The params appear as <code>VAR_DECL 'a'</code> and <code>VAR_DECL 'b'</code> with no initialiser child.</li>
+  <li><code>body:</code> introduces the <code>AST_BLOCK</code> node. Each statement is a direct child.</li>
+  <li><code>FUNC 'main' ret='i' (0 params)</code> — the <code>(void)</code> parameter list was consumed as a zero-param marker.</li>
+  <li><code>CALL 'add' (2 args)</code> — the call node lists both arguments as children.</li>
+</ul>
+
+<!-- N+1: Run It -->
+<h2>Run It</h2>
+
+<pre><code>$ make
+gcc -Wall -Wextra -Werror -std=c11 -c -o source.o source.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o lexer.o lexer.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o symtab.o symtab.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o ast.o ast.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o parser.o parser.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o main.o main.c
+gcc -Wall -Wextra -Werror -std=c11 -o parser_func source.o lexer.o symtab.o ast.o parser.o main.o
+
+$ make run
+./parser_func sample.c
+=== AST for 'sample.c' ===
+
+PROGRAM (3 functions)
+  FUNC 'add' ret='i' (2 params)
+  ...
+Parsed 3 functions, had_error = 0</code></pre>
+
+<!-- N+2: Brain Exercise -->
+<h2>Brain Exercise</h2>
+
+<div class="box yellow">
+  <strong>Question:</strong> What happens if you write <code>x = add(1, 2, 3);</code> in the program — three arguments when <code>add</code> only takes two? Does the <em>parser</em> catch this?
+  <br><br>
+  <strong>Answer:</strong> <strong>No.</strong> The parser builds a <code>CALL 'add' (3 args)</code> node without complaint. The parser only knows about <em>syntax</em> — it doesn't know how many parameters <code>add</code> was defined with. Catching this mismatch requires <em>semantic analysis</em>, which looks up <code>add</code> in the function table and compares <code>nargs</code>. That's exactly what Module 07 implements.
+  <br><br>
+  The parser enforces <em>grammar rules</em> (commas between arguments, closing paren). The semantic analyser enforces <em>meaning rules</em> (right number of arguments, variables exist, types match).
+</div>
+
+<!-- N+3: Q&A -->
+<h2>Q &amp; A</h2>
+
+<details>
+  <summary>Why does <code>my_strndup</code> exist? Why not use the standard <code>strndup</code>?</summary>
+  <div class="answer">
+    <p><code>strndup</code> is a POSIX function, not part of the C11 standard. On Windows (MSVC, MinGW without glibc extensions) it may not be available. Writing <code>my_strndup</code> as a small wrapper around <code>malloc</code> + <code>memcpy</code> makes the code portable across platforms without needing feature-test macros or conditional compilation.</p>
+  </div>
+</details>
+
+<details>
+  <summary>Why is the return type stored in <code>node-&gt;op</code> rather than a dedicated field?</summary>
+  <div class="answer">
+    <p>The fat-node struct already has an <code>op</code> field used by <code>AST_BINARY</code> and <code>AST_UNARY</code>. An <code>AST_FUNC</code> node never uses <code>op</code> for an operator, so repurposing it for the return type avoids adding a new field to the struct. This is a pragmatic teaching-compiler shortcut. A production compiler would have a dedicated <code>TypeKind ret_type</code> field, or store a pointer to a type table entry.</p>
+  </div>
+</details>
+
+<details>
+  <summary>What would break if two functions had the same name?</summary>
+  <div class="answer">
+    <p>The parser would happily build two <code>AST_FUNC</code> nodes both with <code>sval = "foo"</code> and add them both to the program's <code>args[]</code>. The parser does not track names — it only builds the tree. Detecting duplicate function definitions is a semantic error, caught in Module 07 when we try to register <code>"foo"</code> in the function table for the second time.</p>
+  </div>
+</details>
+
+<details>
+  <summary>Could a function return type be something other than <code>int</code> or <code>void</code>?</summary>
+  <div class="answer">
+    <p>Not in our language, by design. The grammar only allows <code>int</code> or <code>void</code> as type keywords. If you extended the language with, say, <code>char</code> or pointer types, you would need to expand the <code>type</code> production and change the encoding — likely replacing the single <code>op</code> char with a proper <code>TypeKind</code> enum and a richer type-representation structure.</p>
+  </div>
+</details>
+
+<!-- N+4: What's Next -->
+<h2>What's Next — Module 07: Semantic Analysis</h2>
+
+<div class="box green">
+  <p>The parser built the full tree without checking whether names exist or whether argument counts match. <strong>Module 07 — Semantic Analysis</strong> walks that tree and reports real programming errors:</p>
+  <ul style="margin: 0.5rem 0 0 1.5rem;">
+    <li>Undefined variables (<code>return z;</code> when <code>z</code> was never declared)</li>
+    <li>Wrong argument count (<code>add(1, 2, 3)</code> when <code>add</code> takes two)</li>
+    <li>Redeclared variables in the same scope</li>
+    <li>Calls to undefined functions</li>
+  </ul>
+  <p style="margin-top:0.75rem">Module 07 introduces the <code>Sema</code> struct with a scope stack (an array of <code>SymTab</code>s) and a two-pass strategy: first collect all function signatures, then walk each function body checking expressions and statements.</p>
+</div>
+
+<footer>
+  <a href="../module_05%20-%20Parser%20-%20Statements/tutorial.html">← Module 05</a>
+  <span>Module 06 — Parser: Functions</span>
+  <a href="../module_07%20-%20Semantic%20Analysis/tutorial.html">Module 07 →</a>
+</footer>
+
+</div>
+</body>
+</html>
