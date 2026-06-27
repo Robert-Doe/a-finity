@@ -1,0 +1,38 @@
+# IDE
+.idea/
+
+# C build artifacts (compiler modules: gcc/nasm/make)
+*.o
+*.obj
+*.exe
+*.elf
+*.bin
+*.a
+*.so
+*.dll
+
+# Generic a.out / linker output — but keep the checked-in golden
+# expected-output fixtures under everything_parsing/**/expected/
+*.out
+!**/expected/*.out
+
+# Build logs captured from ad-hoc compiler runs
+compile_out.txt
+compile64_out.txt
+compile_msys.txt
+
+# Java build artifacts (everything_parsing Java tracks)
+*.class
+**/java/out/
+
+# Python (in case any tooling scripts are added later)
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
