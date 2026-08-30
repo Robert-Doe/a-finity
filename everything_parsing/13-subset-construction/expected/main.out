@@ -1,0 +1,26 @@
+=== Module 13 - Subset Construction: NFA -> DFA ===
+
+regex /(a|b)*abb/  ->  Thompson NFA (14 states, epsilon: true)  ->  subset-construction DFA (5 states)
+
+each DFA state is the SET of NFA states a run could be in:
+  D0   = {q0,q2,q4,q6,q7,q8}
+  D1   = {q0,q1,q10,q2,q4,q5,q7,q8,q9}
+  D2   = {q0,q2,q3,q4,q5,q7,q8}
+  D3   = {q0,q11,q12,q2,q3,q4,q5,q7,q8}
+  D4   = {q0,q13,q2,q3,q4,q5,q7,q8}   (accepting)
+
+L(NFA) up to length 7 == L(DFA):  true   (31 strings)
+  ...and == regex /(a|b)*abb/:  true
+
+exponential blow-up:  NFA "the k-th symbol from the end is 'a'" (over {a,b})
+    k  NFA states    DFA states    2^k
+    1  2             2             2   (matches 2^k)
+    2  3             4             4   (matches 2^k)
+    3  4             8             8   (matches 2^k)
+    4  5             16            16   (matches 2^k)
+    5  6             32            32   (matches 2^k)
+  spot-check k=3:  "abaa" (3rd from end = 'b')  DFA: reject   "baab" (3rd from end = 'a')  DFA: ACCEPT
+
+complete pipeline:  regex  ->  NFA (14)  ->  DFA (5)   -- and the DFA's language == the hand-written DFA from Module 10:  true
+
+summary: subset construction: DFA state = set of NFA states | L preserved (true) | worst case 2^k states (k-th-from-end), verified for k=1..5

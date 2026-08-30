@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 07 — The Chomsky Hierarchy &amp; Pumping Lemmas | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#8E3B6B;--accent-wash:#F3E5EE;--accent-line:#DEB9D0}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 07 · Part I — Foundations</p>
+  <h1>The Hierarchy &amp;<em>the Pumping Lemma</em></h1>
+  <p class="thesis">Grammars come in strength classes. A <b>regular</b> grammar
+  has a fixed, finite memory and provably cannot match <code>aⁿbⁿ</code>. A
+  <b>context-free</b> grammar can, but provably cannot match
+  <code>aⁿbⁿcⁿ</code>. This module runs the pumping argument as code: for any
+  claimed limit, it hands back the exact string that breaks it.</p>
+
+  <div class="headline">
+    <span class="lbl">The whole result in one sentence</span>
+    <p><span class="hi">Type 3 ⊊ Type 2 ⊊ Type 1 ⊊ Type 0.</span> Each class is
+    strictly weaker than the next, and <code>a*</code>, <code>aⁿbⁿ</code>,
+    <code>aⁿbⁿcⁿ</code> are the witnesses that pry them apart. This is why the
+    course has a separate lexing track and parsing track — different provable
+    amounts of power.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../02-strings-languages-operations/tutorial.html">a language is a set of strings (Module 2)</a></li>
+    <li><a href="../04-cfg-formal-definition/tutorial.html">CFG for aⁿbⁿ, enumerate (Module 4)</a></li>
+    <li><a href="../prerequisites/automata-basics.html">states, transitions, a finite machine's memory</a></li>
+    <li><a href="../prerequisites/sets-relations-fixed-points.html">pigeonhole</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the doorman with a wrapping clicker</h2></div>
+
+  <div class="picture">
+    <p>A doorman at a venue holds a hand clicker. His job: let people in, then
+    let exactly the same number back out, and no more. <code>aⁿbⁿ</code> — n in,
+    then n out.</p>
+    <p>His clicker has <b>p positions</b> and then it <b>wraps back to zero</b>.
+    That's his entire memory. Feed him <code>p</code> arrivals and the clicker
+    has cycled at least once. Now feed him <code>k</code> more, landing on the
+    same position a wrap earlier hit. <b>From his point of view, "p people came
+    in" and "p + k people came in" are indistinguishable</b> — same clicker
+    reading.</p>
+    <p>So when he lets <code>p</code> people out and stops, he's happy — but if
+    <code>p + k</code> actually came in, he just approved an unbalanced night
+    and never knew. The <code>k</code> extra arrivals are a segment you can
+    <b>repeat as many times as you like</b> and he can't tell.</p>
+    <p>A regular grammar <em>is</em> that doorman: finitely many states, so on a
+    long enough string it must revisit one, and the loop between the two visits
+    is a segment you can <b>pump</b> — repeat or delete — with the grammar none
+    the wiser. If the target language forbids that (pumping the
+    <code>a</code>-part of <code>aⁿbⁿ</code> unbalances it), no regular grammar
+    can be recognising that language.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Doorman</th><th>Pumping lemma</th></tr></thead>
+    <tbody>
+      <tr><td>the clicker's position count <code>p</code></td><td>the pumping length (≈ number of states)</td></tr>
+      <tr><td>a night with <code>p</code> arrivals</td><td>a string <code>s ∈ L</code> with <code>|s| ≥ p</code></td></tr>
+      <tr><td>the arrivals before the first wrap</td><td><code>x</code> — the prefix, <code>|xy| ≤ p</code></td></tr>
+      <tr><td>the loop of <code>k</code> repeatable arrivals</td><td><code>y</code> — the pump, <code>|y| ≥ 1</code></td></tr>
+      <tr><td>everyone after</td><td><code>z</code> — the suffix</td></tr>
+      <tr><td>"he can't tell p from p+k"</td><td><code>x yᵏ z ∈ L</code> for all <code>k</code> — <em>if</em> L is regular</td></tr>
+      <tr><td>an unbalanced night he approved</td><td><code>x y² z ∉ L</code> — the contradiction</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Classify the grammar.</b> Every production <code>A → w</code> or
+        <code>A → w B</code> (nonterminal only at the end) → right-linear
+        (regular). <code>A → B w</code> → left-linear (regular). A nonterminal in
+        the middle, or two of them → context-free.</li>
+      <li><b>State the regular pumping lemma.</b> If <code>L</code> is regular,
+        <em>there exists</em> <code>p</code> such that <em>every</em>
+        <code>s ∈ L</code> with <code>|s| ≥ p</code> splits as <code>xyz</code>
+        (<code>|y| ≥ 1</code>, <code>|xy| ≤ p</code>) with <code>xyᵏz ∈ L</code>
+        for <em>all</em> <code>k</code>.</li>
+      <li><b>Refute it for <code>{aⁿbⁿ}</code>.</b> For <em>any</em> claimed
+        <code>p</code>: take <code>s = aᵖbᵖ</code>. <code>|xy| ≤ p</code> forces
+        <code>y</code> to be all <code>a</code>s. Then <code>xy²z</code> has more
+        <code>a</code>s than <code>b</code>s → <code>∉ L</code>. Every split
+        fails. No <code>p</code> works. Not regular.</li>
+      <li><b>Do it in code:</b> for <code>p = 1…8</code>, enumerate <em>all</em>
+        <code>p(p+1)/2</code> splits and confirm each escapes under pumping.</li>
+      <li><b>One level up:</b> the context-free pumping lemma splits <code>s</code>
+        into five parts <code>uvwxy</code> with <code>|vwx| ≤ p</code>. Run the
+        same refutation against <code>{aⁿbⁿcⁿ}</code> — <code>|vwx| ≤ p</code>
+        means it can't touch both <code>a</code>s and <code>c</code>s, so
+        pumping unbalances the counts.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Why a p-state machine must repeat on <code>aᵖ</code></h3>
+  <div class="diagram"><pre>  reading  a a a a a ... a      (p of them)
+  state    q0 q1 q2 q3 ...      (p+1 states visited, only p exist)
+                 └──────┘
+                 pigeonhole: two of q0..qp are the same state, say q_i = q_j (i &lt; j)
+
+  x = a^i        the part before the repeat
+  y = a^(j-i)    the LOOP between the two visits to the same state   ← pump this
+  z = a^(p-j) b^p   the rest
+
+  x y^2 z = a^(i + 2(j-i) + (p-j)) b^p = a^(p + (j-i)) b^p     more a's than b's  →  NOT in { a^n b^n }</pre></div>
+
+  <h3>The tower</h3>
+  <div class="diagram"><pre>  ┌─────────────────────────────────────────────── Type 0  recursively enumerable
+  │  { <M,w> : M halts on w }                       Turing machine
+  │  ┌──────────────────────────────────────────── Type 1  context-sensitive
+  │  │  a^n b^n c^n                                 linear-bounded automaton
+  │  │  ┌───────────────────────────────────────── Type 2  context-free
+  │  │  │  a^n b^n , balanced parentheses           pushdown automaton (stack)
+  │  │  │  ┌────────────────────────────────────── Type 3  regular
+  │  │  │  │  a* , (a|b)*abb , identifiers          finite automaton (no memory)
+  │  │  │  └──────────────────────────────────────
+  │  │  └─────────────────────────────────────────
+  │  └────────────────────────────────────────────
+  └───────────────────────────────────────────────
+      each box STRICTLY inside the next — proven by the pumping lemmas</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Classifying by right-hand-side shape</h3>
+<pre><code><span class="k">for</span> (Grammar.Production p : g.productions) {
+  <span class="c">// count nonterminals in the rhs, note the first and last positions</span>
+  <span class="k">int</span> nts = ..., firstNt = ..., lastNt = ...;
+  <span class="k">if</span> (nts == <span class="y">0</span>) <span class="k">continue</span>;                          <span class="c">// A -> w : fine either way</span>
+  <span class="k">if</span> (nts &gt; <span class="y">1</span>) { allRight = allLeft = <span class="k">false</span>; <span class="k">continue</span>; }
+  <span class="k">if</span> (lastNt != rhs.size() - <span class="y">1</span>) allRight = <span class="k">false</span>;    <span class="c">// nonterminal not at the end</span>
+  <span class="k">if</span> (firstNt != <span class="y">0</span>)               allLeft  = <span class="k">false</span>;    <span class="c">// nonterminal not at the start</span>
+}</code></pre>
+  <p><code>S → a S b</code> has one nonterminal, in the middle → neither → context-free.
+  That's not a limitation of our grammar — <code>{aⁿbⁿ}</code> is provably not
+  regular, so <em>no</em> grammar for it is linear.</p>
+
+  <h3>The adversary — every split escapes</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Pumping.java — regularRefutation</figcaption>
+<pre><code>String s = <span class="y">"a"</span>.repeat(p) + <span class="y">"b"</span>.repeat(p);
+<span class="k">boolean</span> allEscaped = <span class="k">true</span>;
+
+<span class="c">// every split s = x y z with |xy| = b &lt;= p and |y| = b - a &gt;= 1</span>
+<span class="k">for</span> (<span class="k">int</span> b = <span class="y">1</span>; b &lt;= p; b++)
+  <span class="k">for</span> (<span class="k">int</span> a = <span class="y">0</span>; a &lt; b; a++) {
+    String x = s.substring(<span class="y">0</span>, a), y = s.substring(a, b), z = s.substring(b);
+    <span class="k">int</span> k = firstEscape(x, y, z, Pumping::inAnBn);   <span class="c">// tries k = 2, 0, 3</span>
+    <span class="k">if</span> (k &lt; <span class="y">0</span>) allEscaped = <span class="k">false</span>;                    <span class="c">// this split SURVIVED — bad</span>
+  }
+<span class="c">// allEscaped == true  ⇒  no pumping length p works  ⇒  L is not regular</span></code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/pumping.mjs</figcaption>
+<pre><code><span class="k">const</span> s = rep(<span class="y">"a"</span>, p) + rep(<span class="y">"b"</span>, p);
+<span class="k">let</span> allEscaped = <span class="k">true</span>;
+
+<span class="k">for</span> (<span class="k">let</span> b = <span class="y">1</span>; b &lt;= p; b++)
+  <span class="k">for</span> (<span class="k">let</span> a = <span class="y">0</span>; a &lt; b; a++) {
+    <span class="k">const</span> x = s.slice(<span class="y">0</span>, a), y = s.slice(a, b), z = s.slice(b);
+    <span class="k">const</span> k = firstEscape(kk =&gt; x + rep(y, kk) + z, inAnBn);
+    <span class="k">if</span> (k &lt; <span class="y">0</span>) allEscaped = <span class="k">false</span>;
+  }</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — the lemma is one-directional</span>
+    <p>Regular ⟹ pumpable. The converse is <b>false</b>: there are non-regular
+    languages that <em>do</em> satisfy the pumping condition, so passing the
+    pumping test proves nothing. The lemma is <em>only</em> a tool for proving a
+    language is <b>not</b> regular. To prove one <em>is</em> regular, you build a
+    DFA or a regex (Part II). See the Brain Exercise.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Prove a language <em>is</em> regular — the pumping lemma is a one-way tool; you need a DFA/regex (Part II).</li>
+        <li>Decide whether an arbitrary CFG <em>generates</em> a regular language — that's undecidable.</li>
+        <li>Build the pushdown automaton or the linear-bounded automaton that recognise Types 2 and 1.</li>
+        <li>Handle Type 0 / Type 1 grammars — our file format only expresses single-nonterminal-lhs (≤ Type 2).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Classify any file grammar as right-linear, left-linear, or context-free.</li>
+        <li>Run the regular pumping lemma as an adversary and show it has no valid pumping length for <code>{aⁿbⁿ}</code>.</li>
+        <li>Run the context-free pumping lemma the same way for <code>{aⁿbⁿcⁿ}</code>.</li>
+        <li>Enumerate the exact string that breaks any claimed bound.</li>
+        <li>State the hierarchy and its separating witnesses precisely.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg)</h4>
+<pre><code>cd 07-chomsky-pumping
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpts)</h4>
+<pre><code>grammar classification:
+  fixtures/anbn.grammar       S -&gt; a S b | epsilon             CONTEXT_FREE   (not regular)
+
+no regular grammar can -- the regular pumping lemma has no valid pumping length:
+  p=3: s=aaabbb     all 6/6 splits escape;  x="" y="a" z="aabbb", pump^2 -&gt; "aaaabbb"  (not in a^n b^n)
+  <span class="exp">for EVERY p, a^p b^p is in L but no split survives pumping  -&gt;  { a^n b^n } is NOT regular</span>
+
+one level up -- the context-free pumping lemma has no valid pumping length for { a^n b^n c^n }:
+  p=2: s=aabbcc       all 37 5-splits escape;  ...
+  <span class="exp">-&gt;  { a^n b^n c^n } is context-sensitive but NOT context-free</span></code></pre>
+    <h4>Tests — both "OK 54 passed"</h4>
+<pre><code>java -cp java/out PumpingTest
+node js/pumping.test.mjs</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>A grammar you think is regular classifies CONTEXT_FREE</b> — it has a
+    nonterminal not at the end (right-linear) or start (left-linear), or two
+    nonterminals. <code>S → a S b</code> is not regular.<br>
+    <b><code>allEscaped</code> is false</b> — the escape-k set <code>{2, 0, 3}</code>
+    didn't cover a pump-breaking value for your language. For <code>aⁿbⁿ</code>
+    and <code>aⁿbⁿcⁿ</code>, <code>k = 2</code> always works.<br>
+    <b><code>cflRefutation</code> is slow</b> — the 5-part loop is O((3p)⁴).
+    Keep <code>p</code> small; the demo stops at 4.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> The refutation proves <code>{aⁿbⁿ}</code> is not regular. Does it
+  prove <code>{aⁿbⁿ}</code> <em>is</em> context-free? What would?</p>
+  <p><b>(2)</b> Is <code>{ aⁿ : n is prime }</code> regular? Prove your answer
+  with the pumping lemma.</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> No. The pumping lemma is one-directional — it can only ever
+    prove "not regular." <code>{aⁿbⁿ}</code> being context-free is established by
+    <em>exhibiting a CFG</em> for it, which Module 4 did:
+    <code>S → a S b | ε</code>. "Not regular" and "is context-free" are proven by
+    completely different means — a refutation vs. a construction.</p>
+    <p><b>(2)</b> Not regular. Suppose it were, with pumping length <code>p</code>.
+    Pick a prime <code>q > p</code> and <code>s = aᵍ</code>. Split
+    <code>s = xyz</code> with <code>|y| = d ≥ 1</code>. Pump to
+    <code>xyⁱz = a^(q + (i-1)d)</code>. Choose <code>i - 1 = q</code>: the
+    exponent is <code>q + qd = q(1 + d)</code> — a product of two integers each
+    &gt; 1, so composite. Then <code>xyⁱz ∉ L</code>, contradicting the lemma.
+    Every unary non-eventually-periodic language falls the same way.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why does <code>aⁿbⁿ</code> matter? No real language literally has that.</summary>
+    <p>Every <em>nested</em> structure is <code>aⁿbⁿ</code>-shaped: balanced
+    parentheses, matched <code>{ }</code>, <code>begin</code>/<code>end</code>,
+    opening and closing XML/HTML tags, nested function calls, arithmetic with
+    parentheses. A finite-state machine cannot check that nesting balances,
+    which is <em>the</em> reason lexing (regular) and parsing (context-free) are
+    separate phases with separate power.</p>
+  </details>
+
+  <details>
+    <summary>Regex libraries support <code>(a+)\1</code> — isn't a backreference counting?</summary>
+    <p>Yes, and that's exactly why a regex with backreferences is <em>not</em>
+    matching a regular language any more. <code>(a+)\1</code> matches
+    <code>{ aⁿaⁿ } = { a²ⁿ }</code> — still regular by luck — but
+    <code>(a+)b\1</code> matches <code>{ aⁿbaⁿ }</code>, which is not regular.
+    "Regex" as a library feature and "regular expression" as a formal object
+    parted ways when backreferences were added.</p>
+  </details>
+
+  <details>
+    <summary>Is there an algorithm to decide "is this grammar regular"?</summary>
+    <p>Two different questions. "Is this grammar <em>right/left-linear</em>?" —
+    trivially decidable, it's a syntactic check (that's <code>classify</code>).
+    "Does this grammar <em>generate a regular language</em>?" — <b>undecidable</b>
+    for context-free grammars. A context-free grammar can generate a regular
+    language (<code>S → a S | a</code> generates <code>a⁺</code>), and no
+    algorithm always detects that.</p>
+  </details>
+
+  <details>
+    <summary>The classifier called <code>S -> a S b</code> context-free. Couldn't a cleverer grammar for the same language be regular?</summary>
+    <p>No — and that's the deep point. <code>{aⁿbⁿ}</code> is not a regular
+    language (this module proves it), so <em>every</em> grammar that generates
+    it fails to be right- or left-linear. The property belongs to the language,
+    not to your choice of grammar.</p>
+  </details>
+
+  <details>
+    <summary>If the pumping lemma can't prove "regular," what's the point of Part II?</summary>
+    <p>Part II builds the positive tools: a DFA <em>is</em> a proof that a
+    language is regular, and Thompson's construction turns any regex into one.
+    This module draws the ceiling; Part II builds up to it and then Part III
+    goes above it.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>Part I ends here. You can now read a grammar, generate its language, spot
+  ambiguity, and place it in the strength hierarchy. <b>Module 8 — BNF, EBNF,
+  ABNF &amp; Syntax Diagrams</b> closes the loop on <em>notation</em>: the
+  <code>-&gt;</code>/<code>|</code> syntax you've been writing grammar files in
+  is one dialect among several, and they are all inter-convertible. You'll build
+  a normalizer that desugars EBNF's <code>?</code>, <code>*</code>,
+  <code>+</code>, and grouping into pure BNF — the same six-fold move you made
+  for regex in Module 3, now for grammars. Then Part II starts turning regular
+  grammars into running state machines.</p>
+</section>
+
+<nav class="pager">
+  <a href="../06-ambiguity-disambiguation/tutorial.html"><span class="dir">Previous</span>← Module 06 · Ambiguity &amp; Disambiguation</a>
+  <a href="../08-bnf-ebnf-abnf/tutorial.html"><span class="dir">Next</span>Module 08 · BNF, EBNF, ABNF &amp; Syntax Diagrams →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 07 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>07-chomsky-pumping/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

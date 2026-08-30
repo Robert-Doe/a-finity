@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 20 — The Predictive Parsing Condition | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#6D4C8F;--accent-wash:#EFE9F4;--accent-line:#D2C2DF}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 20 · Part III — Top-Down Parsing</p>
+  <h1>The Predictive Parsing <em>Condition</em></h1>
+  <p class="thesis">Module 19 chose alternatives by eyeballing the grammar. This
+  module makes it a decision procedure. For every rule
+  <code>A → a₁ | a₂ | …</code>, compute the set of tokens that each alternative
+  could legally start with — its <b>PREDICT set</b>. If no token appears in two
+  of them, one lookahead token is always enough and recursive descent never has
+  to backtrack. That is the whole definition of <b>LL(1)</b>.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>Feed a grammar in, get a verdict out:
+    <span class="hi">LL(1) = YES</span>, or a concrete witness —
+    "<code>nonterminal X on token 'else': [X → else S] vs [X → epsilon]</code>."
+    No guessing about whether your hand-written parser will work.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../19-recursive-descent/tutorial.html">recursive descent, one function per nonterminal (Module 19)</a></li>
+    <li><a href="../04-cfg-formal-definition/tutorial.html">CFGs, nonterminals vs terminals (Module 4)</a></li>
+    <li><a href="../06-ambiguity-disambiguation/tutorial.html">the dangling else (Module 6)</a></li>
+    <li><a href="../prerequisites/sets-relations-fixed-points.html">sets &amp; fixed points</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the road sign at the fork</h2></div>
+
+  <div class="picture">
+    <p>You're driving and the road forks. There's a sign: <b>left for the
+    coast, right for the mountains</b>. One glance, one decision, no reversing.
+    That works because the two destinations are <em>disjoint</em> — no town is
+    both on the coast and in the mountains.</p>
+    <p>Now imagine a fork where the sign says <b>left for Springfield, right for
+    Springfield</b>. Useless. You'd have to drive a bit down one road, and if it
+    turns out to be the wrong Springfield, reverse all the way back and try the
+    other. That's <b>backtracking</b>, and for a parser it can blow up
+    exponentially.</p>
+    <p>Each nonterminal in your grammar is a fork. Each alternative is a road.
+    The <b>PREDICT set</b> of an alternative is the list of tokens that road can
+    start with. The parser reads <em>one</em> token — the sign — and takes the
+    matching road. This only works if the PREDICT sets don't overlap. When they
+    do, the grammar is telling you "left for Springfield, right for
+    Springfield," and you either redraw the map (left factoring, Module 24) or
+    accept that this parsing method won't work here.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>The fork</th><th>The parser</th></tr></thead>
+    <tbody>
+      <tr><td>a fork in the road</td><td>a nonterminal with more than one production</td></tr>
+      <tr><td>each road</td><td>one alternative <code>aᵢ</code></td></tr>
+      <tr><td>what's down that road</td><td><code>PREDICT(A → aᵢ)</code> — the tokens it can start with</td></tr>
+      <tr><td>reading the sign, once</td><td>one token of lookahead</td></tr>
+      <tr><td>two roads both signed "Springfield"</td><td>overlapping PREDICT sets — not LL(1)</td></tr>
+      <tr><td>drive, discover it's wrong, reverse</td><td>backtracking — worst case exponential</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <p><b>FIRST(a)</b> — the set of terminals that can begin a string derived
+    from the symbol string <code>a</code>. Plus the marker <code>epsilon</code>
+    if <code>a</code> can derive the empty string (is <em>nullable</em>).</p>
+    <p><b>FOLLOW(A)</b> — the set of terminals that can appear immediately after
+    <code>A</code> in some sentential form. Plus <code>$</code> (end of input)
+    if <code>A</code> can be last.</p>
+    <ol>
+      <li>Compute FIRST for every nonterminal: start each empty; for each
+        production <code>A → X₁…Xₙ</code>, add <code>FIRST(X₁)</code>; if
+        <code>X₁</code> is nullable also add <code>FIRST(X₂)</code>; and so on.
+        Repeat over all productions until a full pass adds nothing.</li>
+      <li>Compute FOLLOW: seed <code>FOLLOW(start) = {$}</code>. For each
+        <code>B → a X b</code>: add <code>FIRST(b) \ {epsilon}</code> to
+        <code>FOLLOW(X)</code>; if <code>b</code> is nullable, also add
+        <code>FOLLOW(B)</code>. Iterate to convergence.</li>
+      <li>For each production <code>A → a</code>:
+        <div class="diagram"><pre>PREDICT(A -> a) = FIRST(a)                            if a is NOT nullable
+               = (FIRST(a) \ {epsilon}) U FOLLOW(A)   if a IS nullable</pre></div>
+      </li>
+      <li>For each nonterminal, intersect the PREDICT sets of its productions
+        pairwise. Any non-empty intersection is a <b>conflict</b>: report the
+        nonterminal, the shared token, and the two productions.</li>
+      <li>No conflicts anywhere → the grammar is <b>LL(1)</b> and a
+        backtrack-free predictive parser exists.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The expression grammar — LL(1)</h3>
+  <div class="diagram"><pre>  NT     FIRST                FOLLOW
+  E      { ( id num }         { $ ) }
+  Ep     { + epsilon }        { $ ) }
+  T      { ( id num }         { $ ) + }
+  Tp     { * epsilon }        { $ ) + }
+  F      { ( id num }         { $ ) * + }
+
+  Ep -> + T Ep    PREDICT { + }
+  Ep -> epsilon   PREDICT { $ ) }      nullable, so adds FOLLOW(Ep)
+                          ^^^^^ disjoint from { + }  ->  no conflict
+
+  every fork's roads are signed for different towns.  LL(1) = YES</pre></div>
+
+  <h3>The dangling else — <em>not</em> LL(1)</h3>
+  <div class="diagram"><pre>  S -> if b then S X | other
+  X -> else S | epsilon
+
+  FOLLOW(X): X sits at the end of  S -> if b then S X , so FOLLOW(X) gets
+  FOLLOW(S). And S sits before X (which is nullable) in that same rule, so
+  FOLLOW(S) gets FIRST(X) = { else }. Net:  FOLLOW(X) = { else $ }
+
+  X -> else S    PREDICT { else }
+  X -> epsilon   PREDICT { else $ }     nullable, adds FOLLOW(X)
+                        ^^^^ 'else' is in BOTH  ->  CONFLICT
+
+  on the token 'else' the parser genuinely cannot tell whether this 'else'
+  belongs to the current 'if' or an enclosing one. Real parsers hard-wire
+  "take X -> else S" (bind to the nearest if).</pre></div>
+
+  <h3>A shared prefix — fixable</h3>
+  <div class="diagram"><pre>  S -> a b c | a b d
+  PREDICT(a b c) = { a }        PREDICT(a b d) = { a }        CONFLICT on 'a'
+
+  the roads agree for the first two tokens and only diverge at the third.
+  left-factor (Module 24):   S -> a b S'      S' -> c | d
+  now the fork is at S', where PREDICT { c } and { d } are disjoint.</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>FIRST of a sequence — the nullable cascade</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Predict.java</figcaption>
+<pre><code>Set&lt;String&gt; firstOfSeq(List&lt;String&gt; seq) {
+  Set&lt;String&gt; out = <span class="k">new</span> LinkedHashSet&lt;&gt;();
+  <span class="k">boolean</span> allNullable = <span class="k">true</span>;
+  <span class="k">for</span> (String sym : seq) {
+    Set&lt;String&gt; f = firstOf(sym);
+    <span class="k">for</span> (String x : f) <span class="k">if</span> (!x.equals(EPS)) out.add(x);
+    <span class="k">if</span> (!f.contains(EPS)) { allNullable = <span class="k">false</span>; <span class="k">break</span>; }  <span class="c">// stop at the first non-nullable symbol</span>
+  }
+  <span class="k">if</span> (allNullable) out.add(EPS);        <span class="c">// empty seq, or every symbol nullable</span>
+  <span class="k">return</span> out;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/predict.mjs</figcaption>
+<pre><code>firstOfSeq(seq) {
+  <span class="k">const</span> out = <span class="k">new</span> Set();
+  <span class="k">let</span> allNullable = <span class="k">true</span>;
+  <span class="k">for</span> (<span class="k">const</span> sym <span class="k">of</span> seq) {
+    <span class="k">const</span> f = <span class="k">this</span>.firstOf(sym);
+    <span class="k">for</span> (<span class="k">const</span> x <span class="k">of</span> f) <span class="k">if</span> (x !== EPS) out.add(x);
+    <span class="k">if</span> (!f.has(EPS)) { allNullable = <span class="k">false</span>; <span class="k">break</span>; }
+  }
+  <span class="k">if</span> (allNullable) out.add(EPS);
+  <span class="k">return</span> out;
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>PREDICT and the conflict scan</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Predict.java</figcaption>
+<pre><code>Set&lt;String&gt; predict(Grammar.Production p) {
+  Set&lt;String&gt; out = <span class="k">new</span> LinkedHashSet&lt;&gt;();
+  Set&lt;String&gt; f = firstOfSeq(p.rhs());
+  <span class="k">for</span> (String x : f) <span class="k">if</span> (!x.equals(EPS)) out.add(x);
+  <span class="k">if</span> (f.contains(EPS)) out.addAll(followOf(p.lhs()));   <span class="c">// nullable: fold in FOLLOW</span>
+  <span class="k">return</span> out;
+}
+
+<span class="c">// pairwise intersect PREDICT sets, per nonterminal</span>
+<span class="k">for</span> (<span class="k">int</span> i = 0; i &lt; ps.size(); i++)
+  <span class="k">for</span> (<span class="k">int</span> j = i + 1; j &lt; ps.size(); j++) {
+    Set&lt;String&gt; both = <span class="k">new</span> LinkedHashSet&lt;&gt;(preds.get(i));
+    both.retainAll(preds.get(j));
+    <span class="k">for</span> (String tok : both)
+      out.add(<span class="k">new</span> Conflict(nt, tok, ps.get(i), ps.get(j)));
+  }</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/predict.mjs</figcaption>
+<pre><code>predict(p) {
+  <span class="k">const</span> out = <span class="k">new</span> Set();
+  <span class="k">const</span> f = <span class="k">this</span>.firstOfSeq(p.rhs);
+  <span class="k">for</span> (<span class="k">const</span> x <span class="k">of</span> f) <span class="k">if</span> (x !== EPS) out.add(x);
+  <span class="k">if</span> (f.has(EPS))
+    <span class="k">for</span> (<span class="k">const</span> x <span class="k">of</span> <span class="k">this</span>.followOf(p.lhs)) out.add(x);
+  <span class="k">return</span> out;
+}
+
+<span class="k">for</span> (<span class="k">let</span> i = 0; i &lt; ps.length; i++)
+  <span class="k">for</span> (<span class="k">let</span> j = i + 1; j &lt; ps.length; j++)
+    <span class="k">for</span> (<span class="k">const</span> tok <span class="k">of</span> preds[i])
+      <span class="k">if</span> (preds[j].has(tok)) out.push({ nonterminal: nt, token: tok, ... });</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Why the fixed-point loop, and why it stops</span>
+    <p>FIRST and FOLLOW are defined <em>circularly</em> — <code>FIRST(E)</code>
+    depends on <code>FIRST(T)</code> which (via <code>F → ( E )</code>) depends
+    back on <code>FIRST(E)</code>. You break the circle by starting with empty
+    sets and adding until nothing changes. It terminates because the sets only
+    ever <em>grow</em>, and they can't grow past the finite set of terminals
+    plus <code>{epsilon, $}</code>. Module 21 proves this is not just <em>a</em>
+    fixed point but the <em>least</em> one — the smallest sets consistent with
+    the rules — and that's the one you want.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Prove the fixed-point iteration is the <em>least</em> solution — Module 21 (FIRST), Module 22 (FOLLOW).</li>
+        <li>Fix a non-LL(1) grammar: <b>left factoring</b> (Module 24), <b>left-recursion elimination</b> (Module 23).</li>
+        <li>Build the actual parse <em>table</em> from PREDICT sets — Module 25.</li>
+        <li>Decide LL(2), LL(k), or LL(*) — one token of lookahead only (Module 29).</li>
+        <li>Resolve a conflict by policy (shift-preferring for dangling else) — Modules 25 &amp; 35.</li>
+        <li>Say anything about LR grammars, which are a strictly larger class (Part IV).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Compute FIRST, FOLLOW, and PREDICT for any grammar.</li>
+        <li>Give a yes/no LL(1) verdict.</li>
+        <li>Name every conflict: nonterminal, exact token, the two productions.</li>
+        <li>Handle nullable productions correctly (fold in FOLLOW).</li>
+        <li>Flag left recursion as non-LL(1) (the conflict falls out).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 20-predictive-condition
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>########## fixtures/danglingelse.grammar
+NT     FIRST                      FOLLOW
+S      { if, other }              { else, $ }
+X      { else, epsilon }          { else, $ }
+
+PREDICT sets:
+  (2) X -&gt; else S             { else }
+  (3) X -&gt; epsilon            { else, $ }  (nullable: adds FOLLOW)
+
+VERDICT: LL(1) = NO    1 conflict(s):
+  - nonterminal X on token 'else':  [X -&gt; else S]  vs  [X -&gt; epsilon]</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out PredictTest    # OK 22 passed
+node js/predict.test.mjs          # OK 22 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>FOLLOW missing <code>$</code></b> — seed <code>FOLLOW(start) = {$}</code>
+    before iterating.<br>
+    <b>FIRST never stabilises</b> — you're not checking whether a pass actually
+    added anything; loop <em>while changed</em>.<br>
+    <b>A nullable rule shows no conflict when it should</b> — <code>PREDICT</code>
+    must union <code>FOLLOW(A)</code> for the nullable alternative, not just
+    <code>FIRST</code>.<br>
+    <b>Left-recursive grammar reported LL(1)</b> — the pair
+    <code>A → A x</code> vs <code>A → y</code> still shares <code>FIRST</code> on
+    <code>y</code>; the conflict scan should catch it.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Grammar <code>A → B c | d</code>, <code>B → e | epsilon</code>.
+  Compute FIRST(A), FIRST(B c), FOLLOW(B). Is <code>A</code>'s fork LL(1)?
+  <b>(2)</b> Why does <code>PREDICT</code> use <code>FOLLOW(A)</code> and not
+  <code>FOLLOW</code> of the whole nullable string <code>a</code>?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>FIRST(B) = {e, epsilon}</code>. <code>FIRST(B c)</code>:
+    add <code>FIRST(B)\{epsilon} = {e}</code>; <code>B</code> is nullable so also
+    add <code>FIRST(c) = {c}</code>; <code>c</code> not nullable, stop →
+    <code>{e, c}</code>. <code>FIRST(A) = FIRST(B c) ∪ FIRST(d) = {e, c, d}</code>.
+    <code>PREDICT(A → B c) = {e, c}</code> (not nullable — <code>c</code> is
+    there), <code>PREDICT(A → d) = {d}</code>. Disjoint → <b>LL(1)</b>.
+    <code>FOLLOW(B) = {c}</code> (from <code>A → B c</code>).</p>
+    <p><b>(2)</b> Because if the parser takes the nullable alternative
+    <code>a</code> and <code>a</code> derives <code>epsilon</code>, then
+    <code>A</code> itself produced nothing — so the next token is whatever
+    follows <code>A</code>. <code>FOLLOW(a)</code> isn't even a defined notion;
+    <code>a</code> is a string, not a nonterminal. The thing that "follows the
+    empty production" is by definition <code>FOLLOW(A)</code>.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>What does the "1" in LL(1) mean, exactly?</summary>
+    <p>One token of lookahead. The parser decides each production from the single
+    next token. LL(2) looks at the next two; LL(k) at k. The first "L" =
+    left-to-right scan; the second "L" = leftmost derivation (which is exactly
+    what recursive descent produces, Module 19).</p>
+  </details>
+
+  <details>
+    <summary>Is every unambiguous grammar LL(1)?</summary>
+    <p>No — LL(1) is much narrower. The natural left-recursive expression
+    grammar is unambiguous but not LL(1) (or even LL(k)). Ambiguous grammars are
+    never LL(1). And some languages have no LL(1) grammar at all, though most
+    practical ones do after left-factoring and left-recursion removal.</p>
+  </details>
+
+  <details>
+    <summary>Why report the token, not just "conflict at X"?</summary>
+    <p>Because the token tells you <em>what input</em> triggers the ambiguity,
+    which is how you diagnose and fix it. "Conflict at <code>X</code> on
+    <code>else</code>" immediately says "this is the dangling-else problem."
+    It's also exactly the cell that would be double-booked in the LL(1) table
+    (Module 25).</p>
+  </details>
+
+  <details>
+    <summary>The dangling-else grammar "works" in real compilers. How, if it's not LL(1)?</summary>
+    <p>They keep the conflicting grammar and add a <em>resolution rule</em>: on
+    <code>else</code>, always take <code>X → else S</code>. The parser generator
+    reports the conflict and tells you how it resolved it. It's a deliberate,
+    documented deviation from pure LL(1) — see Modules 25 and 35.</p>
+  </details>
+
+  <details>
+    <summary>Does <code>epsilon</code> ever end up in a PREDICT set?</summary>
+    <p>No. <code>PREDICT</code> strips <code>epsilon</code> and, for a nullable
+    alternative, replaces it with the concrete tokens in <code>FOLLOW(A)</code>.
+    A PREDICT set is always a set of real terminals (possibly including
+    <code>$</code>).</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>We leaned on FIRST and FOLLOW as if computing them were obvious. It isn't
+  quite. <b>Module 21 — Nullable &amp; FIRST Sets</b> pins down <em>nullable</em>
+  as its own least-fixed-point computation, then builds FIRST on top of it and
+  proves the iteration converges to the smallest correct answer. <b>Module 22 —
+  FOLLOW Sets</b> does the same for FOLLOW and explains why the <code>$</code>
+  end-marker is not optional. With those in hand, Modules 23–24 reshape grammars
+  that fail this module's test, and Module 25 turns PREDICT sets into a parsing
+  table.</p>
+</section>
+
+<nav class="pager">
+  <a href="../19-recursive-descent/tutorial.html"><span class="dir">Previous</span>← Module 19 · Recursive-Descent Parsing</a>
+  <a href="../21-nullable-first/tutorial.html"><span class="dir">Next</span>Module 21 · Nullable &amp; FIRST Sets →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 20 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>20-predictive-condition/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

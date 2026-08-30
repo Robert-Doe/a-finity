@@ -1,0 +1,108 @@
+=== Module 29 - LL(k), LL(*), and Backtracking RD ===
+
+### PART 1 - one token isn't always enough
+
+########## fixtures/expr.grammar
+  E -> T Ep
+  Ep -> + T Ep
+  Ep -> epsilon
+  T -> F Tp
+  Tp -> * F Tp
+  Tp -> epsilon
+  F -> ( E )
+  F -> id
+  F -> num
+  FIRST_1 per production:
+    E -> T Ep              { ( , id , num }
+    Ep -> + T Ep           { + }
+    Ep -> epsilon          { () }
+    T -> F Tp              { ( , id , num }
+    Tp -> * F Tp           { * }
+    Tp -> epsilon          { () }
+    F -> ( E )             { ( }
+    F -> id                { id }
+    F -> num               { num }
+  FIRST_2 per production:
+    E -> T Ep              { ( ( , ( id , ( num , id , id * , id + , num , num * , num + }
+    Ep -> + T Ep           { + ( , + id , + num }
+    Ep -> epsilon          { () }
+    T -> F Tp              { ( ( , ( id , ( num , id , id * , num , num * }
+    Tp -> * F Tp           { * ( , * id , * num }
+    Tp -> epsilon          { () }
+    F -> ( E )             { ( ( , ( id , ( num }
+    F -> id                { id }
+    F -> num               { num }
+  minimal k: 1
+
+########## fixtures/label.grammar
+  stmt -> label colon stmt
+  stmt -> expr semi
+  label -> id
+  expr -> id
+  expr -> id lparen rparen
+  FIRST_1 per production:
+    stmt -> label colon stmt { id }
+    stmt -> expr semi      { id }
+    label -> id            { id }
+    expr -> id             { id }
+    expr -> id lparen rparen { id }
+  FIRST_2 per production:
+    stmt -> label colon stmt { id colon }
+    stmt -> expr semi      { id lparen , id semi }
+    label -> id            { id }
+    expr -> id             { id }
+    expr -> id lparen rparen { id lparen }
+  minimal k: 2
+
+########## fixtures/equiv.grammar
+  A -> x B
+  A -> x C
+  A -> y
+  B -> A
+  C -> A
+  FIRST_1 per production:
+    A -> x B               { x }
+    A -> x C               { x }
+    A -> y                 { y }
+    B -> A                 { x , y }
+    C -> A                 { x , y }
+  FIRST_2 per production:
+    A -> x B               { x x , x y }
+    A -> x C               { x x , x y }
+    A -> y                 { y }
+    B -> A                 { x x , x y , y }
+    C -> A                 { x x , x y , y }
+  minimal k: none in 1..4 (grammar is ambiguous / not LL(k))
+
+### PART 2 - backtracking recursive descent: the cost of no lookahead
+
+equiv.grammar  (A -> x B | x C | y ;  B -> A ;  C -> A)  on  x^n y :
+    n      parse trees    production tries
+    1      2              11              
+    2      4              27              
+    3      8              59              
+    4      16             123             
+    5      32             251             
+    6      64             507             
+    7      128            1019            
+    parse trees double each step (2^n) and so does the work -- no finite k helps.
+    packrat parsing (Appendix X2) memoizes (nonterminal, position) -> linear.
+
+expr.grammar  (LL(1))  on  id (+ id)^n :
+    tokens parse trees    production tries
+    1      1              9               
+    3      1              17              
+    5      1              25              
+    7      1              33              
+    9      1              41              
+    11     1              49              
+    13     1              57              
+    exactly one parse tree; work grows LINEARLY -- disjoint FIRST sets mean each
+    nonterminal's wrong alternatives fail on the first token.
+
+### LL(*) in one line
+ANTLR's adaptive LL(*): instead of a fixed k, build a small DFA over the
+lookahead that reads as many tokens as needed to pick an alternative --
+regular (not bounded) lookahead. Falls back to backtracking only when the
+DFA can't decide. For label.grammar the DFA reads id then peeks one more:
+  'colon' -> alternative 1 (label) ;  otherwise -> alternative 2 (expr).

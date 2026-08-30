@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 28 — Grammar Analysis Tool | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B3B8F;--accent-wash:#E7E7F5;--accent-line:#C3C3E4}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 28 · Part III — Project 2</p>
+  <h1>Grammar Analysis <em>Tool</em></h1>
+  <p class="thesis">CSE 340 Project 2 in one program. Feed it any context-free
+  grammar; it reports <b>terminals and nonterminals</b> in appearance order,
+  <b>nullable</b>, <b>FIRST</b>, <b>FOLLOW</b>, a <b>left-recursion-free</b>
+  version, a <b>left-factored</b> version, and the <b>LL(1) verdict</b> with the
+  parsing table (or the conflicts, and whether the transforms fix them). Every
+  section is a component from Modules 20–27, composed — no new algorithm.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>Hand it the naive expression grammar <code>E → E + T | T</code>. It comes
+    back: <span class="hi">6 LL(1) conflicts, here's the fixed grammar, and yes
+    that one is LL(1)</span>. The entire Part III toolkit, one command.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../21-nullable-first/tutorial.html">nullable &amp; FIRST (Module 21)</a> · <a href="../22-follow-sets/tutorial.html">FOLLOW (Module 22)</a></li>
+    <li><a href="../23-left-recursion-elimination/tutorial.html">Paull's algorithm (Module 23)</a> · <a href="../24-left-factoring/tutorial.html">left factoring (Module 24)</a></li>
+    <li><a href="../20-predictive-condition/tutorial.html">the LL(1) condition (Module 20)</a> · <a href="../25-ll1-table/tutorial.html">the table (Module 25)</a></li>
+    <li><a href="../16-lexer-project1/tutorial.html">Project 1, for the "compose everything" pattern (Module 16)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the full medical panel</h2></div>
+
+  <div class="picture">
+    <p>You don't order blood tests one at a time and wait a day between each. You
+    order a <b>panel</b>: one blood draw, one lab run, one sheet back with every
+    marker — and reference ranges printed next to each so you can see at a glance
+    what's in bounds and what isn't. If something's off, the sheet often says
+    what to do about it.</p>
+    <p>The grammar tool is that panel. One grammar in, one sheet out: the symbol
+    inventory, the nullable markers, the FIRST and FOLLOW ranges, and the LL(1)
+    verdict. When the verdict is "not LL(1)," the sheet doesn't just flag it — it
+    runs the two standard treatments (remove left recursion, left-factor) and
+    reports whether the grammar is healthy afterward.</p>
+    <p>Each test on the panel was developed and validated separately — that's
+    Modules 21 through 27. The panel itself adds no new chemistry. It draws once
+    and prints one page.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Medical panel</th><th>Grammar tool</th></tr></thead>
+    <tbody>
+      <tr><td>one blood draw</td><td>one grammar, parsed once</td></tr>
+      <tr><td>full marker list</td><td>symbols · nullable · FIRST · FOLLOW</td></tr>
+      <tr><td>reference ranges next to each value</td><td>sets printed per nonterminal</td></tr>
+      <tr><td>overall assessment</td><td>the LL(1) verdict</td></tr>
+      <tr><td>"here's the treatment, and the follow-up result"</td><td>left-recursion-free + left-factored grammar, re-checked</td></tr>
+      <tr><td>each assay validated separately</td><td>Modules 21–27</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Parse</b> the grammar file (<code>%start</code> line + productions,
+        <code>|</code> alternatives, <code>epsilon</code> for empty).</li>
+      <li><b>Section 1</b> — walk the productions once, collecting nonterminals
+        (left-hand sides) and terminals (everything else) in first-appearance
+        order.</li>
+      <li><b>Section 2</b> — <code>FirstSets</code>: the nullable least fixed
+        point.</li>
+      <li><b>Section 3</b> — <code>FirstSets</code>: FIRST for every
+        nonterminal.</li>
+      <li><b>Section 4</b> — <code>FollowSets</code>: FOLLOW, seeded with
+        <code>$</code> on the start symbol, iterated over FIRST.</li>
+      <li><b>Section 5</b> — <code>LeftRec.paull</code>: substitute lower
+        nonterminals into higher ones (only where it exposes left recursion),
+        then eliminate direct left recursion.</li>
+      <li><b>Section 6</b> — <code>LeftFactor.factor</code>: pull out longest
+        shared prefixes to a fixed point.</li>
+      <li><b>Section 7</b> — <code>Predict</code>: if the PREDICT sets are
+        pairwise disjoint, print the <code>LL1Table</code>. Otherwise list the
+        conflicts, run <code>factor(paull(g))</code>, and report whether that is
+        LL(1).</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The panel for the natural expression grammar</h3>
+  <div class="diagram"><pre>  input:  E -> E + T | T     T -> T * F | F     F -> ( E ) | id | num
+
+  1. SYMBOLS       nonterminals: E T F   terminals: + * ( ) id num
+  2. NULLABLE      (none)
+  3. FIRST         FIRST(E) = FIRST(T) = FIRST(F) = { ( id num }
+  4. FOLLOW        FOLLOW(E) = { ) + $ }   FOLLOW(F) = { ) * + $ }
+  5. NO LEFT REC   E -> T E'     E' -> + T E' | epsilon      (Module 19's grammar!)
+                   T -> F T'     T' -> * F T' | epsilon
+  6. FACTORED      (unchanged — no shared prefixes in the input)
+  7. LL(1) = NO    E on '(' : [E -> E + T] vs [E -> T]        (and 5 more)
+                   after left-recursion removal + factoring: LL(1) = YES</pre></div>
+
+  <h3>Section 5 must not over-substitute</h3>
+  <div class="diagram"><pre>  json:  elements -> value | value comma elements     (right-recursive, NOT left)
+
+  textbook Paull would inline 'value' (it comes first in the order):
+     elements -> obj | arr | str | ... | obj comma elements | arr comma elements | ...
+     (16 alternatives, unreadable, pointless)
+
+  guarded Paull checks "can 'value' reach 'elements' leftmost?" -> no -> skip.
+     elements -> value | value comma elements        (left alone)</pre></div>
+
+  <h3>The JSON panel</h3>
+  <div class="diagram"><pre>  5. NO LEFT REC   (unchanged — json has none)
+  6. FACTORED      obj  -> lbrace obj'      obj'  -> rbrace | members rbrace
+                   arr  -> lbrack arr'      arr'  -> rbrack | elements rbrack
+                   members  -> pair members'      members'  -> epsilon | comma members
+                   elements -> value elements'    elements' -> epsilon | comma elements
+  7. LL(1) = NO    obj on 'lbrace' : [obj -> lbrace rbrace] vs [obj -> lbrace members rbrace]
+                   after ... factoring: LL(1) = YES</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <div class="split">
+    <figure>
+      <figcaption>java/GrammarTool.java</figcaption>
+<pre><code><span class="k">public</span> GrammarTool(Grammar g) {
+  <span class="k">this</span>.g   = g;
+  <span class="k">this</span>.fs    = <span class="k">new</span> FirstSets(g);    <span class="c">// Module 21</span>
+  <span class="k">this</span>.fol   = <span class="k">new</span> FollowSets(g);   <span class="c">// Module 22</span>
+  <span class="k">this</span>.table = <span class="k">new</span> LL1Table(g);     <span class="c">// Module 25</span>
+}
+
+<span class="c">// section 7 — verdict, and if it fails, does the fix work?</span>
+Predict pr = <span class="k">new</span> Predict(g);
+<span class="k">if</span> (pr.isLL1()) { <span class="c">/* print table.render() */</span> }
+<span class="k">else</span> {
+  <span class="c">/* list pr.conflicts() */</span>
+  Grammar fixed = toGrammar(LeftFactor.factor(toGrammar(LeftRec.paull(g))));
+  sb.append(<span class="y">"after ...: LL(1) = "</span> + (<span class="k">new</span> Predict(fixed).isLL1() ? <span class="y">"YES"</span> : <span class="y">"NO"</span>));
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/grammartool.mjs</figcaption>
+<pre><code><span class="k">constructor</span>(g) {
+  <span class="k">this</span>.g     = g;
+  <span class="k">this</span>.fs    = <span class="k">new</span> FirstSets(g);
+  <span class="k">this</span>.fol   = <span class="k">new</span> FollowSets(g);
+  <span class="k">this</span>.table = <span class="k">new</span> LL1Table(g);
+}
+
+<span class="k">const</span> pr = <span class="k">new</span> Predict(g);
+<span class="k">if</span> (pr.isLL1()) { <span class="c">/* print table */</span> }
+<span class="k">else</span> {
+  <span class="c">/* list conflicts */</span>
+  <span class="k">const</span> fixed = toGrammar(factor(toGrammar(paull(g))));
+  p(<span class="y">"after ...: LL(1) = "</span> + (<span class="k">new</span> Predict(fixed).isLL1() ? <span class="y">"YES"</span> : <span class="y">"NO"</span>));
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Serialise, then re-parse</span>
+    <p>The transforms return a mutable working grammar. <code>toGrammar</code>
+    renders it back to <code>%start X</code> + text and runs it through the
+    <em>same</em> <code>Grammar.parse</code>. So the "is the fixed grammar
+    LL(1)?" check goes through the identical <code>Predict</code> pipeline as
+    everything else — the transformed grammar isn't a special case, it's just
+    another grammar. (This is why the loader has to accept <code>'</code> in
+    nonterminal names.)</p>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Order of operations: recursion first, then factoring</span>
+    <p>Paull's substitution step can <em>create</em> shared prefixes. If you
+    left-factor first and then remove left recursion, you can be left with new
+    un-factored prefixes. Recursion-removal → factoring is the order that
+    reaches a fixed point in one pass, and it's what section 7's combined check
+    uses: <code>factor(paull(g))</code>.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Grammar hygiene: detect unreachable or non-productive nonterminals, useless productions.</li>
+        <li>Nullable-prefix left recursion (<code>A → B A</code>, <code>B → ε</code>).</li>
+        <li>Emit a runnable parser — that's Module X15 (parser generator).</li>
+        <li>LL(k) / LL(*) analysis (Module 29).</li>
+        <li>Anything LR (Part IV) — this tool is LL-only.</li>
+        <li>Minimise the transformed grammar (fewest new nonterminals).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Full symbol inventory, nullable, FIRST, FOLLOW for any CFG.</li>
+        <li>Left-recursion-free and left-factored versions.</li>
+        <li>LL(1) verdict with a single-valued table, or the conflicts.</li>
+        <li>Answer "can this grammar be made LL(1)?" by running the transforms.</li>
+        <li>Byte-identical Java and JS output on every fixture.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 28-grammar-tool-project2
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>##################### fixtures/expr.grammar #####################
+5. LEFT-RECURSION-FREE GRAMMAR (Paull)
+   input left-recursive? true
+   E -&gt; T E'
+   E' -&gt; + T E' | epsilon
+   ...
+7. LL(1) VERDICT
+   LL(1) = NO   6 conflict(s):
+     nonterminal E on token '(':  [E -&gt; E + T]  vs  [E -&gt; T]
+     ...
+   after left-recursion removal + left factoring: LL(1) = YES</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out GrammarToolTest    # OK 18 passed
+node js/grammartool.test.mjs           # OK 18 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>Section 5 bloats a rule that had no left recursion</b> — guard Paull's
+    substitution: only inline <code>Aj</code> into <code>Ai</code> when
+    <code>Aj</code> can leftmost-reach <code>Ai</code>.<br>
+    <b>"after … LL(1) = NO" for a grammar you know is fixable</b> — you factored
+    before removing recursion, or only did one.<br>
+    <b>FOLLOW section wrong</b> — FIRST feeds FOLLOW; fix section 3 first.<br>
+    <b>Transformed grammar won't re-analyse</b> — the loader must accept
+    <code>'</code> in nonterminal names.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Run the tool by hand on <code>S → S a | b</code>. Sections 1–4,
+  then 5, then 7. <b>(2)</b> Section 7's combined check is
+  <code>factor(paull(g))</code>. Give a grammar where <code>paull(factor(g))</code>
+  would give a worse (still-not-LL(1)) result.</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <b>1</b>: nonterminal <code>S</code>; terminals <code>a b</code>;
+    start <code>S</code>. <b>2</b>: nothing nullable. <b>3</b>:
+    <code>FIRST(S) = { b }</code> — the recursion adds nothing new. <b>4</b>:
+    <code>FOLLOW(S) = { a $ }</code> (the <code>a</code> from <code>S → S a</code>).
+    <b>5</b>: directly left-recursive → <code>S → b S'</code>,
+    <code>S' → a S' | epsilon</code>. <b>7</b>: the original is not LL(1) —
+    <code>S → S a</code> and <code>S → b</code> both predict <code>b</code>.
+    After the transform: <code>PREDICT(S → b S') = { b }</code>;
+    <code>PREDICT(S' → a S') = { a }</code>;
+    <code>PREDICT(S' → epsilon) = FOLLOW(S') = { $ }</code> (note
+    <code>FOLLOW(S')</code> is just <code>{ $ }</code>, not
+    <code>FOLLOW(S)</code> — <code>S'</code> only ever sits at the end).
+    All disjoint → the transformed grammar <b>is</b> LL(1). The tool prints
+    "after left-recursion removal + left factoring: LL(1) = YES".</p>
+    <p><b>(2)</b> Any grammar where factoring introduces a nonterminal that then
+    becomes part of an indirect-left-recursion cycle Paull would have broken if
+    it ran first. Concretely, factoring <code>A → B x | B y</code> to
+    <code>A → B A'</code> is harmless, but if <code>B → A …</code>, running
+    Paull <em>after</em> now has to deal with <code>A → B A'</code> and the
+    fresh <code>A'</code> in the cycle. Recursion-first avoids adding names into
+    a tangle you haven't untangled yet.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why is this a whole module if it's "just" composition?</summary>
+    <p>Because composition is where interface mismatches surface: does
+    <code>LeftRec.paull</code> produce something <code>Predict</code> can
+    consume? Does the loader round-trip a transformed grammar? Does the fix order
+    matter? The project forces those questions and the answers are the value.</p>
+  </details>
+
+  <details>
+    <summary>The tool says "LL(1) = YES after transforms." Is the transformed grammar the "same" grammar?</summary>
+    <p>Same <em>language</em> — it generates the identical set of strings
+    (Modules 23–24 check this by bounded enumeration). Different parse trees, and
+    associativity has to be recovered at AST-build time (Module 39). So: use it
+    to parse, not to reason about structure.</p>
+  </details>
+
+  <details>
+    <summary>What does the real CSE 340 Project 2 grade on?</summary>
+    <p>Typically the exact text of the symbol lists, nullable set, and FIRST /
+    FOLLOW sets, checked against a reference for a batch of grammars. Our
+    sections 1–4 are that; 5–7 are the extension into the transforms and the
+    verdict.</p>
+  </details>
+
+  <details>
+    <summary>Could I use this to check my hand-written parser's grammar?</summary>
+    <p>Yes — that's exactly its job. Write your grammar in the
+    <code>.grammar</code> format, run the tool, and if section 7 says LL(1) with
+    a clean table, a predictive recursive-descent parser (Module 19) or a
+    table-driven one (Module 26) will work with no backtracking.</p>
+  </details>
+
+  <details>
+    <summary>Why not also emit the parser code?</summary>
+    <p>That's Module X15 (a parser generator) — it takes this analysis and
+    prints Java/JS source. Kept separate because code generation has its own
+    concerns (naming, formatting, runtime library) that would bloat this
+    module.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p><b>Module 29 — LL(k), LL(*), and Backtracking RD</b> closes Part III by
+  asking what more than one token of lookahead buys you: where <code>k = 2</code>
+  resolves a conflict <code>k = 1</code> can't, what ANTLR's adaptive
+  <code>LL(*)</code> prediction does, and what backtracking recursive descent
+  costs. Then Part IV starts over from the bottom-up direction — LR parsing, a
+  strictly larger grammar class.</p>
+</section>
+
+<nav class="pager">
+  <a href="../27-ll1-error-recovery/tutorial.html"><span class="dir">Previous</span>← Module 27 · LL(1) Error Recovery</a>
+  <a href="../29-llk-adaptive/tutorial.html"><span class="dir">Next</span>Module 29 · LL(k), LL(*) &amp; Backtracking RD →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 28 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>28-grammar-tool-project2/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

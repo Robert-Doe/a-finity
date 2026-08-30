@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 11 — NFA and ε-NFA | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3F4C8C;--accent-wash:#E6E8F3;--accent-line:#B4BBDD}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 11 · Part II — Lexical Analysis</p>
+  <h1>NFA and<em>ε-NFA</em></h1>
+  <p class="thesis">Loosen the DFA's rules: <code>δ(q, a)</code> may be a
+  <b>set</b> of states — zero, one, or many — and <b>ε-transitions</b> move
+  without consuming input. It's far easier to build. And it buys <b>exactly
+  zero</b> extra power: <code>removeEpsilon()</code> proves it by construction.</p>
+
+  <div class="headline">
+    <span class="lbl">Nondeterminism = explore every branch at once</span>
+    <p>The NFA for <span class="hi">(a|b)*abb</span> takes <code>S -a-> S</code>
+    <em>and</em> <code>S -a-> S1</code> on the same character — one branch keeps
+    looping, the other bets the final <code>abb</code> starts here. Accept if
+    <b>any</b> branch is in an accepting state when the input ends.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../10-dfa/tutorial.html">DFA: states, δ, accept (Module 10)</a></li>
+    <li><a href="../prerequisites/automata-basics.html">NFA, ε-transitions, ε-closure</a></li>
+    <li><a href="../prerequisites/sets-relations-fixed-points.html">reflexive-transitive closure</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the detective who clones themselves</h2></div>
+
+  <div class="picture">
+    <p>A DFA detective works one thread: this clue leads to that room, which
+    leads to the next. One line of investigation.</p>
+    <p>An NFA detective <b>clones themselves at every fork</b>. Two doors marked
+    "<code>a</code>"? One clone takes each. A clone that hits a dead end simply
+    <b>vanishes</b>. The case is <b>solved</b> — the string <b>accepted</b> — if
+    <em>any</em> clone is standing in the culprit's room (an accepting state)
+    when the evidence runs out (the input ends).</p>
+    <p>An <b>ε-transition</b> is an unlocked connecting door: a clone can step
+    through it <em>for free</em>, without spending a clue. Before you even
+    present the first piece of evidence, clones spill through every unlocked
+    door — that's the <b>ε-closure of the start</b>.</p>
+    <p>"No extra power" means: you could instead hire <em>one</em> very organised
+    detective who, at every step, writes down <b>the complete list of rooms a
+    clone could be in</b>. That list is a single DFA state. Same conclusions,
+    one investigator. (Module 13 hires them.)</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Detective</th><th>NFA</th></tr></thead>
+    <tbody>
+      <tr><td>a clone standing in a room</td><td>one state the NFA "could be in"</td></tr>
+      <tr><td>the roster of where all clones are</td><td>the current state <em>set</em></td></tr>
+      <tr><td>two doors marked <code>a</code></td><td><code>δ(q, a) = {q₁, q₂}</code></td></tr>
+      <tr><td>a clone hitting a dead end and vanishing</td><td><code>δ(q, a) = ∅</code> — that branch dies</td></tr>
+      <tr><td>an unlocked connecting door</td><td>an ε-transition</td></tr>
+      <tr><td>clones spilling through before any evidence</td><td>ε-closure of <code>{start}</code></td></tr>
+      <tr><td>any clone in the culprit's room at the end</td><td>final set ∩ <code>F</code> ≠ ∅</td></tr>
+      <tr><td>one organised detective with a room-list</td><td>a DFA state = a set of NFA states</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>ε-closure</b> of a set: worklist search — repeatedly add any state
+        one ε-step away, until nothing new.</li>
+      <li><b>Start:</b> <code>cur = εClosure({start})</code>.</li>
+      <li><b>Per symbol <code>a</code>:</b>
+        <code>moved = ⋃ δ(s, a)</code> for every <code>s ∈ cur</code>;
+        then <code>cur = εClosure(moved)</code>. If <code>cur = ∅</code>, every
+        branch is dead — reject now.</li>
+      <li><b>Accept</b> iff <code>cur ∩ F ≠ ∅</code> at the end.</li>
+      <li><b>removeEpsilon():</b> for each state <code>q</code>, new
+        <code>δ'(q, a) = εClosure( δ( εClosure(q), a ) )</code>, and
+        <code>q</code> becomes accepting iff <code>εClosure(q)</code> already
+        contained an accepting state. Result: an ε-free NFA, same language.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The nondeterministic NFA for <code>(a|b)*abb</code></h3>
+  <div class="diagram"><pre>          a,b (loop)
+          ┌────┐
+          ▼    │        a          b          b
+   ──▶ (  S  )─┴───a──▶( S1 )───▶( S2 )───▶(( S3 ))
+          │                                      the ONLY accepting state
+          └── on 'a', ALSO stay in S  →  two branches from one character</pre></div>
+
+  <h3>Running <code>"aabb"</code> — the state set</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>after</th><th>state set</th><th>reason</th></tr></thead>
+    <tbody>
+      <tr><td>start</td><td><code>{S}</code></td><td>ε-closure of {S} = {S} (no ε here)</td></tr>
+      <tr><td><code>a</code></td><td><code>{S, S1}</code></td><td>S on a → both S and S1</td></tr>
+      <tr><td><code>a</code></td><td><code>{S, S1}</code></td><td>S1 on a → ∅ (dies); S on a → {S, S1}</td></tr>
+      <tr><td><code>b</code></td><td><code>{S, S2}</code></td><td>S on b → S; S1 on b → S2</td></tr>
+      <tr><td><code>b</code></td><td><code>{S, S3}</code></td><td>S on b → S; S2 on b → S3 — <b>S3 ∈ F → ACCEPT</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>ε-closure lets <code>(a|b)*</code> accept <code>""</code></h3>
+  <div class="diagram"><pre>  ab-star.nfa:   I --ε--> U --ε--> A1 ...        I --ε--> F        W --ε--> U / F
+
+  εClosure({I}) = {I, U, A1, B1, F}      ← F is in there BEFORE any input
+                                            → the empty string is accepted</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>ε-closure — a worklist reachability search</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Nfa.java</figcaption>
+<pre><code>Set&lt;String&gt; epsilonClosure(Set&lt;String&gt; set) {
+  Set&lt;String&gt; closure = <span class="k">new</span> LinkedHashSet&lt;&gt;(set);
+  Deque&lt;String&gt; work = <span class="k">new</span> ArrayDeque&lt;&gt;(set);
+  <span class="k">while</span> (!work.isEmpty()) {
+    String s = work.poll();
+    <span class="k">for</span> (String t : move(s, EPS))
+      <span class="k">if</span> (closure.add(t)) work.add(t);   <span class="c">// add only genuinely new states</span>
+  }
+  <span class="k">return</span> closure;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/nfa.mjs</figcaption>
+<pre><code>epsilonClosure(set) {
+  <span class="k">const</span> closure = <span class="k">new</span> Set(set);
+  <span class="k">const</span> work = [...set];
+  <span class="k">while</span> (work.length) {
+    <span class="k">const</span> s = work.shift();
+    <span class="k">for</span> (<span class="k">const</span> t <span class="k">of</span> <span class="k">this</span>.move(s, EPS))
+      <span class="k">if</span> (!closure.has(t)) { closure.add(t); work.push(t); }
+  }
+  <span class="k">return</span> closure;
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>The simulator — a set, not a state</h3>
+<pre><code><span class="k">boolean</span> accepts(List&lt;String&gt; input) {
+  Set&lt;String&gt; cur = epsilonClosure(Set.of(start));
+  <span class="k">for</span> (String sym : input) {
+    Set&lt;String&gt; moved = <span class="k">new</span> LinkedHashSet&lt;&gt;();
+    <span class="k">for</span> (String s : cur) moved.addAll(move(s, sym));   <span class="c">// every branch, in lockstep</span>
+    cur = epsilonClosure(moved);
+    <span class="k">if</span> (cur.isEmpty()) <span class="k">return</span> <span class="k">false</span>;               <span class="c">// all branches dead</span>
+  }
+  <span class="k">return</span> !intersect(cur, accept).isEmpty();
+}</code></pre>
+
+  <h3>removeEpsilon — the "no power" proof, in one method</h3>
+<pre><code><span class="k">for</span> (String q : states) {
+  Set&lt;String&gt; cq = epsilonClosure(Set.of(q));
+  <span class="k">if</span> (!intersect(cq, accept).isEmpty()) nAccept.add(q);   <span class="c">// q accepting if its closure hits F</span>
+  <span class="k">for</span> (String a : alphabet) {
+    Set&lt;String&gt; moved = <span class="k">new</span> LinkedHashSet&lt;&gt;();
+    <span class="k">for</span> (String p : cq) moved.addAll(move(p, a));
+    Set&lt;String&gt; target = epsilonClosure(moved);            <span class="c">// δ'(q,a) = εClose(δ(εClose(q), a))</span>
+    <span class="k">if</span> (!target.isEmpty()) nd.get(q).put(a, target);
+  }
+}</code></pre>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — "explore all branches" is not "try one, backtrack"</span>
+    <p>A backtracking matcher tries one path, and on failure rewinds and tries
+    another — worst case, exponential (the infamous "catastrophic regex
+    backtracking"). The set simulator here explores <em>all</em> paths
+    <em>simultaneously</em>, one lockstep per character: at most
+    <code>|states|</code> states in the set, so <code>O(|states| ×
+    |input|)</code>, always. Same acceptance decision, no blow-up. That's why
+    grep and RE2 use automaton simulation, not backtracking.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Build an NFA from a regex — the fixtures are hand-written (Module 12: Thompson's construction).</li>
+        <li>Remove the nondeterminism — <code>removeEpsilon()</code> leaves an NFA, still multi-valued (Module 13: subset construction).</li>
+        <li>Minimise anything (Module 14).</li>
+        <li>Beat a regex on any language — still exactly the regular languages.</li>
+        <li>Run in guaranteed-DFA time — the set can be up to <code>|states|</code> big each step.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Simulate an NFA with branching and ε-moves by tracking the state set.</li>
+        <li>Compute ε-closure of any state set.</li>
+        <li>Remove all ε-transitions, producing an equivalent ε-free NFA.</li>
+        <li>Show the language is unchanged by ε-removal, and matches the DFA and the regex.</li>
+        <li>Trace the state set at every step of a run.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg)</h4>
+<pre><code>cd 11-nfa-epsilon
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>run "aabb"  (tracking the SET of possible states):
+  after start  {S}
+  after a      {S,S1}
+  after b      {S,S2}
+  after b      {S,S3}
+  <span class="exp">final set contains S3 (accepting)?  true   -> ACCEPT</span>
+
+epsilon-closure of {I} (the start):  {A1,B1,F,I,U}
+
+removeEpsilon():  new NFA has epsilon transitions?  false
+  L(epsilon-NFA) == L(epsilon-free NFA), up to length 5:  true
+  ...and both == regex (a|b)*:  true</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out NfaTest    # OK 112 passed
+node js/nfa.test.mjs         # OK 112 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>A string you expect accepted is rejected</b> — one branch died but
+    another should have survived. <code>trace(chars(w))</code> shows the set at
+    each step; look for where it went <code>{}</code>.<br>
+    <b>ε-closure missing a state</b> — an <code>epsilon</code> line is missing or
+    misspelled (must be exactly <code>epsilon</code>).<br>
+    <b>The <code>(a|b)*</code> ε-NFA only accepts <code>a*</code> or
+    <code>b*</code></b> — the loop-back ε goes to one arm of the union instead of
+    the shared branch point. Loop back to <code>U</code>, which branches to both.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> The NFA for <code>(a|b)*abb</code> has 4 states; the DFA (Module
+  10) also has 4. Coincidence? What's the worst case when you convert an
+  <code>k</code>-state NFA to a DFA?</p>
+  <p><b>(2)</b> ε-closure runs before the first symbol <em>and</em> after each
+  one. What breaks if you skip the "before the first symbol" run?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Coincidence-ish. The subset construction (Module 13) can
+    produce up to <code>2ᵏ</code> DFA states from a <code>k</code>-state NFA,
+    because a DFA state is a <em>set</em> of NFA states. The classic blow-up: the
+    NFA for "the <code>k</code>-th symbol from the end is <code>a</code>" has
+    <code>k + 1</code> states; its minimal DFA has <code>2ᵏ</code> — it must
+    remember the last <code>k</code> symbols. <code>(a|b)*abb</code> stays small
+    only because few of its <code>2⁴</code> subsets are reachable.</p>
+    <p><b>(2)</b> Any accepting path that begins with ε-moves is lost. Concretely:
+    <code>(a|b)*</code> would stop accepting the empty string, because
+    <code>F</code> is only reachable from the start <code>I</code> via ε — and
+    without the initial closure the run would start at <code>{I}</code>, see no
+    input, and check <code>{I} ∩ F = ∅</code> → wrongly reject.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>"Nondeterministic" — does the machine flip a coin?</summary>
+    <p>No. It's a mathematical term meaning the transition relation isn't a
+    function — a state can have several successors on one symbol. The machine
+    accepts if <em>some</em> sequence of choices leads to an accepting state.
+    Real implementations don't guess; they either simulate all branches at once
+    (a set, as here) or backtrack through them.</p>
+  </details>
+
+  <details>
+    <summary>If an NFA has exactly the power of a DFA, why ever build one?</summary>
+    <p>Because building an NFA from a regex is trivial and <em>compositional</em>
+    — Module 12 does it with one small gadget per regex node. Building a DFA for
+    the same regex directly is painful and the DFA can be exponentially bigger.
+    Standard pipeline: regex → NFA (easy) → DFA (mechanical, Module 13) → minimal
+    DFA (Module 14).</p>
+  </details>
+
+  <details>
+    <summary>The ε-NFA has states (<code>U</code>, <code>W</code>) that only do ε-transitions. Wasteful?</summary>
+    <p>They're scaffolding. Thompson's construction adds a couple of ε-only
+    states per operator so every gadget has a single entry and single exit and
+    they compose uniformly. <code>removeEpsilon()</code> here, then minimisation
+    in Module 14, clean them out. The regularity is worth the temporary bloat.</p>
+  </details>
+
+  <details>
+    <summary>Can an NFA be <em>smaller</em> than the minimal DFA for the same language?</summary>
+    <p>Yes — sometimes exponentially smaller (the "<code>k</code>-th from the
+    end" example). The catch: minimising an NFA is PSPACE-complete, while
+    minimising a DFA is polynomial (Module 14). So NFAs are compact but hard to
+    optimise; DFAs are bigger but you can find the smallest one efficiently.</p>
+  </details>
+
+  <details>
+    <summary>The trace shows the state set can shrink. When it hits <code>{}</code>, is that a bug?</summary>
+    <p>No — it means every branch has died, so no continuation can accept, and
+    the string is rejected. <code>accepts</code> returns <code>false</code>
+    immediately in that case. A non-empty final set that misses <code>F</code>
+    is also a reject, just without the early-out.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>You now have an NFA simulator and ε-closure — the two things Thompson's
+  construction needs. <b>Module 12 — Thompson's Construction</b> compiles the
+  Module-3 regex tree into an ε-NFA, <b>one small gadget per node</b>:
+  <code>Char</code> → two states and an edge; <code>Concat</code> → wire two
+  gadgets end to end; <code>Union</code> → a new start ε-branching into both;
+  <code>Star</code> → an ε-loop. You'll prove the resulting NFA has at most
+  <b>2·|regex|</b> states. Then Module 13 flattens it to a DFA and the pipeline
+  regex → matcher is complete.</p>
+</section>
+
+<nav class="pager">
+  <a href="../10-dfa/tutorial.html"><span class="dir">Previous</span>← Module 10 · DFA</a>
+  <a href="../12-thompson-construction/tutorial.html"><span class="dir">Next</span>Module 12 · Thompson's Construction: RE → ε-NFA →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 11 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>11-nfa-epsilon/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

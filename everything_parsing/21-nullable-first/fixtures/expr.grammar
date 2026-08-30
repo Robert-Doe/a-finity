@@ -1,0 +1,8 @@
+# The Module 19/20 expression grammar. Nullable = {Ep, Tp}. FIRST cascades
+# through E -> T Ep -> F Tp -> ( E ) back to E (circular — hence the fixed point).
+%start E
+E  -> T Ep
+Ep -> + T Ep | epsilon
+T  -> F Tp
+Tp -> * F Tp | epsilon
+F  -> ( E ) | num | id

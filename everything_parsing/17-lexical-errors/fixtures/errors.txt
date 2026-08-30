@@ -1,0 +1,7 @@
+# Inputs with lexical errors, for mini.spec.
+# mini.spec's alphabet is: e i l n t x y 0-9 = < .
+# '@' and '#' are NOT in it -> lexical errors.  One input per line, quoted.
+"x@y#x"
+"x@@@#y"
+"let.x=@=9"
+"@@@"

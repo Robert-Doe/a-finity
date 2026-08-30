@@ -1,0 +1,8 @@
+# FOLLOW(S) and FOLLOW(X) are mutually dependent:
+#   S -> if b then S X : X at end -> FOLLOW(X) gets FOLLOW(S)
+#                        S before nullable X -> FOLLOW(S) gets FIRST(X) = {else}
+#                                            and FOLLOW(S) (X nullable)
+# The iteration resolves the cycle: FOLLOW(S) = FOLLOW(X) = { else $ }.
+%start S
+S -> if b then S X | other
+X -> else S | epsilon

@@ -1,0 +1,5 @@
+# Programs for mini.spec. One per line, wrapped in double quotes.
+"let.x=12.in.x"
+"let.let.in"
+"x<=99.in.y"
+"in<x"

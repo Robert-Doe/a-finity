@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Big-O Quick Reference — Prerequisites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B5BA5;--accent-wash:#E9EDF7}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Prerequisites · P8</p>
+  <h1>Big-O <em>Quick Reference</em></h1>
+  <p class="thesis">Four complexities carry the whole course, plus one idea —
+  <b>amortised</b> — that trips people up. Everything else is detail.</p>
+</header>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">01</span><h2>The four that matter</h2></div>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Class</th><th>Means</th><th>In this course</th></tr></thead>
+    <tbody>
+      <tr><td><code>O(1)</code></td><td>constant — independent of input size</td><td>one table lookup in an LL/LR parser; <code>advance</code>, <code>retract</code></td></tr>
+      <tr><td><code>O(n)</code></td><td>linear — one pass</td><td>a DFA scan; recursive descent; LL(1) and LR(1) parsing of the whole input</td></tr>
+      <tr><td><code>O(n²)</code> / <code>O(n³)</code></td><td>every pair / every triple of positions</td><td>Earley on ambiguous grammars (n³), CYK (n³)</td></tr>
+      <tr><td><code>O(2ⁿ)</code></td><td>exponential — a branch per choice</td><td>naive backtracking; the subset construction's worst case; generating a language to test membership (Module 4)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The entire reason Parts III–IV exist: parsing by <em>generating the
+  language</em> is <code>O(2ⁿ)</code>; a real parser is <code>O(n)</code>. Same
+  answer, unrecognisably different cost.</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">02</span><h2>Amortised O(1)</h2></div>
+  <div class="mechanism">
+    <p>"<b>Amortised</b> O(1)" means: <em>any single operation might be
+    expensive, but any long run of them averages to O(1) each.</em></p>
+    <p>Module 9's buffer: most <code>advance()</code> calls just do
+    <code>forward++</code> (O(1)). Once every <code>halfSize</code> characters,
+    one <code>advance()</code> also triggers a buffer load (O(halfSize)). Spread
+    that load's cost over the <code>halfSize</code> cheap calls that follow and
+    each <code>advance()</code> is O(1) on average — even though individual calls
+    aren't.</p>
+    <p>Same reasoning: a dynamic array's <code>append</code> is amortised O(1)
+    despite the occasional O(n) resize; a packrat parser's memoised rule is
+    amortised O(1) despite the first call doing real work.</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">03</span><h2>What we ignore</h2></div>
+  <p>Constant factors, cache behaviour, and the difference between
+  <code>O(n)</code> and <code>O(n log n)</code> — all real, all beyond this
+  course's scope. When a module says "linear," it means "one pass over the
+  input, no nested re-scanning," and that is the property that matters for a
+  parser.</p>
+</section>
+
+<nav class="pager">
+  <a href="index.html"><span class="dir">Back</span>← All prerequisites</a>
+  <a href="sets-relations-fixed-points.html"><span class="dir">Related</span>Sets, Relations &amp; Fixed Points →</a>
+</nav>
+
+</div>
+</body>
+</html>

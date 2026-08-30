@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 06 — Ambiguity &amp; Disambiguation | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#B23A48;--accent-wash:#F6E7E9;--accent-line:#E4B7BE}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 06 · Part I — Foundations</p>
+  <h1>Ambiguity &amp;<em>Disambiguation</em></h1>
+  <p class="thesis">Some grammars give one string <b>two parse trees</b> — and
+  therefore two meanings. This module builds a tool that finds every tree a
+  grammar assigns a string, exhibits the classic ambiguities, and shows the two
+  standard rewrites that force a grammar back to <b>one tree per string</b>
+  without changing the language it accepts.</p>
+
+  <div class="headline">
+    <span class="lbl">Ambiguity is not academic</span>
+    <p>Under <span class="hi">E → E + E | E * E | id</span>, the string
+    <code>id + id * id</code> has two trees. With <code>id = 2</code> one
+    computes <b>6</b>, the other <b>8</b>. Same grammar, same input, two
+    answers. A language cannot ship like that.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../05-derivations-parse-trees/tutorial.html">parse trees, yield, tree ↔ leftmost derivation (Module 5)</a></li>
+    <li><a href="../04-cfg-formal-definition/tutorial.html">the derivation search, enumerate (Module 4)</a></li>
+    <li><a href="../03-regex-formal-definition/tutorial.html">precedence lives in grammar shape (Module 3)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — "the girl saw the boy with the binoculars"</h2></div>
+
+  <div class="picture">
+    <p>Read that sentence. Who has the binoculars?</p>
+    <p><b>Reading 1:</b> the girl used binoculars to see the boy. ("with the
+    binoculars" attaches to <em>saw</em>.)</p>
+    <p><b>Reading 2:</b> the girl saw a boy who was holding binoculars. ("with
+    the binoculars" attaches to <em>the boy</em>.)</p>
+    <p>Same words, same order, two structures — because English grammar lets a
+    "with …" phrase hang off either a verb or a noun, and nothing in the
+    sentence says which. That is <b>ambiguity</b>: one string, two parse trees,
+    two meanings.</p>
+    <p><code>id + id * id</code> is the same situation with arithmetic. Does
+    <code>* id</code> attach to the second <code>id</code> ("add, then
+    multiply") or to the whole <code>id + id</code> ("multiply the sum")? The
+    grammar <code>E → E + E | E * E | id</code> allows both, so both trees
+    exist.</p>
+    <p>Two ways out, and languages use both:</p>
+    <ul>
+      <li><b>Restructure</b> so only one reading is grammatical — split
+        <code>E</code> into precedence tiers. (This is "rewrite the sentence.")</li>
+      <li><b>Adopt a fixed rule</b> — "a <code>*</code> always binds tighter than
+        a <code>+</code>," "an <code>else</code> always matches the nearest
+        <code>then</code>." (This is "we agree that 'with' attaches to the
+        nearest noun.")</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Find every leftmost derivation of the target string.</b>
+        Breadth-first over sentential forms. Prune a branch if it has more
+        terminals than <code>|w|</code>, or if its finished terminal prefix
+        (everything left of the leftmost nonterminal) doesn't already match
+        <code>w</code>.</li>
+      <li><b>Turn each into a parse tree</b> (Module 5's <code>build</code>).
+        Distinct leftmost derivations → distinct trees.</li>
+      <li><b>Ambiguous for <code>w</code></b> iff two or more distinct trees.
+        <b>Ambiguous grammar</b> iff ambiguous for some <code>w</code>.</li>
+      <li><b>Witness search:</b> walk the language in (length, lexicographic)
+        order; the first string with ≥ 2 trees is the smallest witness.</li>
+      <li><b>Disambiguate by hand:</b> one nonterminal tier per precedence
+        level; left-recursion for left-associativity. Then re-run steps 1–3 and
+        confirm one tree per string.</li>
+      <li><b>Confirm same language:</b> compare the two grammars' bounded
+        enumerations.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Two trees for <code>id + id * id</code> (ambiguous grammar)</h3>
+  <div class="diagram"><pre>  TREE A  →  (id + (id * id))  =  6            TREE B  →  ((id + id) * id)  =  8
+
+  E                                           E
+  +- E                                        +- E
+  |  +- id                                    |  +- E
+  +- +                                        |  |  +- id
+  +- E                                        |  +- +
+     +- E                                     |  +- E
+     |  +- id                                 |     +- id
+     +- *                                     +- *
+     +- E                                     +- E
+        +- id                                    +- id
+
+  the '+' is the root                          the '*' is the root
+  → multiply first, then add                   → add first, then multiply</pre></div>
+
+  <h3>The disambiguated grammar: one tree, always</h3>
+  <div class="diagram"><pre>  E -> E + T | T        T -> T * F | F        F -> ( E ) | id
+
+  '+' can only appear at the E level, '*' only at the T level.
+  T nests inside E, so '*' nests inside '+', so 'id * id' groups first.
+  Every string gets exactly ONE tree — the "(id + (id * id))" one.</pre></div>
+
+  <h3>Dangling else — <code>if x then if x then a else b</code></h3>
+  <div class="diagram"><pre>  TREE A: else with the INNER if          TREE B: else with the OUTER if
+  S                                       S
+  +- if x then                            +- if x then
+  +- S                                    +- S  = (if x then a)
+     +- if x then a else b                +- else
+                                          +- S  = b
+
+  "if x then (if x then a else b)"        "if x then (if x then a) else b"</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The search, and the prune that makes it fast</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Ambiguity.java</figcaption>
+<pre><code><span class="k">while</span> (!queue.isEmpty() &amp;&amp; budget-- &gt; <span class="y">0</span>) {
+  State st = queue.poll();
+  <span class="k">int</span> i = Derivation.leftmostNonterminal(g, st.form);
+  <span class="k">if</span> (i &lt; <span class="y">0</span>) {
+    <span class="k">if</span> (st.form.equals(target)) out.add(st.choices);   <span class="c">// a complete tree!</span>
+    <span class="k">continue</span>;
+  }
+  <span class="k">if</span> (i &gt; target.size()) <span class="k">continue</span>;
+  <span class="c">// everything left of the leftmost nonterminal is FINAL in a leftmost derivation:</span>
+  <span class="k">if</span> (!st.form.subList(<span class="y">0</span>, i).equals(target.subList(<span class="y">0</span>, i))) <span class="k">continue</span>;
+
+  <span class="k">for</span> (Grammar.Production p : g.productionsFor(st.form.get(i))) {
+    List&lt;String&gt; next = splice(st.form, i, p.rhs());
+    <span class="k">if</span> (terminalCount(g, next) &gt; target.size()) <span class="k">continue</span>;
+    queue.add(<span class="k">new</span> State(next, append(st.choices, p.index())));
+  }
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/ambiguity.mjs</figcaption>
+<pre><code><span class="k">while</span> (queue.length &gt; <span class="y">0</span> &amp;&amp; budget-- &gt; <span class="y">0</span>) {
+  <span class="k">const</span> st = queue.shift();
+  <span class="k">const</span> i = leftmostNonterminal(g, st.form);
+  <span class="k">if</span> (i &lt; <span class="y">0</span>) {
+    <span class="k">if</span> (sameList(st.form, target)) out.push(st.choices);
+    <span class="k">continue</span>;
+  }
+  <span class="k">if</span> (i &gt; target.length) <span class="k">continue</span>;
+  <span class="k">if</span> (!sameList(st.form.slice(<span class="y">0</span>, i), target.slice(<span class="y">0</span>, i))) <span class="k">continue</span>;
+
+  <span class="k">for</span> (<span class="k">const</span> p <span class="k">of</span> g.productionsFor(st.form[i])) {
+    <span class="k">const</span> next = [...st.form.slice(<span class="y">0</span>, i), ...p.rhs, ...st.form.slice(i + <span class="y">1</span>)];
+    <span class="k">if</span> (terminalCount(g, next) &gt; target.length) <span class="k">continue</span>;
+    queue.push({ form: next, choices: [...st.choices, p.index] });
+  }
+}</code></pre>
+    </figure>
+  </div>
+  <p>The prefix prune (<code>form.subList(0, i)</code> must match) is what turns
+  a hopeless exponential search into an instant one: a wrong first token dies at
+  depth 1, not after the whole string is generated.</p>
+
+  <h3>Ambiguity made concrete — the two trees compute different numbers</h3>
+<pre><code><span class="c">// Main.evalExpr — id = 2, walk the tree</span>
+<span class="k">if</span> (k.size() == <span class="y">3</span>) {
+  <span class="k">if</span> (k.get(<span class="y">0</span>).symbol.equals(<span class="y">"("</span>)) <span class="k">return</span> evalExpr(k.get(<span class="y">1</span>));
+  <span class="k">long</span> a = evalExpr(k.get(<span class="y">0</span>)), b = evalExpr(k.get(<span class="y">2</span>));
+  <span class="k">return</span> <span class="k">switch</span> (k.get(<span class="y">1</span>).symbol) {
+    <span class="k">case</span> <span class="y">"+"</span> -&gt; a + b;
+    <span class="k">case</span> <span class="y">"*"</span> -&gt; a * b;
+  };
+}
+<span class="c">// TREE A → 6,  TREE B → 8</span></code></pre>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — you cannot write a "is this grammar ambiguous?" checker</span>
+    <p>It is <b>undecidable</b>. No algorithm takes an arbitrary context-free
+    grammar and answers yes/no. Our <code>smallestAmbiguousString</code> only
+    searches strings up to a length bound — a <code>null</code> result means "no
+    witness this short," never "unambiguous." And some languages are
+    <em>inherently</em> ambiguous: <em>every</em> grammar for
+    <code>{ aⁱbʲcᵏ : i = j or j = k }</code> is ambiguous. See
+    <a href="DECISIONS.md">DECISIONS.md</a>.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Decide whether a grammar is ambiguous — only find witnesses up to a length bound.</li>
+        <li>Disambiguate automatically. The rewrites are done by hand and verified; there's no transform.</li>
+        <li>Prove two grammars generate the same language — only compare bounded enumerations.</li>
+        <li>Handle a grammar with unit or ε cycles — the search would spin (Modules 16, 23).</li>
+        <li>Resolve the dangling else <em>inside</em> the grammar without adding tiers — that's Module 35's shift-preference.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Enumerate every parse tree a grammar assigns a given string.</li>
+        <li>Report a grammar ambiguous for a string, with all its trees rendered.</li>
+        <li>Find the smallest ambiguous string up to a bound.</li>
+        <li>Show ambiguity means different <em>values</em>, not just different pictures.</li>
+        <li>Verify a hand-disambiguated grammar has one tree per string and the same bounded language.</li>
+        <li>Exhibit precedence and associativity ambiguity, and the dangling else.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg — fixed script over all three grammars)</h4>
+<pre><code>cd 06-ambiguity-disambiguation
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpts)</h4>
+<pre><code>string "id + id * id" has 2 parse trees:
+  TREE A   value(id=2) = 6   grouping: (id + (id * id))
+  TREE B   <span class="exp">value(id=2) = 8</span>   grouping: ((id + id) * id)
+
+smallest ambiguous string (length &lt;= 7): id * id * id
+
+--- fixtures/expr-unambiguous.grammar ---
+string "id + id * id" has 1 parse tree:
+
+--- language equivalence (ambiguous vs disambiguated) ---
+L(ambiguous)   up to length 7: 60 strings
+L(unambiguous) up to length 7: 60 strings
+<span class="exp">same language? true</span>
+
+string "if x then if x then a else b" has 2 parse trees:
+  TREE A - else binds to the INNER if
+  TREE B - else binds to the OUTER if</code></pre>
+    <h4>Tests — both "OK 18 passed"</h4>
+<pre><code>java -cp java/out AmbiguityTest
+node js/ambiguity.test.mjs</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>allTrees</code> returns 0</b> — the string isn't in the language;
+    check it against <code>Derivation.enumerate</code> first.<br>
+    <b>The search hangs / hits <code>MAX_STATES</code></b> — the grammar has a
+    unit cycle (<code>A → B</code>, <code>B → A</code>) or ε-cycle. Module 6's
+    grammars have neither.<br>
+    <b><code>smallestAmbiguousString</code> returns null</b> for a grammar you
+    know is ambiguous — its shortest witness is longer than <code>maxLen</code>.
+    Raise the bound. (It still can't <em>certify</em> unambiguous.)</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p>Both trees for <code>id + id + id</code> evaluate to 6, because addition is
+  associative. So is <em>that</em> ambiguity harmless — can the parser just pick
+  either tree?</p>
+  <p>Then: name a binary operator where the two trees give <em>different</em>
+  answers, and one where they always agree no matter the values.</p>
+
+  <details>
+    <summary>Answer</summary>
+    <p><b>Not harmless.</b> Even when the value is the same, the tree isn't —
+    and everything downstream keys off the tree: type checking, code generation,
+    error messages ("expected <code>)</code> after the <em>second</em>
+    <code>id</code>"), source maps, refactoring tools, pretty-printers. A
+    language spec has to state <em>which</em> tree, or two conforming
+    implementations disagree about the program's structure even when they agree
+    about its result. "Addition associates left" is in the spec of every real
+    language for exactly this reason.</p>
+    <p><b>Disagree:</b> subtraction. <code>(8 - 4) - 2 = 2</code> but
+    <code>8 - (4 - 2) = 6</code>. Same for division, exponentiation
+    (<code>2^(2^3) = 256</code> vs <code>(2^2)^3 = 64</code>), and string
+    <code>-</code>-like operations.
+    <b>Always agree:</b> <code>+</code> and <code>*</code> on numbers,
+    <code>min</code>, <code>max</code>, boolean <code>and</code>/<code>or</code>,
+    string concatenation, set union — the associative operators. Even for these,
+    see the previous paragraph: the parser still must commit.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Is every grammar with <code>E -> E op E</code> ambiguous?</summary>
+    <p>If it has two or more operators at that shape, or one operator that could
+    associate either way — yes. <code>E -> E + E | id</code> alone is ambiguous
+    (<code>id + id + id</code> has two trees). The fix is always the same:
+    a nonterminal tier per precedence level, and pick a recursion side per
+    operator for its associativity.</p>
+  </details>
+
+  <details>
+    <summary>The disambiguated grammar is left-recursive. Module 5 said that's a problem!</summary>
+    <p>Left recursion breaks a top-down <em>parser</em> (Module 16). It has
+    nothing to do with ambiguity. The tiered grammar
+    <code>E -> E + T | T</code> is <em>unambiguous and left-recursive</em> —
+    those are independent properties. Module 16 removes the recursion while
+    keeping it unambiguous; the tree shape is preserved.</p>
+  </details>
+
+  <details>
+    <summary>Can every ambiguous grammar be fixed?</summary>
+    <p>No, on two counts. (1) Deciding whether a given grammar is ambiguous is
+    undecidable — you can't even always tell if there's a problem. (2) Some
+    context-free <em>languages</em> are inherently ambiguous: every grammar that
+    generates them is ambiguous. The expression language is <em>not</em> one of
+    those, which is why the <code>E/T/F</code> rewrite works.</p>
+  </details>
+
+  <details>
+    <summary>How do real parser generators handle the dangling else?</summary>
+    <p>yacc/Bison see it as a shift-reduce conflict and resolve it by preferring
+    to <em>shift</em> — which means "keep reading, attach the <code>else</code>
+    to the nearest <code>then</code>." That's the same rule C, Java, and most
+    languages specify. Module 35 covers exactly this.</p>
+  </details>
+
+  <details>
+    <summary><code>smallestAmbiguousString</code> returned null. Is my grammar unambiguous?</summary>
+    <p>Only "no ambiguous string of length ≤ <code>maxLen</code>." It is not a
+    certificate. There is no algorithm that certifies a CFG unambiguous — if you
+    need certainty, you restructure the grammar into a form whose parsing method
+    (LL, LR) <em>cannot</em> be ambiguous, which is what Parts III–IV are
+    about.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>You've now seen what grammars can do <em>too much</em> of. <b>Module 7 —
+  The Chomsky Hierarchy &amp; Pumping Lemmas</b> shows what they can't do at all.
+  A regular grammar provably cannot match <code>aⁿbⁿ</code> — it has no way to
+  remember how many <code>a</code>s it saw. A context-free grammar provably
+  cannot match <code>aⁿbⁿcⁿ</code>. You'll build the pumping argument as code:
+  given a candidate regular grammar and a target language, produce the specific
+  string it must accept but shouldn't.</p>
+</section>
+
+<nav class="pager">
+  <a href="../05-derivations-parse-trees/tutorial.html"><span class="dir">Previous</span>← Module 05 · Derivations, Parse Trees, Leftmost/Rightmost</a>
+  <a href="../07-chomsky-pumping/tutorial.html"><span class="dir">Next</span>Module 07 · The Chomsky Hierarchy &amp; Pumping Lemmas →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 06 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>06-ambiguity-disambiguation/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

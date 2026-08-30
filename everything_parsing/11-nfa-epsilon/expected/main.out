@@ -1,0 +1,38 @@
+=== Module 11 - NFA and epsilon-NFA ===
+
+--- fixtures/ends-abb.nfa   (nondeterministic, for (a|b)*abb) ---
+states: S S1 S2 S3    alphabet: a b
+start: S    accept: S3
+  S has TWO transitions on 'a':  S -a-> S   and   S -a-> S1   (the 'guess')
+
+run "aabb"  (tracking the SET of possible states):
+  after start  {S}
+  after a      {S,S1}
+  after a      {S,S1}
+  after b      {S,S2}
+  after b      {S,S3}
+  final set contains S3 (accepting)?  true   -> ACCEPT
+
+cross-check, all up to length 6:
+  NFA language == DFA language (Module 10):  true   (15 strings)
+  every NFA-accepted string is regex-matched:  true
+
+--- fixtures/ab-star.nfa   (epsilon-NFA for (a|b)*) ---
+has epsilon transitions?  true
+
+epsilon-closure of {I} (the start):  {A1,B1,F,I,U}
+  -> before reading any input, the NFA is 'in' all of these at once,
+     including F, so the empty string is accepted (zero repetitions).
+
+run "ab":
+  after start  {A1,B1,F,I,U}
+  after a      {A1,A2,B1,F,U,W}
+  after b      {A1,B1,B2,F,U,W}
+
+removeEpsilon():  new NFA has epsilon transitions?  false
+  new accepting states: I A2 B2 W F   (every state whose epsilon-closure reached the old F)
+  L(epsilon-NFA) == L(epsilon-free NFA), up to length 5:  true
+  ...and both == regex (a|b)*:  true
+  language: epsilon, a, b, aa, ab, ba, bb, aaa, aab, aba, ...
+
+summary: NFA(a|b)*abb == DFA == regex (true) | epsilon-closure computed | epsilon removed, language unchanged (true) -> epsilon and nondeterminism add NO power

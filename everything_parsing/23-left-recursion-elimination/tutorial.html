@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 23 — Left Recursion Elimination | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#8E3B6B;--accent-wash:#F3E5EE;--accent-line:#DDBFD0}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 23 · Part III — Top-Down Parsing</p>
+  <h1>Left Recursion <em>Elimination</em></h1>
+  <p class="thesis">Module 19 said a rule like <code>E → E + T</code> is fatal to
+  recursive descent — <code>parseE</code> calls <code>parseE</code> with the
+  cursor unmoved, forever. This module removes it mechanically. <b>Direct</b>
+  left recursion (<code>A → A α | β</code>) has a two-line rewrite.
+  <b>Indirect</b> left recursion (<code>A → B γ</code>, <code>B → A δ</code>)
+  needs <b>Paull's algorithm</b>: impose an order, substitute, then apply the
+  two-line rewrite. Same language out; recursion now grows rightward.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>Feed in the natural grammar <code>E → E + T | T</code>,
+    <code>T → T * F | F</code>. Out comes
+    <span class="hi">E → T E', E' → + T E' | ε, T → F T', T' → * F T' | ε</span>
+    — the exact grammar Modules 19–22 have been running. It was never invented;
+    it's this transform applied to the obvious one.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../19-recursive-descent/tutorial.html">why left recursion loops forever (Module 19)</a></li>
+    <li><a href="../06-ambiguity-disambiguation/tutorial.html">left recursion ↔ left associativity (Module 6)</a></li>
+    <li><a href="../05-derivations-parse-trees/tutorial.html">derivations &amp; the language of a grammar (Module 5)</a></li>
+    <li><a href="../08-bnf-ebnf-abnf/tutorial.html">the loop form <code>E → T { + T }</code> (Module 8)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — folding a chain of paperclips</h2></div>
+
+  <div class="picture">
+    <p>You've got a chain of paperclips and you want to describe how to build it.
+    The <b>left-recursive</b> description is: "a chain is <em>a chain</em>, plus
+    one clip on the right." True, but useless as instructions — to start
+    building "a chain" you first need "a chain," which needs "a chain"… you never
+    pick up a physical clip.</p>
+    <p>The <b>right-recursive</b> description of the exact same object: "a chain
+    is one clip, followed by <em>the rest of the chain</em>." Now you can start:
+    grab a clip, then recurse on a strictly shorter remainder. It bottoms out.</p>
+    <p>The transform swaps one description for the other <em>without changing
+    what gets built</em>. It splits each rule into "the part that isn't
+    recursive" (<code>β</code> — the actual first clip) and "the part that is"
+    (<code>α</code> — what repeats), then rebuilds:
+    <code>A → β A'</code>, <code>A' → α A' | ε</code>. Read that as "one
+    <code>β</code>, then zero or more <code>α</code>s" — the loop form from
+    Module 8's EBNF.</p>
+    <p><b>Indirect</b> recursion is when the chain-defines-chain loop goes
+    through an intermediary: "a chain is a <em>rope</em> plus a clip; a rope is a
+    <em>chain</em> plus a knot." Paull's algorithm untangles it by
+    <em>inlining</em> the rope's definition into the chain's, collapsing the
+    detour into direct recursion you can then rewrite.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Paperclips</th><th>Grammar</th></tr></thead>
+    <tbody>
+      <tr><td>"a chain is a chain plus a clip"</td><td><code>A → A α</code> — left-recursive, no base case to reach</td></tr>
+      <tr><td>"a chain is a clip then the rest"</td><td><code>A → β A'</code>, <code>A' → α A' | ε</code> — right-recursive</td></tr>
+      <tr><td>the non-recursive part</td><td><code>β</code> — alternatives not starting with <code>A</code></td></tr>
+      <tr><td>the repeating part</td><td><code>α</code> — what comes after the leading <code>A</code></td></tr>
+      <tr><td>the loop goes through a rope</td><td>indirect: <code>A → B γ</code>, <code>B → A δ</code></td></tr>
+      <tr><td>inline the rope's definition</td><td>Paull's substitution step</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <h3>Direct — <code>eliminateDirect(A)</code></h3>
+    <ol>
+      <li>Split <code>A</code>'s productions: <code>α</code>-list = the tails of
+        rules <code>A → A α</code>; <code>β</code>-list = every other rule.</li>
+      <li>If the <code>α</code>-list is empty, <code>A</code> isn't directly
+        left-recursive — return unchanged.</li>
+      <li>Make a fresh nonterminal <code>A'</code>.</li>
+      <li>New <code>A</code> rules: <code>A → β A'</code> for each
+        <code>β</code>.</li>
+      <li>New <code>A'</code> rules: <code>A' → α A'</code> for each
+        <code>α</code>, plus <code>A' → ε</code>.</li>
+    </ol>
+    <h3>Indirect — <code>paull(G)</code></h3>
+    <ol>
+      <li>Order the nonterminals <code>A₁ … Aₙ</code> (first-appearance order).</li>
+      <li>For <code>i = 1 … n</code>:
+        <ul>
+          <li>For <code>j = 1 … i−1</code>: for every rule
+            <code>Aᵢ → Aⱼ γ</code>, delete it and add
+            <code>Aᵢ → δ γ</code> for each rule <code>Aⱼ → δ</code>.</li>
+          <li>Now run <code>eliminateDirect(Aᵢ)</code>.</li>
+        </ul>
+      </li>
+      <li>Invariant after step <code>i</code>: no <code>Aᵢ</code> production
+        starts with any of <code>A₁ … Aᵢ</code>. After step <code>n</code>,
+        nothing is left-recursive.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Direct — <code>E → E + T | T</code></h3>
+  <div class="diagram"><pre>  rules of E:  [E + T]   [T]
+               ^^^^^^^ starts with E  -> alpha = "+ T"
+                       ^^^ doesn't    -> beta  = "T"
+
+  A' = E'
+  E  -> T E'                        (beta  "T"  followed by E')
+  E' -> + T E' | epsilon            (alpha "+ T" followed by E', plus epsilon)
+
+  same for T -> T * F | F  =>  T -> F T' ,  T' -> * F T' | epsilon</pre></div>
+
+  <h3>Indirect — <code>S → A a | b</code>, <code>A → A c | S d | e</code></h3>
+  <div class="diagram"><pre>  order: S, A
+
+  i = S:  no j below it. eliminateDirect(S): rules [A a], [b] — neither starts
+          with S. nothing to do.
+
+  i = A:  j = S. rules of A: [A c], [S d], [e]
+            [A c]  starts with A, not S  -> keep
+            [S d]  starts with S         -> substitute S -> A a | b :
+                                            add [A a d], [b d]
+            [e]    keep
+          A now: [A c], [A a d], [b d], [e]
+          eliminateDirect(A):
+            alpha = { "c", "a d" }      beta = { "b d", "e" }
+            A  -> b d A' | e A'
+            A' -> c A' | a d A' | epsilon
+
+  final:  S  -> A a | b
+          A  -> b d A' | e A'
+          A' -> c A' | a d A' | epsilon        (Dragon Book 4.18)</pre></div>
+
+  <h3>Language unchanged — bounded check</h3>
+  <div class="diagram"><pre>  enumerate every string of length &lt;= 6 from BEFORE and from AFTER:
+
+  expr:      70 strings  ==  70 strings     identical? true
+  indirect:  20 strings  ==  20 strings     identical? true
+
+  the transform preserves L(G). it does NOT preserve parse-tree shape:
+  BEFORE builds  ((id + id) + id)  ;  AFTER builds  (id + (id + id)).</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Direct elimination</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/LeftRec.java</figcaption>
+<pre><code><span class="k">for</span> (List&lt;String&gt; r : rules) {
+  <span class="k">if</span> (!r.isEmpty() &amp;&amp; r.get(0).equals(a))
+    alpha.add(r.subList(1, r.size()));       <span class="c">// tail after the leading A</span>
+  <span class="k">else</span>
+    beta.add(r);
+}
+<span class="k">if</span> (alpha.isEmpty()) <span class="k">return</span>;                  <span class="c">// not directly left-recursive</span>
+
+String ap = fresh(g, a);                      <span class="c">// A'</span>
+<span class="k">for</span> (List&lt;String&gt; b : beta) newA.add(append(b, ap));       <span class="c">// A -> b A'</span>
+<span class="k">for</span> (List&lt;String&gt; al : alpha) newAp.add(append(al, ap));   <span class="c">// A' -> a A'</span>
+newAp.add(<span class="k">new</span> ArrayList&lt;&gt;());               <span class="c">// A' -> epsilon</span></code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/leftrec.mjs</figcaption>
+<pre><code><span class="k">for</span> (<span class="k">const</span> r <span class="k">of</span> rules) {
+  <span class="k">if</span> (r.length &gt; 0 &amp;&amp; r[0] === a) alpha.push(r.slice(1));
+  <span class="k">else</span> beta.push([...r]);
+}
+<span class="k">if</span> (alpha.length === 0) <span class="k">return</span>;
+
+<span class="k">const</span> ap = fresh(g, a);
+<span class="k">const</span> newA  = beta.map(b =&gt; [...b, ap]);      <span class="c">// A -> b A'</span>
+<span class="k">const</span> newAp = alpha.map(al =&gt; [...al, ap]);   <span class="c">// A' -> a A'</span>
+newAp.push([]);                              <span class="c">// A' -> epsilon</span></code></pre>
+    </figure>
+  </div>
+
+  <h3>Paull's substitution</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/LeftRec.java</figcaption>
+<pre><code><span class="k">for</span> (List&lt;String&gt; r : g.prods.get(ai)) {
+  <span class="k">if</span> (!r.isEmpty() &amp;&amp; r.get(0).equals(aj)) {   <span class="c">// Ai -> Aj g</span>
+    List&lt;String&gt; tail = r.subList(1, r.size());
+    <span class="k">for</span> (List&lt;String&gt; d : g.prods.get(aj))     <span class="c">// each Aj -> d</span>
+      replaced.add(concat(d, tail));           <span class="c">// Ai -> d g</span>
+  } <span class="k">else</span> {
+    replaced.add(r);
+  }
+}
+g.prods.put(ai, dedupe(replaced));
+... eliminateDirect(g, ai);</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/leftrec.mjs</figcaption>
+<pre><code><span class="k">for</span> (<span class="k">const</span> r <span class="k">of</span> g.prods.get(ai)) {
+  <span class="k">if</span> (r.length &gt; 0 &amp;&amp; r[0] === aj) {
+    <span class="k">const</span> tail = r.slice(1);
+    <span class="k">for</span> (<span class="k">const</span> d <span class="k">of</span> g.prods.get(aj))
+      replaced.push([...d, ...tail]);
+  } <span class="k">else</span> {
+    replaced.push([...r]);
+  }
+}
+g.prods.set(ai, dedupe(replaced));
+eliminateDirect(g, ai);</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Why the order matters</span>
+    <p>Paull's substitution only replaces <code>Aⱼ</code> for <code>j &lt; i</code>
+    — lower in the order. That's what guarantees progress: after you've cleaned
+    <code>A₁ … Aᵢ₋₁</code>, none of them can start with something that loops
+    back, so inlining them into <code>Aᵢ</code> strictly reduces the tangle. A
+    different order gives a different (still correct) grammar; a
+    <em>random</em> substitution with no order can loop.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Keep the parse-tree shape / associativity — that's gone by construction (recover it in Module 39, or use the loop form from Module 19).</li>
+        <li>Left-factor the shared prefixes Paull can introduce — Module 24.</li>
+        <li>Nullable-prefix left recursion (<code>A → B A</code>, <code>B → ε</code>) — needs Module 21's nullable; folded into the Project 2 tool (Module 28).</li>
+        <li>Prove language preservation in general — we check it empirically up to length 6.</li>
+        <li>Minimise the number of new nonterminals / productions (Paull can blow up on adversarial grammars).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Eliminate direct left recursion with the standard rewrite.</li>
+        <li>Eliminate indirect left recursion with Paull's algorithm.</li>
+        <li>Leave a non-left-recursive grammar untouched.</li>
+        <li>Preserve the language (verified by bounded enumeration).</li>
+        <li>Produce exactly the Module 19–22 expression grammar from the natural one.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 23-left-recursion-elimination
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>########## fixtures/expr.grammar
+BEFORE:
+  E -&gt; E + T | T
+  ...
+  left-recursive? true
+AFTER (Paull):
+  E -&gt; T E'
+  E' -&gt; + T E' | epsilon
+  T -&gt; F T'
+  T' -&gt; * F T' | epsilon
+  F -&gt; ( E ) | id | num
+  left-recursive? false
+language check (all strings up to length 6):
+  before: 70 strings
+  after : 70 strings
+  identical? true</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out LeftRecTest    # OK 11 passed
+node js/leftrec.test.mjs          # OK 11 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>Still left-recursive after the transform</b> — you did direct only; run
+    the full Paull loop (substitute lower nonterminals first).<br>
+    <b>Language changed</b> — a dropped alternative. Every non-recursive
+    <code>β</code> gets a <code>β A'</code>; every recursive <code>α</code> gets
+    an <code>α A'</code>; and <code>A'</code> must have its <code>ε</code>.<br>
+    <b>Enumeration hangs</b> — the grammar still has a no-progress cycle; that's
+    the bug the transform should have fixed.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Eliminate direct left recursion from
+  <code>L → L , e | e</code> (a comma-separated list). What does
+  <code>L'</code> look like? <b>(2)</b> The result is right-recursive, so
+  <code>a , b , c</code> parses as <code>a , (b , c)</code>. For a list that's
+  usually fine — but name one situation where you'd care, and what you'd do
+  about it.</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>α = ", e"</code>, <code>β = "e"</code>. So
+    <code>L → e L'</code> and <code>L' → , e L' | ε</code>. In loop form:
+    <code>L → e { , e }</code>.</p>
+    <p><b>(2)</b> If the list elements have side effects and evaluation order
+    matters (e.g. <code>print(a), print(b), print(c)</code> in a language where
+    the parser drives evaluation), right-nesting could reverse the order — or at
+    least make left-to-right handling awkward. The fix: don't build a nested
+    tree at all; write <code>L'</code> as a <code>while</code> loop that appends
+    each element to a flat list as it's parsed. Same grammar, iterative code.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>If the transform changes the parse trees, how is the language the same?</summary>
+    <p>The <em>set of strings</em> generated is identical — that's the language.
+    Which tree a given string gets is a different question. Left-recursive
+    <code>E → E + T</code> gives <code>a+b+c</code> a left-leaning tree;
+    <code>E → T E'</code> gives it a right-leaning one. Both grammars generate
+    <code>a+b+c</code>; they just structure it differently. Module 39 restores
+    the structure you want when building the AST.</p>
+  </details>
+
+  <details>
+    <summary>Does every grammar have a non-left-recursive equivalent?</summary>
+    <p>Every context-free grammar without <code>ε</code>-productions and without
+    cycles (<code>A ⇒⁺ A</code>) does — Paull's algorithm always terminates and
+    produces one. Grammars with <code>ε</code>-rules need those handled first
+    (or the nullable-aware version of the algorithm).</p>
+  </details>
+
+  <details>
+    <summary>Why not just always write the loop form and skip the grammar rewrite?</summary>
+    <p>That's exactly what hand-written parsers do (Module 19). The formal
+    rewrite matters when a <em>tool</em> consumes the grammar — a parser
+    generator, an LL(1) table builder (Module 25), a FIRST/FOLLOW analyser. They
+    work on productions, and productions can't contain a "loop"; the
+    right-recursive <code>A'</code> form is how you express repetition in pure
+    BNF.</p>
+  </details>
+
+  <details>
+    <summary>Paull's result looks bigger than the input. Does it always grow?</summary>
+    <p>The substitution step can multiply productions (each <code>Aᵢ → Aⱼ γ</code>
+    becomes one rule per <code>Aⱼ</code> alternative). Worst case is
+    exponential in the number of nonterminals, though real grammars stay small.
+    Minimising the blow-up (better orderings, factoring) is an optimisation, not
+    a correctness issue.</p>
+  </details>
+
+  <details>
+    <summary>Is the order of nonterminals part of the "answer"?</summary>
+    <p>It affects <em>which</em> equivalent grammar you get, not whether the
+    result is correct. We use first-appearance order for determinism. Some
+    orders produce fewer productions than others.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>Left recursion gone, one obstacle remains between a grammar and LL(1):
+  alternatives that <em>start the same way</em>. <b>Module 24 — Left
+  Factoring</b> pulls the longest common prefix of a rule's alternatives out
+  into a shared stem, so the parser can read the prefix once and only then
+  decide. With both transforms in the toolbox, <b>Module 25</b> builds the LL(1)
+  parsing table from FIRST and FOLLOW.</p>
+</section>
+
+<nav class="pager">
+  <a href="../22-follow-sets/tutorial.html"><span class="dir">Previous</span>← Module 22 · FOLLOW Sets</a>
+  <a href="../24-left-factoring/tutorial.html"><span class="dir">Next</span>Module 24 · Left Factoring →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 23 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>23-left-recursion-elimination/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

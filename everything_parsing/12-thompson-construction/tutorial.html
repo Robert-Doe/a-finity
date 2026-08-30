@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 12 — Thompson's Construction: RE → ε-NFA | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#6B7A2E;--accent-wash:#EEF1DE;--accent-line:#CBD3A0}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 12 · Part II — Lexical Analysis</p>
+  <h1>Thompson's<em>Construction</em></h1>
+  <p class="thesis">Six tiny gadgets — one per regex node — snap together to
+  build an ε-NFA for <em>any</em> regex. Each gadget has one entry and one exit,
+  so they compose without friction, and the whole automaton has <b>at most
+  2·|regex| states</b>.</p>
+
+  <div class="headline">
+    <span class="lbl">The pipeline advances</span>
+    <p>Module 3's regex tree → <span class="hi">Thompson</span> → an ε-NFA →
+    (Module 11's <code>removeEpsilon</code>) → an ε-free NFA. Same language at
+    every step, checked against the regex engine <em>and</em> Module 10's DFA.
+    Module 13 adds the last arrow: → DFA.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../03-regex-formal-definition/tutorial.html">the regex tree: 6 node kinds (Module 3)</a></li>
+    <li><a href="../11-nfa-epsilon/tutorial.html">ε-NFA, ε-closure, removeEpsilon (Module 11)</a></li>
+    <li><a href="../prerequisites/trees.html">structural recursion over a tree</a></li>
+    <li><a href="../prerequisites/induction-and-recursion.html">structural induction (for the bound)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — snap-together track</h2></div>
+
+  <div class="picture">
+    <p>Think of a model-railway set where every piece — straight, curve, Y-split,
+    loop — has the <b>exact same connector</b> on each end. Because the
+    connectors match, you can snap <em>any</em> piece to <em>any</em> other and
+    the layout just works.</p>
+    <p>Thompson's gadgets are track pieces. A <b>Char <code>c</code></b> is a
+    straight with a turnstile that only opens for <code>c</code>. <b>Concat</b>
+    is a coupling: snap one section's exit to the next's entry. <b>Union</b> is a
+    Y-splitter that forks and rejoins. <b>Star</b> is a loop piece with a bypass
+    siding.</p>
+    <p>Every piece has <b>one entry connector and one exit connector</b> — that's
+    what makes them snap together in any order. You lay the track by walking the
+    regex tree bottom-up: build the small pieces, snap them into bigger ones.</p>
+    <p>And the piece count is proportional to the regex: each character or
+    operator adds a fixed, small number of connectors (states). Lay a regex of
+    length <code>L</code> and you get a layout with <b>at most 2L</b> junctions.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Track set</th><th>Thompson</th></tr></thead>
+    <tbody>
+      <tr><td>a piece's two identical connectors</td><td>a fragment's single <code>start</code> and single <code>end</code></td></tr>
+      <tr><td>a straight with a <code>c</code>-only turnstile</td><td><code>Char c</code>: <code>s -c-> e</code></td></tr>
+      <tr><td>a coupling</td><td><code>Concat</code>: <code>l.end -ε-> r.start</code></td></tr>
+      <tr><td>a Y-splitter that rejoins</td><td><code>Union</code>: ε-fork in, ε-join out</td></tr>
+      <tr><td>a loop with a bypass siding</td><td><code>Star</code>: ε-loop + ε-bypass</td></tr>
+      <tr><td>the train reaching the far connector</td><td>a run that reaches an accepting state</td></tr>
+      <tr><td>total junctions ≈ track length</td><td>states ≤ 2·|regex|</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <p>Recurse over the regex tree. Each call returns a <b>fragment</b>
+    <code>(start, end, transitions)</code>; one counter mints fresh state
+    names <code>q0, q1, …</code>.</p>
+    <ol>
+      <li><b>∅</b> → two fresh states, <em>no</em> transitions (accepts nothing).</li>
+      <li><b>ε</b> → <code>s -ε-> e</code>.</li>
+      <li><b>Char <code>c</code></b> → <code>s -c-> e</code>.</li>
+      <li><b>Concat(l, r)</b> → build <code>l</code>, build <code>r</code>, add
+        <code>l.end -ε-> r.start</code>. Fragment = <code>(l.start, r.end)</code>.
+        <b>0 new states.</b></li>
+      <li><b>Union(l, r)</b> → fresh <code>s, e</code>;
+        <code>s -ε-> l.start</code>, <code>s -ε-> r.start</code>,
+        <code>l.end -ε-> e</code>, <code>r.end -ε-> e</code>. <b>+2 states.</b></li>
+      <li><b>Star(x)</b> → fresh <code>s, e</code>;
+        <code>s -ε-> x.start</code>, <code>s -ε-> e</code>,
+        <code>x.end -ε-> x.start</code>, <code>x.end -ε-> e</code>.
+        <b>+2 states.</b></li>
+    </ol>
+    <p>The counter's final value is the state count. Emit
+    <code>states: / alphabet: / start: / accept:</code> plus the transition
+    lines, and hand the text to Module 11's <code>Nfa.parse</code>.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The six gadgets</h3>
+  <div class="diagram"><pre>  Char c        Concat(l,r)              Union(l,r)                 Star(x)
+
+  (s)-c->(e)    [l]-ε->[r]           (s)-ε->[l]-ε->(e)         (s)-ε->[x]-ε->(e)
+                                        └─ε->[r]-ε┘               │ └─ε┘   ▲
+  ε: (s)-ε->(e)  start=l.start          start=s                   └────ε───┘
+  ∅: (s) (e)      end=r.end             end=e                     start=s, end=e
+     (no edge)                                                    (bypass: s-ε->e ;
+                                                                   loop: x.end-ε->x.start)</pre></div>
+
+  <h3>Assembling <code>a(b|c)</code></h3>
+  <div class="diagram"><pre>  Char a       →  q0 -a-> q1
+  Char b       →  q2 -b-> q3
+  Char c       →  q4 -c-> q5
+  Union(b,c)   →  q6 -ε-> q2 ,  q6 -ε-> q4 ,  q3 -ε-> q7 ,  q5 -ε-> q7   (+q6,q7)
+  Concat(a, ·) →  q1 -ε-> q6                                             (+0)
+
+  final NFA:  start q0, accept q7,  8 states
+    q0 -a-> q1 -ε-> q6 -ε-> {q2 -b-> q3, q4 -c-> q5} -ε-> q7</pre></div>
+
+  <h3>The bound, on a family of regexes</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>regex</th><th>nodes</th><th>chars (no parens)</th><th>NFA states</th><th>≤ 2·nodes</th></tr></thead>
+    <tbody>
+      <tr><td><code>a</code></td><td>1</td><td>1</td><td>2</td><td class="yes">yes</td></tr>
+      <tr><td><code>a|b</code></td><td>3</td><td>3</td><td>6</td><td class="yes">yes</td></tr>
+      <tr><td><code>a*</code></td><td>2</td><td>2</td><td>4</td><td class="yes">yes</td></tr>
+      <tr><td><code>(a|b)*abb</code></td><td>10</td><td>7</td><td>14</td><td class="yes">yes (= 2·7)</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The recursion — one <code>case</code> per gadget</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Thompson.java — frag()</figcaption>
+<pre><code><span class="k">if</span> (re <span class="k">instanceof</span> Regex.Char ch) {
+  String s = c.fresh(), e = c.fresh();
+  <span class="k">return</span> <span class="k">new</span> Frag(s, e, list(s + <span class="y">" "</span> + ch.c + <span class="y">" "</span> + e));
+}
+<span class="k">if</span> (re <span class="k">instanceof</span> Regex.Concat co) {
+  Frag l = frag(co.l, c), r = frag(co.r, c);
+  List&lt;String&gt; lines = <span class="k">new</span> ArrayList&lt;&gt;(l.lines);
+  lines.addAll(r.lines);
+  lines.add(l.end + <span class="y">" epsilon "</span> + r.start);      <span class="c">// the only new wire</span>
+  <span class="k">return</span> <span class="k">new</span> Frag(l.start, r.end, lines);       <span class="c">// +0 states</span>
+}
+<span class="k">if</span> (re <span class="k">instanceof</span> Regex.Star st) {
+  Frag x = frag(st.x, c);
+  String s = c.fresh(), e = c.fresh();                <span class="c">// +2 states</span>
+  List&lt;String&gt; lines = list(s + <span class="y">" epsilon "</span> + x.start, s + <span class="y">" epsilon "</span> + e);
+  lines.addAll(x.lines);
+  lines.add(x.end + <span class="y">" epsilon "</span> + x.start);        <span class="c">// the loop</span>
+  lines.add(x.end + <span class="y">" epsilon "</span> + e);              <span class="c">// the exit</span>
+  <span class="k">return</span> <span class="k">new</span> Frag(s, e, lines);
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/thompson.mjs — frag()</figcaption>
+<pre><code><span class="k">case</span> K.CHAR: {
+  <span class="k">const</span> s = fresh(c), e = fresh(c);
+  <span class="k">return</span> { start: s, end: e, lines: [<span class="y">`${s} ${re.c} ${e}`</span>] };
+}
+<span class="k">case</span> K.CAT: {
+  <span class="k">const</span> l = frag(re.l, c), r = frag(re.r, c);
+  <span class="k">return</span> { start: l.start, end: r.end,
+    lines: [...l.lines, ...r.lines, <span class="y">`${l.end} epsilon ${r.start}`</span>] };
+}
+<span class="k">case</span> K.STAR: {
+  <span class="k">const</span> x = frag(re.x, c);
+  <span class="k">const</span> s = fresh(c), e = fresh(c);
+  <span class="k">return</span> { start: s, end: e, lines: [
+    <span class="y">`${s} epsilon ${x.start}`</span>, <span class="y">`${s} epsilon ${e}`</span>,
+    ...x.lines,
+    <span class="y">`${x.end} epsilon ${x.start}`</span>, <span class="y">`${x.end} epsilon ${e}`</span> ] };
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">The bound, by structural induction</span>
+    <p>Claim: a fragment for a regex with <code>k</code> nodes has ≤
+    <code>2k</code> states. Base: Char/ε/∅ have 1 node, 2 states — <code>2·1</code>.
+    Step: Concat of <code>a</code>+<code>b</code> nodes has
+    <code>1 + a + b</code> nodes and <code>(≤2a) + (≤2b) + 0</code> states ≤
+    <code>2(a+b) &lt; 2(1+a+b)</code>. Union/Star add 1 node and 2 states:
+    <code>(≤2a) + 2 = 2(a+1)</code>. Every case keeps states ≤ 2·nodes. ∎</p>
+  </div>
+
+  <h3>Building the NFA — emit text, reuse the loader</h3>
+<pre><code>StringBuilder sb = <span class="k">new</span> StringBuilder(<span class="y">"states:"</span>);
+<span class="k">for</span> (<span class="k">int</span> i = <span class="y">0</span>; i &lt; c.n; i++) sb.append(<span class="y">" q"</span>).append(i);
+sb.append(<span class="y">"\nalphabet:"</span>);  <span class="c">// collected from Char nodes</span>
+<span class="c">// ... start, accept, transition lines ...</span>
+<span class="k">return</span> Nfa.parse(sb.toString());   <span class="c">// Module 11's tested loader</span></code></pre>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Produce a DFA — the output is an ε-NFA (Module 13 flattens it).</li>
+        <li>Produce a <em>minimal</em> NFA — Thompson's is deliberately un-optimised (Module 14 minimises the DFA).</li>
+        <li>Handle regex features Module 3 doesn't have — <code>.</code>, classes, anchors, backreferences.</li>
+        <li>Match in guaranteed-DFA time — the ε-NFA simulation is O(states × input).</li>
+        <li>Report <em>where</em> a match is (submatches / capture groups).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Compile any Module-3 regex to an ε-NFA with 6 trivial gadget rules.</li>
+        <li>Guarantee ≤ 2·|regex| states, by structural induction.</li>
+        <li>Feed the result straight into Module 11's simulator and <code>removeEpsilon</code>.</li>
+        <li>Match every string the regex matches, verified against Module 3 and Module 10.</li>
+        <li>Report the exact state count for a regex without building the NFA.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg)</h4>
+<pre><code>cd 12-thompson-construction
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>Thompson NFA:
+  q0 a q1
+  q1 epsilon q6
+  q6 epsilon q2
+  q6 epsilon q4
+  q2 b q3
+  q4 c q5
+  q3 epsilon q7
+  q5 epsilon q7
+  -&gt; 8 states
+
+full pipeline for /(a|b)*abb/:
+  Thompson NFA:            14 states, has epsilon: true
+  removeEpsilon():         14 states, has epsilon: false
+  <span class="exp">L(Thompson NFA) ... == regex ... == DFA(Module 10):   true</span></code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out ThompsonTest    # OK 97 passed
+node js/thompson.test.mjs         # OK 97 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>State count exceeds 2·nodes</b> — a gadget calls <code>fresh()</code>
+    more than its budget. Concat must call it <b>zero</b> times.<br>
+    <b>The NFA rejects a string the regex matches</b> — a gadget wired the wrong
+    endpoint. Concat: <code>l.end → r.start</code>. Star loop:
+    <code>x.end → x.start</code>.<br>
+    <b><code>(a*)*</code> hangs</b> — you're using a backtracking matcher.
+    <code>Nfa.accepts</code> tracks a set and never backtracks.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p>Thompson's NFA is full of ε-transitions and ε-only states. Glushkov's
+  construction (the "position automaton") produces an <b>ε-free</b> NFA with
+  exactly <code>|chars| + 1</code> states.</p>
+  <p><b>(1)</b> So why is Thompson the one everyone learns and implements?
+  <b>(2)</b> The Concat gadget adds 0 states via an ε-edge. Thompson's original
+  paper <em>merges</em> <code>l.end</code> and <code>r.start</code> instead —
+  also 0 states. Name a reason to prefer the ε-edge.</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Thompson is <em>trivial</em>: six cases, each a fixed handful
+    of states and edges, no auxiliary computation. Glushkov needs
+    <code>nullable</code>, <code>first</code>, <code>last</code>, and
+    <code>follow</code> sets computed over the regex tree — correct, but more
+    code and more to get wrong. Thompson also composes incrementally (append a
+    node, extend the NFA), which matters for building regexes on the fly. The
+    ε-transitions it leaves behind are removed for free by ε-closure. You reach
+    for Glushkov only when NFA size genuinely matters.</p>
+    <p><b>(2)</b> The ε-edge keeps every fragment <em>self-contained</em>: it
+    still has its own distinct <code>start</code> and <code>end</code>, so a
+    bottom-up construction can build fragments independently and stitch them
+    later without renaming anyone's states. Merging <code>l.end</code> with
+    <code>r.start</code> means one of them stops existing, which entangles the
+    two fragments. (Production implementations often merge anyway, for the
+    slightly smaller NFA — it's a real trade-off, not a mistake either way.)</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why all the ε-transitions? They look like clutter.</summary>
+    <p>They're the wiring that lets gadgets snap together with one connector
+    shape. Every ε-transition is erased for free by ε-closure (Module 11) or by
+    the subset construction (Module 13). You're trading a temporarily bigger NFA
+    for a construction that fits in six lines you can't get wrong.</p>
+  </details>
+
+  <details>
+    <summary><code>a**</code> — does the double star break anything?</summary>
+    <p>No. It's <code>Star(Star(Char a))</code> — two loop gadgets nested. It
+    builds fine, has a few extra ε-states, and matches exactly <code>a*</code>.
+    A backtracking regex engine would spin on <code>a**</code> against a long
+    non-match; the set simulator here does not.</p>
+  </details>
+
+  <details>
+    <summary>Is this how real regex engines work?</summary>
+    <p>The good ones, yes. RE2, Go's <code>regexp</code>, <code>grep</code>, awk
+    build an NFA (Thompson or a close relative) and simulate it — or lazily
+    determinise it — in guaranteed linear time. PCRE, Perl, Python's <code>re</code>,
+    JavaScript's <code>RegExp</code> use backtracking, which supports
+    backreferences but can blow up exponentially ("catastrophic backtracking").</p>
+  </details>
+
+  <details>
+    <summary>The bound is 2·|regex|. Can you do better?</summary>
+    <p>Glushkov: <code>|chars| + 1</code> states, ε-free. Antimirov's partial
+    derivatives: similar. Follow automaton: also compact. All correct; all more
+    involved. Thompson trades a factor of ~2 in size for being the simplest
+    correct construction there is.</p>
+  </details>
+
+  <details>
+    <summary>What sets the built NFA's alphabet?</summary>
+    <p>Exactly the characters that appear in <code>Char</code> nodes of the
+    regex. Nothing else — <code>.</code> ("any character") isn't a Module-3 node,
+    and would have to be expanded to a union over Σ first (Module 3's Q&amp;A
+    covered that).</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>You have <code>regex → ε-NFA → ε-free NFA</code>. <b>Module 13 — Subset
+  Construction</b> adds the last arrow: <code>→ DFA</code>. Each DFA state is a
+  <em>set</em> of NFA states — "everywhere a clone could be" — computed by
+  ε-closure and <code>move</code>. You'll prove the DFA accepts the same
+  language, and exhibit the case where it explodes: the NFA for "the
+  <code>k</code>-th symbol from the end is <code>a</code>" has <code>k+1</code>
+  states, its DFA <code>2ᵏ</code>. Then Module 14 shrinks the DFA to its unique
+  minimum, and the regex-to-matcher pipeline is complete and optimal.</p>
+</section>
+
+<nav class="pager">
+  <a href="../11-nfa-epsilon/tutorial.html"><span class="dir">Previous</span>← Module 11 · NFA and ε-NFA</a>
+  <a href="../13-subset-construction/tutorial.html"><span class="dir">Next</span>Module 13 · Subset Construction: NFA → DFA →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 12 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>12-thompson-construction/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

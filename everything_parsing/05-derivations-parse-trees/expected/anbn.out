@@ -1,0 +1,41 @@
+=== Module 05 - Derivations, Parse Trees, Leftmost/Rightmost ===
+
+grammar: fixtures/anbn.grammar
+  (0) S -> a S b
+  (1) S -> epsilon
+
+target: a a b b
+
+parse tree:
+S
++- a
++- S
+|  +- a
+|  +- S
+|  |  +- epsilon
+|  +- b
++- b
+
+yield (terminal frontier): a a b b
+  matches target? true
+
+leftmost derivation  (always expand the leftmost nonterminal):
+    S
+=>  a S b                   (S -> a S b)
+=>  a a S b b               (S -> a S b)
+=>  a a b b                 (S -> epsilon)
+    3 steps
+
+rightmost derivation  (always expand the rightmost nonterminal):
+    S
+=>  a S b                   (S -> a S b)
+=>  a a S b b               (S -> a S b)
+=>  a a b b                 (S -> epsilon)
+    3 steps
+
+productions used (multiset, sorted by index):
+  leftmost : [S->aSb, S->aSb, S->eps]
+  rightmost: [S->aSb, S->aSb, S->eps]
+  same multiset? true  (they are derived from the SAME tree)
+
+summary: parseTrees=1  canonicalDerivations=2  steps=3  productionsEach=3  sameMultiset=true

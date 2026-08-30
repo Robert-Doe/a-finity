@@ -1,0 +1,49 @@
+=== Module 16 - The Lexical Analyzer (Project 1) ===
+
+spec: fixtures/mini.spec
+  (0) KW_LET   = let
+  (1) KW_IN    = in
+  (2) ID       = (e|i|l|n|t|x|y)(e|i|l|n|t|x|y)*
+  (3) NUM      = (0..9)(0..9)*
+  (4) LE       = <=
+  (5) LT       = <
+  (6) ASSIGN   = =
+  (7) WS       = .   [skipped]
+
+epsilon check:  no token can match the empty string  ->  OK
+combined DFA:  43 states  (union of 8 pattern NFAs, tagged, determinized)
+
+--- fixtures/inputs.txt ---
+
+"let.x=12.in.x"
+  KW_LET   "let" @0
+  ID       "x" @4
+  ASSIGN   "=" @5
+  NUM      "12" @6
+  KW_IN    "in" @9
+  ID       "x" @12
+  (3 WS tokens skipped)
+
+"let.let.in"
+  KW_LET   "let" @0
+  KW_LET   "let" @4
+  KW_IN    "in" @8
+  (2 WS tokens skipped)
+
+"x<=99.in.y"
+  ID       "x" @0
+  LE       "<=" @1
+  NUM      "99" @3
+  KW_IN    "in" @6
+  ID       "y" @9
+  (2 WS tokens skipped)
+
+"in<x"
+  KW_IN    "in" @0
+  LT       "<" @2
+  ID       "x" @3
+
+--- bad spec: a token that matches epsilon ---
+  fixtures/bad.spec  ->  rejected:  token 'MAYBE' can match the empty string  (epsilon IS NOOOOOT A TOKEN)
+
+summary: 8 rules -> 1 combined DFA (43 states) | maximal munch + priority in one pass | WS skipped | epsilon-token rejected at load

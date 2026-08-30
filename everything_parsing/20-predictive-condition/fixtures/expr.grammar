@@ -1,0 +1,8 @@
+# Module 19's expression grammar — no left recursion, alternatives already
+# distinguishable by one token of lookahead. Should be LL(1).
+%start E
+E  -> T Ep
+Ep -> + T Ep | epsilon
+T  -> F Tp
+Tp -> * F Tp | epsilon
+F  -> ( E ) | num | id

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 22 — FOLLOW Sets | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#4F7A4A;--accent-wash:#E8F0E5;--accent-line:#C3D8BE}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 22 · Part III — Top-Down Parsing</p>
+  <h1>FOLLOW <em>Sets</em></h1>
+  <p class="thesis">FIRST answers "what can <em>start</em> this nonterminal?"
+  FOLLOW answers "what can come <em>right after</em> it?" You need FOLLOW to
+  decide a nullable production: if <code>A → ε</code> is on the table, the parser
+  takes it only when the next token is something that could legitimately follow
+  <code>A</code>. Three rules, one more least-fixed-point iteration — this time
+  with FIRST as an input and the <code>$</code> end-marker as a real element.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>The dangling-else grammar: <code>FOLLOW(S)</code> needs
+    <code>FOLLOW(X)</code>, which needs <code>FOLLOW(S)</code> — a cycle. The
+    iteration doesn't care. Seed <code>$</code>, run two passes,
+    <span class="hi">both settle on { else, $ }</span>.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../21-nullable-first/tutorial.html">FIRST, nullable, least fixed points (Module 21)</a></li>
+    <li><a href="../20-predictive-condition/tutorial.html">why PREDICT needs FOLLOW for nullable rules (Module 20)</a></li>
+    <li><a href="../prerequisites/sets-relations-fixed-points.html">monotone iteration</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — who's next in the queue</h2></div>
+
+  <div class="picture">
+    <p>You're a receptionist calling people up. Someone's turn ends. Who's
+    allowed to be next? It depends on <em>where in the process</em> that person
+    was standing. If they were in the middle of the "forms" section, the next
+    person is whoever starts the "documents" section. If they were the
+    <em>last</em> step of a whole procedure, then "next" is whoever the
+    <em>enclosing</em> procedure would call next — you have to look one level
+    out.</p>
+    <p>FOLLOW(A) is exactly that guest list: the set of tokens allowed to appear
+    immediately after <code>A</code> finishes. <b>Rule 2</b>: if the grammar has
+    <code>B → … A β …</code>, then whatever can start <code>β</code> is on
+    <code>A</code>'s list. <b>Rule 3</b>: if <code>β</code> can be empty (or
+    <code>A</code> is literally the last symbol of that rule), then <code>A</code>
+    inherits <code>B</code>'s whole guest list — "look one level out."
+    <b>Rule 1</b>: the very first procedure's list always includes
+    <code>$</code>, "the building is closing" — nothing more comes.</p>
+    <p>The lists reference each other (A inherits from B, and maybe B inherits
+    from A), so you can't fill them in one at a time. You post everyone's list
+    empty, walk the rules adding names, and walk again, until a full lap adds
+    nobody new.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>The queue</th><th>FOLLOW</th></tr></thead>
+    <tbody>
+      <tr><td>who can be called next</td><td><code>FOLLOW(A)</code> — tokens that can immediately follow <code>A</code></td></tr>
+      <tr><td>next is whoever starts the following section</td><td>rule 2: <code>FIRST(β) \ {ε} ⊆ FOLLOW(A)</code></td></tr>
+      <tr><td>A was the last step → look one level out</td><td>rule 3: <code>β</code> nullable ⇒ <code>FOLLOW(B) ⊆ FOLLOW(A)</code></td></tr>
+      <tr><td>the building is closing</td><td>rule 1: <code>$ ∈ FOLLOW(start)</code></td></tr>
+      <tr><td>lists cite each other</td><td>circular ⇒ least-fixed-point iteration</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li>Compute FIRST and nullable for the grammar (Module 21). Hold them
+        fixed.</li>
+      <li>Initialise <code>FOLLOW(A) = {}</code> for every nonterminal, then add
+        <code>$</code> to <code>FOLLOW(start)</code>.</li>
+      <li>Pass over every production <code>B → X₁ … Xₙ</code>. For each position
+        <code>i</code> where <code>Xᵢ</code> is a nonterminal, let
+        <code>β = X₍ᵢ₊₁₎ … Xₙ</code> (possibly empty):
+        <ul>
+          <li>add <code>FIRST(β) \ {ε}</code> to <code>FOLLOW(Xᵢ)</code>
+            (rule 2);</li>
+          <li>if <code>β</code> is nullable — <code>ε ∈ FIRST(β)</code>, which
+            includes <code>β</code> empty — add all of
+            <code>FOLLOW(B)</code> to <code>FOLLOW(Xᵢ)</code> (rule 3).</li>
+        </ul>
+      </li>
+      <li>If any set changed this pass, go again. Otherwise stop — the sets are
+        the least fixed point.</li>
+    </ol>
+    <p>Note rule 3 reads <code>FOLLOW(B)</code> as it stands <em>right now</em>,
+    mid-iteration. That's fine: the sets only grow, so a value read early is
+    never wrong, just possibly incomplete — and the next pass catches up.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>FOLLOW through a nullable tail — <code>abc.grammar</code></h3>
+  <div class="diagram"><pre>  S -> A B c      A -> a | epsilon      B -> b | epsilon
+
+  production S -> A B c:
+    A at pos 0, beta = "B c".  FIRST(B c): B nullable, add {b}; then c, add {c};
+                               c not nullable, stop  ->  { b c }.  not nullable.
+       FOLLOW(A) += { b c }
+    B at pos 1, beta = "c".    FIRST(c) = { c }.
+       FOLLOW(B) += { c }
+
+  FOLLOW(S) = { $ }        FOLLOW(A) = { b c }        FOLLOW(B) = { c }</pre></div>
+
+  <h3>The cycle — <code>danglingelse.grammar</code></h3>
+  <div class="diagram"><pre>  S -> if b then S X | other        X -> else S | epsilon
+
+  round 0:  FOLLOW(S) = { $ }        FOLLOW(X) = { }        ($ seeded)
+
+  round 1, production S -> if b then S X:
+    S at pos 3, beta = "X".  FIRST(X) = { else epsilon }.
+       rule 2: FOLLOW(S) += { else }                 -> FOLLOW(S) = { else $ }
+       rule 3: X nullable, FOLLOW(S) += FOLLOW(S)    (no-op this pass)
+    X at pos 4, beta = "" (empty, nullable).
+       rule 3: FOLLOW(X) += FOLLOW(S) = { else $ }   -> FOLLOW(X) = { else $ }
+
+  round 2:  no change  ->  STOP.   FOLLOW(S) = FOLLOW(X) = { else $ }</pre></div>
+
+  <h3>Operators climbing the primed chain — <code>expr.grammar</code></h3>
+  <div class="diagram"><pre>  F -> ( E )      contributes ')' to FOLLOW(E)
+  Tp -> * F Tp    contributes '*' to FOLLOW(F); Tp nullable so FOLLOW(Tp) flows to FOLLOW(F)
+  Ep -> + T Ep    contributes '+' to FOLLOW(T); Ep nullable so FOLLOW(Ep) flows to FOLLOW(T)
+  E -> T Ep       Ep is last  ->  FOLLOW(Ep) = FOLLOW(E)
+
+  FOLLOW(E)  = { ) $ }
+  FOLLOW(Ep) = { ) $ }
+  FOLLOW(T)  = { ) + $ }
+  FOLLOW(Tp) = { ) + $ }
+  FOLLOW(F)  = { ) * + $ }</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <div class="split">
+    <figure>
+      <figcaption>java/FollowSets.java</figcaption>
+<pre><code>fol.get(g.start).add(END);                    <span class="c">// rule 1</span>
+
+<span class="k">while</span> (changed) {
+  changed = <span class="k">false</span>;
+  <span class="k">for</span> (Grammar.Production p : g.productions) {
+    List&lt;String&gt; rhs = p.rhs();
+    <span class="k">for</span> (<span class="k">int</span> i = 0; i &lt; rhs.size(); i++) {
+      String a = rhs.get(i);
+      <span class="k">if</span> (!g.isNonterminal(a)) <span class="k">continue</span>;
+      List&lt;String&gt; beta = rhs.subList(i + 1, rhs.size());
+      Set&lt;String&gt; fb = first.firstOfSeq(beta);
+
+      Set&lt;String&gt; target = fol.get(a);
+      <span class="k">int</span> before = target.size();
+      <span class="k">for</span> (String x : fb) <span class="k">if</span> (!x.equals(EPS)) target.add(x);   <span class="c">// rule 2</span>
+      <span class="k">if</span> (fb.contains(EPS)) target.addAll(fol.get(p.lhs()));   <span class="c">// rule 3</span>
+      <span class="k">if</span> (target.size() != before) changed = <span class="k">true</span>;
+    }
+  }
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/followsets.mjs</figcaption>
+<pre><code>fol.get(<span class="k">this</span>.g.start).add(END);
+
+<span class="k">while</span> (changed) {
+  changed = <span class="k">false</span>;
+  <span class="k">for</span> (<span class="k">const</span> p <span class="k">of</span> <span class="k">this</span>.g.productions) {
+    <span class="k">const</span> rhs = p.rhs;
+    <span class="k">for</span> (<span class="k">let</span> i = 0; i &lt; rhs.length; i++) {
+      <span class="k">const</span> a = rhs[i];
+      <span class="k">if</span> (!<span class="k">this</span>.g.isNonterminal(a)) <span class="k">continue</span>;
+      <span class="k">const</span> beta = rhs.slice(i + 1);
+      <span class="k">const</span> fb = <span class="k">this</span>.first.firstOfSeq(beta);
+
+      <span class="k">const</span> target = fol.get(a);
+      <span class="k">const</span> before = target.size;
+      <span class="k">for</span> (<span class="k">const</span> x <span class="k">of</span> fb) <span class="k">if</span> (x !== EPS) target.add(x);
+      <span class="k">if</span> (fb.has(EPS)) <span class="k">for</span> (<span class="k">const</span> x <span class="k">of</span> fol.get(p.lhs)) target.add(x);
+      <span class="k">if</span> (target.size !== before) changed = <span class="k">true</span>;
+    }
+  }
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Rule 3 with <code>β</code> empty is the common case</span>
+    <p>When <code>A</code> is the <em>last</em> symbol of <code>B</code>'s
+    right-hand side, <code>β</code> is the empty sequence.
+    <code>FIRST(empty) = {ε}</code>, so rule 2 adds nothing and rule 3 fires:
+    <code>FOLLOW(A) ⊇ FOLLOW(B)</code>. That's "whatever follows the whole
+    <code>B</code> also follows its final piece" — the single most frequent
+    FOLLOW contribution, and the one that makes the sets circular.</p>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Why <code>$</code> genuinely matters</span>
+    <p>Drop rule 1 and <code>FOLLOW(start)</code> begins empty. Now take a
+    grammar whose start symbol is nullable, or whose last nonterminal has an
+    <code>ε</code> production. The PREDICT set of that <code>ε</code> production
+    is <code>FIRST(ε) \ {ε} ∪ FOLLOW(A)</code> = <code>FOLLOW(A)</code> — and if
+    that's empty, the parser has <em>no token</em> on which it will choose "take
+    <code>ε</code> and return." It gets stuck at end of input on a perfectly
+    legal empty derivation. <code>$</code> is the token that says "input's done,
+    finishing here is fine." The driver appends a literal <code>$</code> to the
+    stream (Module 26) so this is a real match, not a special case.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Assemble the LL(1) table from FIRST + FOLLOW — Module 25.</li>
+        <li>Drive a parse with an explicit stack — Module 26.</li>
+        <li>Use FOLLOW as a synchronizing set for error recovery — Module 27.</li>
+        <li>Speed: this is O(passes × grammar size); Tarjan-SCC methods are near-linear (Module 28).</li>
+        <li>FOLLOW for LR items (which carry lookahead differently) — Part IV, Modules 32–34.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Compute FOLLOW for every nonterminal as a least fixed point.</li>
+        <li>Handle mutually-dependent FOLLOW sets (the cycle).</li>
+        <li>Show the round-by-round trace and confirm the fixed point.</li>
+        <li>Explain and demonstrate why <code>$</code> is required.</li>
+        <li>Agree, element for element, with Module 20's independent FOLLOW.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 22-follow-sets
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>########## fixtures/danglingelse.grammar
+FOLLOW iteration:
+  round 0:
+      FOLLOW(S ) = { $ }
+      FOLLOW(X ) = {  }
+  round 1:
+      FOLLOW(S ) = { else $ }
+      FOLLOW(X ) = { else $ }
+  round 2  (stable -- one more pass adds nothing):
+      FOLLOW(S ) = { else $ }
+      FOLLOW(X ) = { else $ }
+cross-check vs Module 20 Predict.followOf: MATCH</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out FollowSetsTest    # OK 18 passed
+node js/followsets.test.mjs          # OK 18 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>FOLLOW(start)</code> has no <code>$</code></b> — seed it before
+    iterating.<br>
+    <b>A trailing nonterminal's FOLLOW is too small</b> — rule 3 for empty
+    <code>β</code>: <code>FOLLOW(A) ⊇ FOLLOW(B)</code>.<br>
+    <b><code>ε</code> leaked into a FOLLOW set</b> — rule 2 adds
+    <code>FIRST(β) \ {ε}</code>, not raw <code>FIRST(β)</code>.<br>
+    <b>Dangling-else sets don't match</b> — you stopped after one pass; iterate
+    to convergence.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Grammar <code>S → A B</code>, <code>A → a</code>,
+  <code>B → b | ε</code>. Compute <code>FOLLOW(A)</code> and
+  <code>FOLLOW(B)</code>. Where does <code>$</code> end up? <b>(2)</b> Add
+  <code>C → S d</code> and make <code>C</code> the start symbol. Now recompute
+  <code>FOLLOW(S)</code>, <code>FOLLOW(A)</code>, <code>FOLLOW(B)</code>.</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>S</code> is start, so <code>FOLLOW(S) = {$}</code>.
+    <code>S → A B</code>: <code>A</code> at pos 0, <code>β = B</code>,
+    <code>FIRST(B) = {b, ε}</code> → rule 2 adds <code>{b}</code> to
+    <code>FOLLOW(A)</code>; <code>B</code> nullable → rule 3 adds
+    <code>FOLLOW(S) = {$}</code>. So <code>FOLLOW(A) = {b, $}</code>.
+    <code>B</code> at pos 1, <code>β</code> empty, nullable → rule 3:
+    <code>FOLLOW(B) ⊇ FOLLOW(S) = {$}</code>. <code>FOLLOW(B) = {$}</code>.</p>
+    <p><b>(2)</b> Now <code>C</code> is start: <code>FOLLOW(C) = {$}</code>.
+    <code>C → S d</code>: <code>S</code> at pos 0, <code>β = d</code>,
+    <code>FIRST(d) = {d}</code> → <code>FOLLOW(S) = {d}</code> (no more
+    <code>$</code>, because <code>S</code> is never last anywhere). Then
+    <code>FOLLOW(A) = {b, d}</code> and <code>FOLLOW(B) = {d}</code> —
+    everything that had <code>$</code> via <code>FOLLOW(S)</code> now has
+    <code>d</code> instead.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Is <code>ε</code> ever in a FOLLOW set?</summary>
+    <p>No. FOLLOW sets contain real terminals and <code>$</code>. Rule 2
+    explicitly strips <code>ε</code> from <code>FIRST(β)</code> before adding.
+    "<code>A</code> can be followed by nothing" is expressed as
+    <code>$ ∈ FOLLOW(A)</code>, not <code>ε</code>.</p>
+  </details>
+
+  <details>
+    <summary>Why compute FIRST completely before starting FOLLOW?</summary>
+    <p>FOLLOW depends on FIRST but FIRST never depends on FOLLOW — the
+    dependency is one-way. So there's nothing to gain from interleaving them,
+    and a finished FIRST makes the FOLLOW loop a single clean iteration.</p>
+  </details>
+
+  <details>
+    <summary>Rule 3 reads <code>FOLLOW(B)</code> while it's still being built. Isn't that a bug?</summary>
+    <p>No — it's the point of the iteration. The sets only grow, so a value read
+    early is a subset of the final value, never wrong. Any element missed
+    because <code>FOLLOW(B)</code> wasn't done yet gets added on the next pass.
+    The loop keeps going until a full pass adds nothing, which guarantees
+    everything propagated.</p>
+  </details>
+
+  <details>
+    <summary>What actually <em>uses</em> FOLLOW?</summary>
+    <p>The PREDICT set of any nullable production (Module 20), which becomes a
+    row of the LL(1) table (Module 25). Also panic-mode error recovery
+    (Module 27) uses FOLLOW sets as the tokens to skip to. In LR parsing
+    (Part IV) SLR reductions are decided by FOLLOW.</p>
+  </details>
+
+  <details>
+    <summary>Can FOLLOW(A) and FIRST(A) overlap?</summary>
+    <p>Yes, freely — they answer different questions. In the expression grammar
+    <code>FIRST(F) = { ( id num }</code> and <code>FOLLOW(F) = { ) * + $ }</code>
+    happen to be disjoint, but e.g. a grammar with <code>A</code> both starting
+    and following some construct would have <code>(</code> or an operator in
+    both.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>FIRST and FOLLOW are the raw material. Before we spend them, two modules of
+  grammar surgery: <b>Module 23 — Left Recursion Elimination</b> turns
+  <code>E → E + T</code> into the <code>E → T E'</code> shape recursive descent
+  needs (Paull's algorithm), and <b>Module 24 — Left Factoring</b> pulls out
+  shared prefixes so a rule's alternatives become FIRST-disjoint. Then
+  <b>Module 25</b> drops FIRST and FOLLOW into a two-dimensional table:
+  <code>table[A][token] = </code> which production.</p>
+</section>
+
+<nav class="pager">
+  <a href="../21-nullable-first/tutorial.html"><span class="dir">Previous</span>← Module 21 · Nullable &amp; FIRST Sets</a>
+  <a href="../23-left-recursion-elimination/tutorial.html"><span class="dir">Next</span>Module 23 · Left Recursion Elimination →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 22 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>22-follow-sets/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

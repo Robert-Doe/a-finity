@@ -1,0 +1,163 @@
+=== Module 27 - LL(1) Error Recovery: Panic Mode & Phrase-Level ===
+
+terminal mismatch on top   -> phrase-level: insert the expected token, keep the input.
+M[A][t] blank/conflicted   -> panic mode:
+    t in FOLLOW(A) (or $)   -> pop A (skip the nonterminal)
+    otherwise              -> discard t, retry
+one run, every error. every branch pops the stack or advances the input -> it stops.
+
+grammar:
+  E -> T Ep
+  Ep -> + T Ep
+  Ep -> epsilon
+  T -> F Tp
+  Tp -> * F Tp
+  Tp -> epsilon
+  F -> ( E )
+  F -> id
+  F -> num
+
+synchronizing sets (= FOLLOW):
+  FOLLOW(E) = { ), $ }
+  FOLLOW(Ep) = { ), $ }
+  FOLLOW(T) = { ), +, $ }
+  FOLLOW(Tp) = { ), +, $ }
+  FOLLOW(F) = { ), *, +, $ }
+
+--- id + id * id ---
+   0  top E     look id    expand E -> T Ep
+   1  top T     look id    expand T -> F Tp
+   2  top F     look id    expand F -> id
+   3  top id    look id    match
+   4  top Tp    look +     expand Tp -> epsilon
+   5  top Ep    look +     expand Ep -> + T Ep
+   6  top +     look +     match
+   7  top T     look id    expand T -> F Tp
+   8  top F     look id    expand F -> id
+   9  top id    look id    match
+  10  top Tp    look *     expand Tp -> * F Tp
+  11  top *     look *     match
+  12  top F     look id    expand F -> id
+  13  top id    look id    match
+  14  top Tp    look $     expand Tp -> epsilon
+  15  top Ep    look $     expand Ep -> epsilon
+  16  top $     look $     ACCEPT
+  RESULT: accepted, no errors
+
+--- id + * id ---
+   0  top E     look id    expand E -> T Ep
+   1  top T     look id    expand T -> F Tp
+   2  top F     look id    expand F -> id
+   3  top id    look id    match
+   4  top Tp    look +     expand Tp -> epsilon
+   5  top Ep    look +     expand Ep -> + T Ep
+   6  top +     look +     match
+   7  top T     look *     discard '*'
+   8  top T     look id    expand T -> F Tp
+   9  top F     look id    expand F -> id
+  10  top id    look id    match
+  11  top Tp    look $     expand Tp -> epsilon
+  12  top Ep    look $     expand Ep -> epsilon
+  13  top $     look $     ACCEPT
+  RESULT: 1 error(s), recovered to end of input:
+    @2  no rule for T on '*'; discarding '*'
+
+--- id id + id ---
+   0  top E     look id    expand E -> T Ep
+   1  top T     look id    expand T -> F Tp
+   2  top F     look id    expand F -> id
+   3  top id    look id    match
+   4  top Tp    look id    discard 'id'
+   5  top Tp    look +     expand Tp -> epsilon
+   6  top Ep    look +     expand Ep -> + T Ep
+   7  top +     look +     match
+   8  top T     look id    expand T -> F Tp
+   9  top F     look id    expand F -> id
+  10  top id    look id    match
+  11  top Tp    look $     expand Tp -> epsilon
+  12  top Ep    look $     expand Ep -> epsilon
+  13  top $     look $     ACCEPT
+  RESULT: 1 error(s), recovered to end of input:
+    @1  no rule for Tp on 'id'; discarding 'id'
+
+--- ( id + ) ---
+   0  top E     look (     expand E -> T Ep
+   1  top T     look (     expand T -> F Tp
+   2  top F     look (     expand F -> ( E )
+   3  top (     look (     match
+   4  top E     look id    expand E -> T Ep
+   5  top T     look id    expand T -> F Tp
+   6  top F     look id    expand F -> id
+   7  top id    look id    match
+   8  top Tp    look +     expand Tp -> epsilon
+   9  top Ep    look +     expand Ep -> + T Ep
+  10  top +     look +     match
+  11  top T     look )     pop T (sync on FOLLOW)
+  12  top Ep    look )     expand Ep -> epsilon
+  13  top )     look )     match
+  14  top Tp    look $     expand Tp -> epsilon
+  15  top Ep    look $     expand Ep -> epsilon
+  16  top $     look $     ACCEPT
+  RESULT: 1 error(s), recovered to end of input:
+    @3  no rule for T on ')'; skipping T (lookahead in FOLLOW)
+
+--- + id ---
+   0  top E     look +     discard '+'
+   1  top E     look id    expand E -> T Ep
+   2  top T     look id    expand T -> F Tp
+   3  top F     look id    expand F -> id
+   4  top id    look id    match
+   5  top Tp    look $     expand Tp -> epsilon
+   6  top Ep    look $     expand Ep -> epsilon
+   7  top $     look $     ACCEPT
+  RESULT: 1 error(s), recovered to end of input:
+    @0  no rule for E on '+'; discarding '+'
+
+--- id * * num + id ---
+   0  top E     look id    expand E -> T Ep
+   1  top T     look id    expand T -> F Tp
+   2  top F     look id    expand F -> id
+   3  top id    look id    match
+   4  top Tp    look *     expand Tp -> * F Tp
+   5  top *     look *     match
+   6  top F     look *     pop F (sync on FOLLOW)
+   7  top Tp    look *     expand Tp -> * F Tp
+   8  top *     look *     match
+   9  top F     look num   expand F -> num
+  10  top num   look num   match
+  11  top Tp    look +     expand Tp -> epsilon
+  12  top Ep    look +     expand Ep -> + T Ep
+  13  top +     look +     match
+  14  top T     look id    expand T -> F Tp
+  15  top F     look id    expand F -> id
+  16  top id    look id    match
+  17  top Tp    look $     expand Tp -> epsilon
+  18  top Ep    look $     expand Ep -> epsilon
+  19  top $     look $     ACCEPT
+  RESULT: 1 error(s), recovered to end of input:
+    @2  no rule for F on '*'; skipping F (lookahead in FOLLOW)
+
+--- ( id + id ---
+   0  top E     look (     expand E -> T Ep
+   1  top T     look (     expand T -> F Tp
+   2  top F     look (     expand F -> ( E )
+   3  top (     look (     match
+   4  top E     look id    expand E -> T Ep
+   5  top T     look id    expand T -> F Tp
+   6  top F     look id    expand F -> id
+   7  top id    look id    match
+   8  top Tp    look +     expand Tp -> epsilon
+   9  top Ep    look +     expand Ep -> + T Ep
+  10  top +     look +     match
+  11  top T     look id    expand T -> F Tp
+  12  top F     look id    expand F -> id
+  13  top id    look id    match
+  14  top Tp    look $     expand Tp -> epsilon
+  15  top Ep    look $     expand Ep -> epsilon
+  16  top )     look $     insert ')' (phrase-level)
+  17  top Tp    look $     expand Tp -> epsilon
+  18  top Ep    look $     expand Ep -> epsilon
+  19  top $     look $     ACCEPT
+  RESULT: 1 error(s), recovered to end of input:
+    @4  inserted missing ')' before '$'
+

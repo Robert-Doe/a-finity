@@ -1,0 +1,6 @@
+# An already-LL(1) grammar with a nullable list rule.
+%start P
+P -> L
+L -> S L | epsilon
+S -> id assign E semi
+E -> id | num

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 27 — LL(1) Error Recovery | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#9C5A6E;--accent-wash:#F2E7EB;--accent-line:#DCC0C9}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 27 · Part III — Top-Down Parsing</p>
+  <h1>LL(1) Error <em>Recovery</em></h1>
+  <p class="thesis">Module 26's parser quits at the first bad token. Real
+  compilers report a whole screen of errors from one run. This module adds
+  <b>panic-mode</b> and <b>phrase-level</b> recovery: when a table lookup fails,
+  either skip input until a <b>synchronizing token</b> (from FOLLOW), pop the
+  stuck nonterminal, or assume a missing terminal was there — then keep parsing.
+  Every branch makes progress, so it always finishes.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p><code>( id + )</code> — Module 26 stops at <code>)</code>. With recovery:
+    <span class="hi">"skipping T (lookahead in FOLLOW)"</span>, parse continues,
+    reaches <code>ACCEPT</code>, reports one clean error at position 3.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../26-table-driven-parsing/tutorial.html">the stack + table parse loop (Module 26)</a></li>
+    <li><a href="../22-follow-sets/tutorial.html">FOLLOW sets — the synchronizing tokens (Module 22)</a></li>
+    <li><a href="../17-lexical-errors/tutorial.html">panic mode &amp; sync sets, one layer down (Module 17)</a></li>
+    <li><a href="../25-ll1-table/tutorial.html">what a blank cell means (Module 25)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — reading aloud past a coffee stain</h2></div>
+
+  <div class="picture">
+    <p>You're reading a report aloud to a room. Halfway down a paragraph, a
+    coffee stain blots out three words. A nervous reader stops dead and refuses
+    to continue. A competent reader says "…something illegible here…" and
+    <b>picks up at the start of the next sentence</b> — because sentence
+    boundaries are reliable places to resume; you know what a sentence should
+    look like.</p>
+    <p>That's <b>panic mode</b>. When the parser is stuck expanding some
+    nonterminal <code>A</code> and the next token makes no sense, it throws away
+    tokens until it sees one that could legitimately come <em>after</em>
+    <code>A</code> — a token in <code>FOLLOW(A)</code>, the parsing equivalent
+    of "the start of the next sentence." Then it drops <code>A</code> off the
+    stack and carries on.</p>
+    <p>Sometimes the fix is smaller: the reader sees "the cat sat the mat" and
+    silently reads "on" — a single obviously-missing word. That's
+    <b>phrase-level recovery</b>: a terminal the grammar demanded isn't in the
+    input, so assume it was there, note it, and move on without discarding
+    anything.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Reading aloud</th><th>Parser recovery</th></tr></thead>
+    <tbody>
+      <tr><td>coffee stain — words unreadable</td><td><code>M[A][t]</code> is blank</td></tr>
+      <tr><td>"…illegible…", resume at next sentence</td><td>panic mode: skip to a token in <code>FOLLOW(A)</code>, pop <code>A</code></td></tr>
+      <tr><td>skip a garbled word, keep the sentence</td><td>panic mode: token not in the sync set → discard it, retry</td></tr>
+      <tr><td>silently supply an obviously missing "on"</td><td>phrase-level: insert the expected terminal</td></tr>
+      <tr><td>finish reading the whole report</td><td>recover to end of input; report every stain</td></tr>
+      <tr><td>a clean page reads normally</td><td>no errors → recovery never triggers</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <p>Same loop as Module 26, with three failure cases handled instead of
+    aborting:</p>
+    <ol>
+      <li><b>Top is a terminal <code>X</code>, lookahead is not <code>X</code></b>
+        → phrase-level: record "inserted missing <code>X</code>", pop
+        <code>X</code>, <em>do not</em> advance the input.</li>
+      <li><b>Top is a nonterminal <code>A</code>, <code>M[A][lookahead]</code> is
+        blank (or has a conflict)</b> → panic mode:
+        <ul>
+          <li>lookahead <code>∈ FOLLOW(A)</code> (or is <code>$</code>) →
+            record "skipping <code>A</code>", pop <code>A</code>, keep the
+            input where it is.</li>
+          <li>otherwise → record "discarding <code>'lookahead'</code>", advance
+            the input by one, keep <code>A</code> on the stack.</li>
+        </ul>
+      </li>
+      <li><b>Top is <code>$</code>, lookahead is not <code>$</code></b> →
+        record "extra input", discard the token, continue.</li>
+    </ol>
+    <p>Cases 1 and 2a pop the stack; cases 2b and 3 advance the input. Nothing
+    else changes state. So every iteration makes measurable progress toward
+    "stack empty and input consumed" — the loop terminates.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Panic mode, discard — <code>id + * id</code></h3>
+  <div class="diagram"><pre>   5  top Ep   look +    expand Ep -> + T Ep
+   6  top +    look +    match
+   7  top T    look *    M[T][*] blank.  '*' not in FOLLOW(T) = { ) + $ }
+                         -> discard '*'                (error @2)
+   8  top T    look id   expand T -> F Tp              back on track
+   ...
+  13  top $    look $    ACCEPT
+  1 error, recovered.</pre></div>
+
+  <h3>Panic mode, sync on FOLLOW — <code>( id + )</code></h3>
+  <div class="diagram"><pre>  10  top +    look +    match
+  11  top T    look )    M[T][)] blank.  ')' IS in FOLLOW(T)
+                         -> pop T (skip the missing operand)   (error @3)
+  12  top Ep   look )    expand Ep -> epsilon
+  13  top )    look )    match
+  ...
+  16  top $    look $    ACCEPT
+  1 error, recovered.</pre></div>
+
+  <h3>Phrase-level, insert — <code>( id + id</code></h3>
+  <div class="diagram"><pre>  15  top Ep   look $    expand Ep -> epsilon
+  16  top )    look $    terminal ')' expected, lookahead is '$'
+                         -> insert ')' (phrase-level)          (error @4)
+  17  top Tp   look $    expand Tp -> epsilon
+  ...
+  19  top $    look $    ACCEPT
+  1 error, recovered.</pre></div>
+
+  <h3>Why FOLLOW is the right sync set</h3>
+  <div class="diagram"><pre>  stuck expanding A.  what token would mean "A is over, move on"?
+  exactly the tokens that can legally come right after A  =  FOLLOW(A).
+
+  FOLLOW(T) = { ) + $ }.  seeing ')' while stuck in T -> T just produced nothing,
+  the ')' belongs to the enclosing  F -> ( E ) .  pop T, let the ')' match.</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <div class="split">
+    <figure>
+      <figcaption>java/RecoveringParser.java</figcaption>
+<pre><code><span class="k">if</span> (!g.isNonterminal(top)) {                 <span class="c">// terminal on top</span>
+  <span class="k">if</span> (top.equals(look)) { stack.pop(); ip++; }        <span class="c">// match</span>
+  <span class="k">else</span> {
+    errors.add(<span class="k">new</span> Err(ip, <span class="y">"inserted missing '"</span> + top + <span class="y">"'"</span>));
+    stack.pop();                              <span class="c">// phrase-level: assume it was there</span>
+  }
+  <span class="k">continue</span>;
+}
+
+List&lt;Grammar.Production&gt; ps = tbl.cell(top, look);
+<span class="k">if</span> (ps.size() == 1) { <span class="c">/* normal expand */</span> <span class="k">continue</span>; }
+
+Set&lt;String&gt; sync = pr.followOf(top);          <span class="c">// panic mode</span>
+<span class="k">if</span> (look.equals(END) || sync.contains(look)) {
+  errors.add(<span class="k">new</span> Err(ip, <span class="y">"skipping "</span> + top + <span class="y">" (in FOLLOW)"</span>));
+  stack.pop();                                <span class="c">// drop the stuck nonterminal</span>
+} <span class="k">else</span> {
+  errors.add(<span class="k">new</span> Err(ip, <span class="y">"discarding '"</span> + look + <span class="y">"'"</span>));
+  ip++;                                       <span class="c">// throw the token away, retry</span>
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/recoveringparser.mjs</figcaption>
+<pre><code><span class="k">if</span> (!g.isNonterminal(top)) {
+  <span class="k">if</span> (top === look) { stack.pop(); ip++; }
+  <span class="k">else</span> {
+    errors.push({ pos: ip, message: <span class="y">`inserted missing '${top}'`</span> });
+    stack.pop();
+  }
+  <span class="k">continue</span>;
+}
+
+<span class="k">const</span> ps = tbl.cell(top, look);
+<span class="k">if</span> (ps.length === 1) { <span class="c">/* normal expand */</span> <span class="k">continue</span>; }
+
+<span class="k">const</span> sync = pr.followOf(top);
+<span class="k">if</span> (look === END || sync.has(look)) {
+  errors.push({ pos: ip, message: <span class="y">`skipping ${top} (in FOLLOW)`</span> });
+  stack.pop();
+} <span class="k">else</span> {
+  errors.push({ pos: ip, message: <span class="y">`discarding '${look}'`</span> });
+  ip++;
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">The termination argument, in one line</span>
+    <p>Give the parser state a "size" = (tokens left to read) + (symbols on the
+    stack). Every normal step and every recovery branch strictly decreases it —
+    a match removes a token and a stack symbol; a discard removes a token; a
+    phrase-level insert or a FOLLOW-sync removes a stack symbol. A strictly
+    decreasing non-negative integer can't decrease forever. Done.</p>
+  </div>
+
+  <div class="callout watch">
+    <span class="ct">Recovery guesses — and guesses can cascade</span>
+    <p>When panic mode skips a nonterminal it's <em>assuming</em> the
+    programmer's intent. If it's wrong, the next few tokens get parsed in the
+    wrong context and you get spurious follow-on errors. Real compilers cap the
+    total (~20), suppress errors within a few tokens of a previous one, or use
+    error-correcting recovery (Burke–Fisher, Appendix X9). This module keeps it
+    simple: report everything, let the count speak.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Suppress cascading follow-on errors, or cap the count.</li>
+        <li>Least-cost repair — try small insertions/deletions and pick the cheapest (Burke–Fisher, Appendix X9).</li>
+        <li>Build a parse tree with error nodes marking the damaged regions.</li>
+        <li>Use grammar-author-supplied <code>error</code> productions (yacc-style).</li>
+        <li>Recover inside the <em>lexer</em> — that's Module 17 (this is one layer up).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Report every error in one run, with positions, and reach end of input.</li>
+        <li>Panic mode with FOLLOW-set synchronization (skip a nonterminal).</li>
+        <li>Panic mode by discarding a stray token.</li>
+        <li>Phrase-level recovery: insert a missing terminal.</li>
+        <li>Guarantee termination on any input.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 27-ll1-error-recovery
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>--- ( id + ) ---
+  11  top T     look )     pop T (sync on FOLLOW)
+  ...
+  16  top $     look $     ACCEPT
+  RESULT: 1 error(s), recovered to end of input:
+    @3  no rule for T on ')'; skipping T (lookahead in FOLLOW)
+
+--- ( id + id ---
+  16  top )     look $     insert ')' (phrase-level)
+  ...
+  RESULT: 1 error(s), recovered to end of input:
+    @4  inserted missing ')' before '$'</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out RecoveringParserTest    # OK 17 passed
+node js/recoveringparser.test.mjs           # OK 17 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>Recovery loops forever</b> — a branch that neither pops the stack nor
+    advances the input. Each panic branch must do exactly one.<br>
+    <b>Missing-terminal errors never fire</b> — handle "terminal on top ≠
+    lookahead" <em>before</em> falling into panic mode.<br>
+    <b>One error becomes twenty</b> — expected; that's the cascade. Cap or
+    suppress in a real tool.<br>
+    <b>Sync set skips too much</b> — use <code>FOLLOW(A)</code> only, not
+    <code>FIRST ∪ FOLLOW</code>.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> On <code>id id + id</code>, the parser is at stack top
+  <code>Tp</code> with lookahead <code>id</code>. <code>FOLLOW(Tp) = { ) + $ }</code>.
+  Which panic branch fires, and why is that the right call? <b>(2)</b> Suppose we
+  used <code>FIRST(A) ∪ FOLLOW(A)</code> as the sync set. On <code>( id + )</code>
+  at stack top <code>T</code>, lookahead <code>)</code> — same result? Now try
+  lookahead <code>id</code> after some earlier damage. What changes?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>id ∉ FOLLOW(Tp)</code>, so the "discard the token" branch
+    fires — drop the stray second <code>id</code> and retry <code>Tp</code>.
+    Right call: a bare <code>id</code> where an operator was expected is junk;
+    skipping it lets <code>Tp → epsilon</code> fire on the following
+    <code>+</code> and the rest parses.</p>
+    <p><b>(2)</b> For <code>)</code> at top <code>T</code>: unchanged —
+    <code>) ∈ FOLLOW(T)</code>, pop <code>T</code>. The difference shows when the
+    lookahead is in <code>FIRST(A)</code>: with the bigger sync set the parser
+    would <em>stop discarding</em> and re-try <code>A</code> immediately (resume
+    without loss), instead of throwing the token away. Useful when the earlier
+    damage was a spurious token and the real content starts right here. It's a
+    refinement, not needed for a correct LL(1) table's blank cells.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why is it called "panic mode"?</summary>
+    <p>Dragon Book terminology. The parser "panics": abandons its current
+    attempt, discards input as fast as it can, and races to a token it trusts.
+    Crude, but robust and easy to implement — still the default in many
+    production compilers.</p>
+  </details>
+
+  <details>
+    <summary>Is this the same recovery as the lexer's (Module 17)?</summary>
+    <p>Same idea, one layer up. The lexer skips <em>characters</em> to a
+    character where a token can start; the parser skips <em>tokens</em> to a
+    token in a FOLLOW set. Both report, resynchronize, continue.</p>
+  </details>
+
+  <details>
+    <summary>Does phrase-level insertion ever make things worse?</summary>
+    <p>It can — if the terminal wasn't actually "missing" but the real problem
+    was elsewhere, inserting it papers over the symptom and the true error
+    surfaces later, misattributed. In practice, single-token insertions for
+    closers (<code>)</code>, <code>]</code>, <code>;</code>) are reliable enough
+    that most parsers do them.</p>
+  </details>
+
+  <details>
+    <summary>Why not just fix the grammar so there are no errors?</summary>
+    <p>The errors are in the <em>input</em>, not the grammar — a programmer typed
+    something malformed. The grammar is fine; the parser's job is to describe
+    what's wrong helpfully and, ideally, keep checking the rest of the file.</p>
+  </details>
+
+  <details>
+    <summary>How do real compilers avoid the error cascade?</summary>
+    <p>Several tactics: suppress any error within <code>k</code> tokens of a
+    previous one; hard-cap the total (GCC stops at ~20); prefer error-correcting
+    recovery that minimises disruption; and let grammar authors write explicit
+    <code>error</code> productions for known-tricky spots.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>Modules 20–27 are the whole LL(1) pipeline: FIRST, FOLLOW, left-recursion
+  removal, left factoring, the table, the parse loop, recovery. <b>Module 28 —
+  Grammar Analysis Tool (Project 2)</b> packages all of it into one program that
+  reads any CFG and emits: ordered terminals and nonterminals, nullable, FIRST,
+  FOLLOW, the left-factored grammar, the left-recursion-free grammar, and the
+  LL(1) verdict — modelled on the CSE 340 grammar project.</p>
+</section>
+
+<nav class="pager">
+  <a href="../26-table-driven-parsing/tutorial.html"><span class="dir">Previous</span>← Module 26 · Table-Driven Predictive Parsing</a>
+  <a href="../28-grammar-tool-project2/tutorial.html"><span class="dir">Next</span>Module 28 · Grammar Analysis Tool (Project 2) →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 27 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>27-ll1-error-recovery/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

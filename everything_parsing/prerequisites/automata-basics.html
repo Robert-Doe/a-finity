@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automata Basics — Prerequisites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B5BA5;--accent-wash:#E9EDF7}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Prerequisites · P6</p>
+  <h1>Automata <em>Basics</em></h1>
+  <p class="thesis">A finite automaton is a machine with a <b>fixed, finite
+  amount of memory</b> — one variable holding "which state am I in." That single
+  constraint is what the whole regular/context-free split turns on.</p>
+</header>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">01</span><h2>The five parts</h2></div>
+  <div class="mechanism">
+    <p>A <b>deterministic finite automaton</b> (DFA) is <code>(Q, Σ, δ, q₀, F)</code>:</p>
+    <ul>
+      <li><code>Q</code> — a finite set of <b>states</b></li>
+      <li><code>Σ</code> — the input alphabet</li>
+      <li><code>δ : Q × Σ → Q</code> — the <b>transition function</b>: given the current state and the next input symbol, the next state. <em>Total</em> — defined for every pair.</li>
+      <li><code>q₀ ∈ Q</code> — the <b>start state</b></li>
+      <li><code>F ⊆ Q</code> — the <b>accepting</b> (final) states</li>
+    </ul>
+    <p>To run it on a string: start at <code>q₀</code>, apply <code>δ</code> once
+    per symbol, and <b>accept</b> iff you end in a state in <code>F</code>. The
+    language of the automaton is the set of strings it accepts.</p>
+  </div>
+
+  <div class="diagram"><pre>  "an even number of a's" over {a, b}
+
+        b            b
+      ┌───┐        ┌───┐
+      ▼   │        ▼   │
+   ▶ (E)──┴──a──▶ (O)──┴
+      ▲            │
+      └─────a──────┘
+
+  E accepting (start), O not.  δ(E,a)=O  δ(E,b)=E  δ(O,a)=E  δ(O,b)=O</pre></div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">02</span><h2>NFA — the same, but δ may branch</h2></div>
+  <p>A <b>nondeterministic</b> finite automaton lets <code>δ</code> map a
+  <code>(state, symbol)</code> pair to a <em>set</em> of states — including the
+  empty set (no move) — and allows <code>ε</code>-transitions (move without
+  consuming input). It accepts a string if <em>some</em> path through the
+  choices ends in an accepting state.</p>
+  <p>NFAs are not more powerful — Module 13's subset construction turns any NFA
+  into a DFA for the same language — but they are far easier to build, which is
+  why Thompson's construction (Module 12) targets an NFA.</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">03</span><h2>The pigeonhole principle — why finite memory is a real limit</h2></div>
+  <div class="callout brain">
+    <span class="ct">Pigeonhole</span>
+    <p>If you put <code>n + 1</code> items into <code>n</code> boxes, some box
+    holds at least two.</p>
+    <p><b>Applied to a DFA with <code>p</code> states:</b> reading a string of
+    length <code>p</code> visits <code>p + 1</code> states (before the 1st
+    symbol, after the 1st, … after the <code>p</code>th). Only <code>p</code>
+    states exist, so <em>two of those visits are to the same state</em>. The
+    input consumed between those two visits forms a <b>loop</b> — and the
+    automaton cannot tell how many times that loop was taken. That is the entire
+    engine of the pumping lemma (Module 7).</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">04</span><h2>Stronger machines</h2></div>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Machine</th><th>Extra memory</th><th>Recognises</th></tr></thead>
+    <tbody>
+      <tr><td>finite automaton</td><td>none (just the state)</td><td>regular languages (Type 3)</td></tr>
+      <tr><td>pushdown automaton</td><td>one unbounded stack</td><td>context-free languages (Type 2)</td></tr>
+      <tr><td>linear-bounded automaton</td><td>a tape the size of the input</td><td>context-sensitive (Type 1)</td></tr>
+      <tr><td>Turing machine</td><td>an unbounded tape</td><td>recursively enumerable (Type 0)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>A stack is exactly what a recursive-descent parser's call stack is — which
+  is why context-free grammars and recursion go together.</p>
+</section>
+
+<nav class="pager">
+  <a href="index.html"><span class="dir">Back</span>← All prerequisites</a>
+  <a href="sets-relations-fixed-points.html"><span class="dir">Related</span>Sets, Relations &amp; Fixed Points →</a>
+</nav>
+
+</div>
+</body>
+</html>

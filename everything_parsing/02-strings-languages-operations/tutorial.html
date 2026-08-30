@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 02 — Alphabets, Strings, Languages, Operations | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#B07A1E;--accent-wash:#F5EDDD;--accent-line:#E3CFA6}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 02 · Part I — Foundations</p>
+  <h1>Alphabets, Strings,<em>Languages</em></h1>
+  <p class="thesis">Four words the whole field stands on, made exact — and one
+  claim, proven in code: <b>union, concatenation, and power take finite
+  languages to finite languages</b>. Only Kleene star escapes to infinity, and
+  that single asymmetry is why the next twenty modules exist.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff line</span>
+    <p>A regular expression is <span class="hi">nothing but</span> union,
+    concatenation, and star. This module builds those three as set operations
+    and reconstructs <code>(a|b)a*</code> from them, string for string — before
+    Module 3 has written a single line of regex-parsing code.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../prerequisites/sets-and-languages.html">alphabet, string, Σ*, language</a></li>
+    <li><a href="../prerequisites/sets-and-languages.html">union, concatenation, power, Kleene star</a></li>
+    <li><a href="../prerequisites/functions-and-notation.html">ε, and why {ε} ≠ ∅</a></li>
+    <li><a href="../prerequisites/java-and-js-setup.html">toolchain</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the bead kit</h2></div>
+
+  <div class="picture">
+    <p>On the table: a jar of coloured beads. The set of colours in the jar is
+    the <b>alphabet</b>, <code>Σ</code>. Thread some beads on a cord and you have
+    a <b>bracelet</b> — an ordered sequence. The bare cord with nothing on it is
+    still a bracelet: the <b>empty string</b>, <code>ε</code>.</p>
+
+    <p>Now you have drawers. Each <b>drawer of bracelets</b> is a
+    <b>language</b> — you decided those bracelets belong together. Operations act
+    on whole drawers:</p>
+    <ul>
+      <li><b>Union</b> — tip drawer A and drawer B into one drawer.</li>
+      <li><b>Concatenation</b> — for every bracelet in A and every bracelet in B,
+        clasp them end to end; the results fill a new drawer. (<code>|A|·|B|</code>
+        bracelets.)</li>
+      <li><b>Kleene star</b> — start from the bare cord, keep clasping on more
+        copies of drawer A's bracelets. Forever — or, in practice, until they're
+        longer than your wrist.</li>
+    </ul>
+
+    <p>And the trap this analogy has to make obvious: an <b>empty drawer</b>
+    (<code>∅</code>) is not a <b>drawer holding one bare cord</b>
+    (<code>{ε}</code>). Clasp every bracelet in A onto "a bracelet drawn from the
+    empty drawer" and you produce <em>nothing</em> — there was nothing to draw
+    (<code>∅ · A = ∅</code>). Clasp them onto the bare cord and each comes back
+    unchanged (<code>{ε} · A = A</code>).</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Bead kit</th><th>Formal term</th><th>In the code</th></tr></thead>
+    <tbody>
+      <tr><td>the jar of colours</td><td>alphabet Σ</td><td>a <code>Set&lt;Character&gt;</code></td></tr>
+      <tr><td>one bracelet</td><td>a string over Σ</td><td>a <code>String</code></td></tr>
+      <tr><td>the bare cord</td><td>ε, the empty string</td><td><code>""</code></td></tr>
+      <tr><td>a drawer</td><td>a language</td><td>a <code>Language</code> (sorted set of strings)</td></tr>
+      <tr><td>tip two drawers together</td><td>L₁ ∪ L₂</td><td><code>l1.union(l2)</code></td></tr>
+      <tr><td>clasp every pair</td><td>L₁ · L₂</td><td><code>l1.concat(l2)</code></td></tr>
+      <tr><td>clasp n copies</td><td>Lⁿ</td><td><code>l.power(n)</code></td></tr>
+      <tr><td>clasp any number of copies</td><td>L*</td><td><code>l.star(maxLen)</code></td></tr>
+      <tr><td>the empty drawer</td><td>∅</td><td><code>Language.EMPTY</code></td></tr>
+      <tr><td>drawer with one bare cord</td><td>{ε}</td><td><code>Language.EPSILON</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Alphabet.</b> Fix a finite set of symbols, e.g. <code>Σ = {a, b}</code>.</li>
+      <li><b>String.</b> A finite sequence of symbols from Σ. Length can be 0
+        (that's <code>ε = ""</code>).</li>
+      <li><b>Σ*.</b> The set of all strings over Σ — infinite. We compute it
+        <em>up to a length</em> as the bounded star of the one-character
+        languages: <code>{a}, {b}</code> starred.</li>
+      <li><b>Language.</b> Any set of strings. We store finite ones, in a
+        canonical order: shorter strings first, ties broken lexicographically.</li>
+      <li><b>Union</b> = set union. <b>Concatenation</b> = <code>{ xy : x∈L₁,
+        y∈L₂ }</code>, a double loop. <b>Power</b> <code>Lⁿ</code> = concat with
+        self n times; <code>L⁰ = {ε}</code>.</li>
+      <li><b>Kleene star</b> = breadth-first closure: from <code>{ε}</code>,
+        repeatedly prepend strings of L, keep everything ≤ the bound, dedupe.</li>
+      <li><b>Closure check.</b> Every result above from finite operands is
+        finite — except star, whose true result is infinite, which is why it
+        alone needs a bound.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Concatenation is a grid</h3>
+  <div class="diagram"><pre>          {a, b}  concat  {x, y}
+
+              x        y
+          ┌────────┬────────┐
+        a │  a+x   │  a+y   │        result = { ax, ay, bx, by }
+          │  = ax  │  = ay  │        4 strings from 2 × 2
+          ├────────┼────────┤
+        b │  b+x   │  b+y   │
+          │  = bx  │  = by  │
+          └────────┴────────┘</pre></div>
+
+  <h3>Kleene star of <code>{a}</code> is a frontier that only grows</h3>
+  <div class="diagram"><pre>bound = 4
+
+  {ε}  ──prepend "a"──►  {ε, a}  ──►  {ε, a, aa}  ──►  {ε,a,aa,aaa}  ──►  {ε,a,aa,aaa,aaaa}
+                                                                            │
+                                                        "aaaaa" (len 5) &gt; bound → dropped
+
+  result:  { ε, a, aa, aaa, aaaa }</pre></div>
+
+  <h3>{ε} and ∅ under concat — the whole difference</h3>
+  <div class="diagram"><pre>  ∅ · {a, b}   :  for x in ∅ ... (loop body never runs)      →  { }        <span class="dim">∅ annihilates</span>
+  {ε} · {a, b} :  x = "" ;  "" + "a" = "a" ,  "" + "b" = "b"  →  { a, b }   <span class="dim">{ε} is identity</span></pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Concatenation — the definition, verbatim</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Language.java</figcaption>
+<pre><code><span class="k">Language</span> concat(Language o) {
+  Set&lt;String&gt; s = <span class="k">new</span> HashSet&lt;&gt;();
+  <span class="k">for</span> (String x : strings)
+    <span class="k">for</span> (String y : o.strings)
+      s.add(x + y);              <span class="c">// the glue is just String +</span>
+  <span class="k">return</span> <span class="k">new</span> Language(s);
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/language.mjs</figcaption>
+<pre><code>concat(o) {
+  <span class="k">const</span> out = <span class="k">new</span> Set();
+  <span class="k">for</span> (<span class="k">const</span> x <span class="k">of</span> <span class="k">this</span>._set)
+    <span class="k">for</span> (<span class="k">const</span> y <span class="k">of</span> o._set)
+      out.add(x + y);
+  <span class="k">return</span> <span class="k">new</span> Language(out);
+}</code></pre>
+    </figure>
+  </div>
+  <p>If <code>strings</code> is empty the outer loop never runs → <code>∅ · L =
+  ∅</code>. If <code>strings = {""}</code> then <code>x = ""</code> and
+  <code>"" + y = y</code> → <code>{ε} · L = L</code>. The identities are not
+  coded; they are what the double loop <em>does</em>.</p>
+
+  <h3>Kleene star — why the seen-set is load-bearing</h3>
+<pre><code><span class="k">Language</span> star(<span class="k">int</span> maxLen) {
+  Set&lt;String&gt; acc = <span class="k">new</span> HashSet&lt;&gt;();  acc.add(<span class="y">""</span>);
+  Deque&lt;String&gt; work = <span class="k">new</span> ArrayDeque&lt;&gt;();  work.add(<span class="y">""</span>);
+  <span class="k">while</span> (!work.isEmpty()) {
+    String prefix = work.poll();
+    <span class="k">for</span> (String s : strings) {
+      String next = prefix + s;
+      <span class="k">if</span> (next.length() &gt; maxLen) <span class="k">continue</span>;
+      <span class="k">if</span> (acc.add(next)) work.add(next);   <span class="c">// only enqueue genuinely new strings</span>
+    }
+  }
+  <span class="k">return</span> <span class="k">new</span> Language(acc);
+}</code></pre>
+
+  <div class="callout brain">
+    <span class="ct">Why not just <code>power(0) ∪ power(1) ∪ power(2) ∪ …</code>?</span>
+    <p>Because that loop needs a stopping rule, and the obvious one — "stop when
+    <code>power(k)</code> adds no new string ≤ maxLen" — <b>never fires when
+    <code>ε ∈ L</code></b>. If <code>L = {"", "a"}</code>, every
+    <code>power(k)</code> still contains <code>ε</code> and <code>a</code>, so it
+    always looks like there's more to do. The closure form with a seen-set
+    terminates for <em>every</em> <code>L</code> — with <code>ε</code>, without
+    it, and for <code>L = ∅</code> (result <code>{ε}</code>). See
+    <a href="DECISIONS.md">DECISIONS.md</a> #5.</p>
+  </div>
+
+  <h3>The regular expression, rebuilt from the three methods</h3>
+<pre><code><span class="c">// (a|b) a*   ,  clipped to length &lt;= 4 for display</span>
+Language firstChar = Language.of(<span class="y">"a"</span>).union(Language.of(<span class="y">"b"</span>));
+Language tail      = Language.of(<span class="y">"a"</span>).star(<span class="y">3</span>);
+Language re        = firstChar.concat(tail);
+<span class="c">// → { a, b, aa, ba, aaa, baa, aaaa, baaa }</span>
+<span class="c">//   "b"  in L    "ba" in L    "ab" NOT in L    ""  NOT in L</span></code></pre>
+  <p>Three method calls. That is the entire semantic content of the regex
+  <code>(a|b)a*</code>. Module 3 adds a parser that turns the six characters
+  <code>(a|b)a*</code> into a tree of <code>Union</code> / <code>Concat</code> /
+  <code>Star</code> nodes — but each node will just call one of these methods.</p>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Represent an infinite language. Only bounded slices — <code>star</code> and <code>sigmaStar</code> both take a length.</li>
+        <li>Decide membership in an infinite language without generating a bounded chunk of it.</li>
+        <li>Parse regex <em>notation</em> — there is no <code>(a|b)*</code> string parser yet (Module 3).</li>
+        <li>Match efficiently. Enumerating <code>Σ*≤n</code> is <code>|Σ|ⁿ⁺¹</code>-ish strings; a real matcher simulates an automaton (Modules 10–13).</li>
+        <li>Say anything about context-free languages — <code>concat</code>/<code>star</code> can't build <code>aⁿbⁿ</code> as one operation.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Compute union, concatenation, and every finite power exactly.</li>
+        <li>Show, by fully listing every result, that finite in → finite out for all three.</li>
+        <li>Compute Kleene star up to any length bound, terminating for every input including <code>ε ∈ L</code>.</li>
+        <li>Reproduce any regular expression's <em>meaning</em> as a bounded set, purely from the three operations.</li>
+        <li>Demonstrate <code>{ε} ≠ ∅</code> concretely: identity vs. annihilator under concat.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java (no fixture — the algebra is the input)</h4>
+<pre><code>cd 02-strings-languages-operations
+javac -d java/out java/*.java
+java -cp java/out Main</code></pre>
+    <h4>JavaScript — identical bytes</h4>
+<pre><code>node js/main.mjs</code></pre>
+    <h4>Expected (excerpt — full text in expected/main.out)</h4>
+<pre><code>the empty string is not the empty language:
+  {}          size 0
+  { epsilon }  size 1
+  {} concat L1        = { }   (annihilator)
+  { epsilon } concat L1 = { a, b }   (identity)
+
+Kleene star of { a } up to length 4:  { epsilon, a, aa, aaa, aaaa }   [5 strings]
+
+regex as operations:  (a|b) a*   up to length 4
+  built as: ( {a} union {b} ) concat ( {a}.star(3) )
+  = { a, b, aa, ba, aaa, baa, aaaa, baaa }   [8 strings]
+  <span class="exp">membership:  "b" in L   "ba" in L   "ab" not in L   "" not in L</span></code></pre>
+    <h4>Tests — both "OK 23 passed"</h4>
+<pre><code>java -cp java/out LanguageTest
+node js/language.test.mjs</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>star</code> never returns</b> — you passed a large
+    <code>maxLen</code>. <code>|Σ*≤n|</code> grows as <code>|Σ|ⁿ</code>; length 6
+    over a 4-symbol alphabet is already 5461 strings. Keep bounds small.<br>
+    <b>Render order looks wrong</b> — strings sort by <em>length first</em>, then
+    lexicographically. <code>"bb"</code> comes after <code>"aa"</code> and
+    <code>"ab"</code>, but all three come before any 3-character string.<br>
+    <b><code>{ epsilon }</code> and <code>{}</code> behave the same in your
+    port</b> — you stored the empty string as <code>null</code> or skipped it.
+    <code>""</code> is a value; put it in the set.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> <code>power(n)</code> always terminates with no seen-set;
+  <code>star</code> needs one. In one sentence, what is the structural
+  difference between the two loops that makes this true?</p>
+  <p><b>(2)</b> Is concatenation commutative? Find <code>L₁</code>,
+  <code>L₂</code> with <code>L₁ · L₂ ≠ L₂ · L₁</code>. Is it associative?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>power(n)</code> does a <em>fixed</em> number of
+    concatenations — exactly <code>n</code>, known before the loop starts — so it
+    can't run forever. <code>star</code> loops until a <em>data-dependent</em>
+    condition ("no new strings ≤ bound"), and without a seen-set a language
+    containing <code>ε</code> re-generates strings it has already seen and the
+    condition never becomes true.</p>
+    <p><b>(2)</b> Not commutative: <code>{a} · {b} = {ab}</code> but
+    <code>{b} · {a} = {ba}</code>. It <em>is</em> associative —
+    <code>(L₁·L₂)·L₃ = L₁·(L₂·L₃)</code> — because string concatenation is
+    associative, so the grouping of the clasps doesn't matter. Union is both
+    commutative and associative (it's set union). This is why
+    <code>(a|b)a*</code> is unambiguous about the <code>·</code> but
+    <code>a|b|c</code> needs no parentheses either — Module 6 makes the
+    difference precise.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Isn't a string just a list of characters? Why the ceremony?</summary>
+    <p>Operationally, yes. Conceptually, a string is an element of Σ* — the
+    <em>free monoid</em> over Σ: concatenation is its operation, <code>ε</code>
+    its identity, and it's associative but not commutative. That structure is
+    exactly what makes <code>power</code> and <code>star</code> well-defined, and
+    it's the same structure a parser exploits when it reads left to right.</p>
+  </details>
+
+  <details>
+    <summary>Why is <code>{ε}·L = L</code> but <code>∅·L = ∅</code>? They look similar.</summary>
+    <p><code>concat</code> pairs <em>every</em> <code>x</code> in the first set
+    with <em>every</em> <code>y</code> in the second. <code>∅</code> has no
+    <code>x</code>, so there are zero pairs → empty result. <code>{ε}</code> has
+    exactly one <code>x = ""</code>, and <code>"" + y == y</code> → you get every
+    <code>y</code> back. One set is empty; the other contains one (very short)
+    element. That's the entire difference and it changes the outcome
+    completely.</p>
+  </details>
+
+  <details>
+    <summary>You said regex = union + concat + star. What about <code>+</code>, <code>?</code>, <code>[a-z]</code>, <code>.</code>?</summary>
+    <p>All sugar over the three. <code>a+ = a·a*</code>. <code>a? = a|ε</code>.
+    <code>[a-z] = a|b|…|z</code>. <code>.</code> = the union of every symbol in
+    Σ. Backreferences (<code>\1</code>) are the exception — they take you
+    outside regular languages entirely, which is why "regex" engines that
+    support them aren't really matching regular languages any more.</p>
+  </details>
+
+  <details>
+    <summary>Why bound Kleene star? Real regex engines match infinite languages fine.</summary>
+    <p>They don't <em>enumerate</em> the language — they simulate a finite
+    automaton that accepts or rejects one input string in linear time
+    (Modules 10–13). Enumerating <code>L*</code> is only for <em>seeing</em> the
+    definition. No production matcher ever lists the language.</p>
+  </details>
+
+  <details>
+    <summary>Could I use this <code>Language</code> type to check if two regexes are equivalent?</summary>
+    <p>Only approximately — compare their bounded enumerations up to some length
+    and hope no difference hides past the bound. The exact answer needs
+    minimal-DFA comparison (Module 14): build the minimal automaton for each,
+    check they're isomorphic. For regular languages that's decidable; for
+    context-free ones it's <em>undecidable</em>, a fact that shapes Part IV.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>You built the <em>meaning</em> — a set — out of three operations.
+  <b>Module 3 — Regular Expressions: Formal Definition</b> builds the
+  <em>notation</em>: a parser that turns the string <code>(a|b)*abb</code> into
+  a small tree of <code>Char</code>, <code>Union</code>, <code>Concat</code>, and
+  <code>Star</code> nodes, with an explicit precedence (star binds tightest,
+  then concatenation, then union). Each node type will do exactly one thing —
+  call the matching method you wrote today.</p>
+</section>
+
+<nav class="pager">
+  <a href="../01-syntax-vs-semantics/tutorial.html"><span class="dir">Previous</span>← Module 01 · Syntax vs. Semantics</a>
+  <a href="../03-regex-formal-definition/tutorial.html"><span class="dir">Next</span>Module 03 · Regular Expressions: Formal Definition →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 02 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>02-strings-languages-operations/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

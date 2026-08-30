@@ -1,0 +1,3 @@
+# The textbook ambiguous expression grammar: one nonterminal, four productions,
+# no notion of precedence or associativity. "id + id * id" has TWO parse trees.
+E -> E + E | E * E | ( E ) | id

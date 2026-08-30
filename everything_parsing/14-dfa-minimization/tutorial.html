@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 14 — DFA Minimization | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#7A2E4E;--accent-wash:#F2E4EA;--accent-line:#DDB6C6}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 14 · Part II — Lexical Analysis</p>
+  <h1>DFA<em>Minimization</em></h1>
+  <p class="thesis">Two states are the same if the machine's future is the same
+  from either. Merge every such pair and you get the <b>minimal DFA</b> — and by
+  the Myhill–Nerode theorem it is <b>unique</b>. That uniqueness turns "do these
+  two regexes mean the same language?" into a <b>decidable</b> question.</p>
+
+  <div class="headline">
+    <span class="lbl">The pipeline is now complete and optimal</span>
+    <p>regex → NFA → DFA → <span class="hi">minimal DFA</span>. The 5-state
+    subset DFA for <code>(a|b)*abb</code> minimizes to <b>4</b> — isomorphic to
+    the DFA a human wrote by hand in Module 10, which was already minimal.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../13-subset-construction/tutorial.html">subset construction → a DFA (Module 13)</a></li>
+    <li><a href="../10-dfa/tutorial.html">the hand-written DFA for (a|b)*abb (Module 10)</a></li>
+    <li><a href="../prerequisites/sets-relations-fixed-points.html">partitions, fixed-point iteration</a></li>
+    <li><a href="../06-ambiguity-disambiguation/tutorial.html">CFG equivalence is undecidable (contrast)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the building inspector merging rooms</h2></div>
+
+  <div class="picture">
+    <p>The subset construction handed you a building where some rooms are
+    <b>functionally identical</b>: standing in either one, every sequence of
+    doors you could walk leads to the same outcome — you reach an exit, or you
+    don't, under exactly the same instructions.</p>
+    <p>A building inspector walks through with one rule: <b>if two rooms are
+    indistinguishable, knock down the wall between them and call it one
+    room.</b> They start with the one obvious split — "exit rooms" vs.
+    "everything else" — and keep separating: two rooms in the same pile are
+    actually different if door <code>a</code> leads from them into
+    <em>different</em> piles. Re-sort. Repeat until a pass changes nothing.
+    What's left: the fewest rooms with genuinely distinct futures.</p>
+    <p>And there is <b>exactly one</b> such floor plan. Any architect who
+    minimises this building — by any method — ends up with the same rooms and
+    the same doors. That's Myhill–Nerode.</p>
+    <p>So to ask "are these two buildings the same?" you minimise both and check
+    if they're the same plan. For <b>regex</b> buildings this always works. For
+    <b>grammar</b> buildings (Part IV) it provably doesn't — there is no unique
+    minimal form.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Inspector</th><th>Minimization</th></tr></thead>
+    <tbody>
+      <tr><td>two indistinguishable rooms</td><td>equivalent states — same right language</td></tr>
+      <tr><td>"exit rooms vs. the rest"</td><td>initial partition <code>{F} | {Q\F}</code></td></tr>
+      <tr><td>re-sort when a door leads to different piles</td><td>split a block on a symbol's target block</td></tr>
+      <tr><td>a pass that changes nothing</td><td>the fixed point — done</td></tr>
+      <tr><td>knock down the wall</td><td>merge the class into one state</td></tr>
+      <tr><td>the one true floor plan</td><td>the unique minimal DFA (Myhill–Nerode)</td></tr>
+      <tr><td>"are these two buildings the same?"</td><td>regex equivalence = minimal-DFA isomorphism</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <p><b>0. Trim.</b> BFS from the start; drop any state you can't reach.</p>
+    <p><b>Method A — partition refinement (Moore):</b></p>
+    <ol>
+      <li>Partition = <code>{accepting} | {non-accepting}</code>.</li>
+      <li>Each round: give every state a <em>signature</em> = (its block, then
+        the block of <code>δ(state, a)</code> for each symbol <code>a</code>).
+        States with different signatures go to different new blocks.</li>
+      <li>Stop when a round creates no new block.</li>
+    </ol>
+    <p><b>Method B — table filling:</b></p>
+    <ol>
+      <li>Mark every pair <code>(p, q)</code> where exactly one is accepting.</li>
+      <li>Repeatedly: mark <code>(p, q)</code> if some symbol sends it to an
+        already-marked pair.</li>
+      <li>Stop at a fixed point. Unmarked pairs are equivalent; union them into
+        classes.</li>
+    </ol>
+    <p><b>Build the quotient DFA:</b> one state per class (start's class first,
+    named <code>M0</code>), transitions read off any representative, a class is
+    accepting iff its representative is.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Partition refinement on the 5-state subset DFA for <code>(a|b)*abb</code></h3>
+  <div class="diagram"><pre>  states: D0 (start)  D1  D2  D3  D4 (accepting)
+
+  round 0:  { D0 D1 D2 D3 }   |   { D4 }          (non-accepting | accepting)
+  round 1:  split by (block of δ(·,a), block of δ(·,b)):
+              D0: (→D1 blk0, →D0 blk0)
+              D1: (→D1 blk0, →D2 blk0)
+              D2: (→D1 blk0, →D0 blk0)   ← same signature as D0
+              D3: (→D1 blk0, →D4 blk1)
+            → { D0 D2 } | { D1 } | { D3 } | { D4 }
+  round 2:  no block splits → DONE
+
+  4 classes → 4-state minimal DFA.   D0 ≡ D2  ("0 characters of abb matched")</pre></div>
+
+  <h3>Table filling, same DFA</h3>
+  <div class="diagram"><pre>       D1  D2  D3  D4
+   D0   ·   ·   ·   X          X  = distinguishable (D4 accepting, others not)
+   D1       ·   ·   X          ·  = still unknown / equivalent
+   D2           ·   X
+   D3               X
+
+  propagate: is (D0,D2) distinguishable?  δ(D0,a)=D1, δ(D2,a)=D1  same;
+             δ(D0,b)=D0, δ(D2,b)=D0  same  →  stays unmarked  →  D0 ≡ D2
+  every other unmarked pair gets marked on some symbol →  classes: {D0,D2},{D1},{D3},{D4}</pre></div>
+
+  <h3>The minimal DFA</h3>
+  <div class="diagram"><pre>  state      a     b
+  -> M0      M1    M0        M0 = {D0,D2}  "matched nothing"
+     M1      M1    M2        M1 = {D1}     "matched a"
+     M2      M1    M3        M2 = {D3}     "matched ab"
+   * M3      M1    M0        M3 = {D4}     "matched abb"  (accepting)
+
+  isomorphic to Module 10's hand-written S / A / AB / ABB.</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Partition refinement — split by signature</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Minimize.java</figcaption>
+<pre><code><span class="k">while</span> (<span class="k">true</span>) {
+  Map&lt;List&lt;Integer&gt;, Integer&gt; sigId = <span class="k">new</span> LinkedHashMap&lt;&gt;();
+  Map&lt;String, Integer&gt; next = <span class="k">new</span> HashMap&lt;&gt;();
+  <span class="k">for</span> (String s : states) {
+    List&lt;Integer&gt; sig = <span class="k">new</span> ArrayList&lt;&gt;();
+    sig.add(block.get(s));                        <span class="c">// current block</span>
+    <span class="k">for</span> (String a : alpha) sig.add(block.get(d.step(s, a)));  <span class="c">// target blocks</span>
+    next.put(s, sigId.computeIfAbsent(sig, k -&gt; sigId.size()));
+  }
+  <span class="k">int</span> nc = distinct(next);
+  block = next;
+  <span class="k">if</span> (nc == blockCount) <span class="k">break</span>;                        <span class="c">// nothing split this round</span>
+  blockCount = nc;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/minimize.mjs</figcaption>
+<pre><code><span class="k">for</span> (;;) {
+  <span class="k">const</span> sigId = <span class="k">new</span> Map();
+  <span class="k">const</span> next = <span class="k">new</span> Map();
+  <span class="k">for</span> (<span class="k">const</span> s <span class="k">of</span> states) {
+    <span class="k">const</span> sig = [block.get(s),
+      ...d.alphabet.map(a =&gt; block.get(d.step(s, a)))].join(<span class="y">","</span>);
+    <span class="k">if</span> (!sigId.has(sig)) sigId.set(sig, sigId.size);
+    next.set(s, sigId.get(sig));
+  }
+  <span class="k">const</span> nc = <span class="k">new</span> Set(next.values()).size;
+  <span class="k">for</span> (<span class="k">const</span> [k, v] <span class="k">of</span> next) block.set(k, v);
+  <span class="k">if</span> (nc === count) <span class="k">break</span>;
+  count = nc;
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>Regex equivalence — minimal DFAs, then isomorphism</h3>
+<pre><code><span class="k">static boolean</span> equivalent(Regex a, Regex b) {
+  <span class="k">return</span> isomorphic(
+    minimal(Subset.determinize(Thompson.build(a))),
+    minimal(Subset.determinize(Thompson.build(b))));
+}
+
+<span class="k">static boolean</span> isomorphic(Dfa a, Dfa b) {
+  <span class="k">if</span> (a.states.size() != b.states.size()) <span class="k">return</span> <span class="k">false</span>;
+  <span class="c">// BFS-pair the two DFAs from their start states; any mismatch → not isomorphic</span>
+  map.put(a.start, b.start);
+  <span class="k">while</span> (!q.isEmpty()) {
+    ... <span class="k">if</span> (a.accept.contains(sa) != b.accept.contains(sb)) <span class="k">return</span> <span class="k">false</span>;
+    <span class="k">for</span> (String sym : a.alphabet) {
+      String ta = a.step(sa, sym), tb = b.step(sb, sym);
+      <span class="k">if</span> (map.get(ta) == <span class="k">null</span>) { map.put(ta, tb); q.add(...); }
+      <span class="k">else if</span> (!map.get(ta).equals(tb)) <span class="k">return</span> <span class="k">false</span>;
+    }
+  }
+  <span class="k">return</span> <span class="k">true</span>;
+}</code></pre>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — this is a whole decision procedure</span>
+    <p><code>L(a) = L(b)</code> for regular languages is <b>decidable</b>, and
+    these ~15 lines are the procedure:
+    <code>regex → NFA → DFA → minimal DFA → compare</code>. For <b>context-free</b>
+    languages the same question is <b>undecidable</b> — there is no unique
+    minimal pushdown automaton, no Myhill–Nerode for CFLs, and the halting
+    problem reduces to it. That gap is why Part IV can't just "equivalence-check"
+    a grammar and instead forces it into an LL or LR shape.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Avoid the subset construction's 2ⁿ blow-up before minimizing (Brzozowski's method dodges it differently but can still blow up mid-way).</li>
+        <li>Minimize an NFA — NFA minimization is PSPACE-complete, not polynomial.</li>
+        <li>Minimize faster than O(n²·|Σ|) — Hopcroft's O(n log n) is out of scope.</li>
+        <li>Tokenise — the DFA still just says yes/no (Modules 15–16).</li>
+        <li>Keep track of <em>which</em> token an accepting state means (Module 16 labels them, and must not merge differently-labelled states).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Compute the equivalence classes two ways and check they agree.</li>
+        <li>Build the unique minimal DFA for any regular language.</li>
+        <li>Confirm it's isomorphic to a hand-written DFA for the same language.</li>
+        <li>Decide, exactly, whether two regexes denote the same language.</li>
+        <li>Report the minimal state count = the number of Myhill–Nerode classes.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg)</h4>
+<pre><code>cd 14-dfa-minimization
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>partition refinement -&gt; 4 equivalence classes:
+  { D0, D2 }
+  { D1 }
+  { D3 }
+  { D4 }
+
+table filling -&gt; 4 classes;  same partition as refinement:  <span class="exp">true</span>
+
+minimal DFA is isomorphic to the hand-written DFA:  <span class="exp">true</span>
+
+  /(a|b)*/       == /(a*b*)*/      :  true   (both = Sigma*)
+  /a*/           == /a+/           :  false  (a+ excludes the empty string)</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out MinimizeTest    # OK 31 passed
+node js/minimize.test.mjs         # OK 31 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>bad transition line: q10   q11</code></b> — a regex string had a
+    <em>space</em>; Module 3's parser turns it into a <code>Char(' ')</code>.
+    Write regexes with no spaces.<br>
+    <b>Minimal DFA too big</b> — unreachable states weren't trimmed, or the
+    initial partition didn't split accepting from non-accepting.<br>
+    <b>The two algorithms disagree</b> — one stopped before its fixed point.
+    Both must loop until a full pass changes nothing.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p>The subset DFA had 5 states, minimized to 4 — but in general the subset
+  construction can blow up to <code>2ⁿ</code> and <em>then</em> you minimize.</p>
+  <p><b>(1)</b> Brzozowski's algorithm minimizes by "reverse, determinize,
+  reverse, determinize" — no partition step at all. Why does that produce the
+  minimal DFA? <b>(2)</b> Can you build the minimal DFA directly from the regex,
+  never paying the exponential blow-up?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Reversing a DFA (swap start/accept, flip every edge) gives an
+    NFA for the reversed language. The key lemma: if you determinize an NFA whose
+    every state is <em>co-reachable</em> (can reach an accepting state), the
+    resulting DFA has <em>no two equivalent states</em>. Reversing then
+    determinizing gives co-reachability for free (every subset came from a real
+    reverse-run); doing it <em>twice</em> also gives forward-reachability. So
+    after "reverse, det, reverse, det" the DFA is both minimal-reachable and
+    equivalence-free — i.e. minimal. Elegant, though the middle determinization
+    can still be exponential.</p>
+    <p><b>(2)</b> Not in general — the minimal DFA <em>itself</em> can be
+    <code>2ⁿ</code> for an <code>n</code>-symbol regex (the "<code>k</code>-th
+    from the end" family, Module 13). The blow-up is in the <em>answer</em>, not
+    just the method. What you <em>can</em> do is build only the DFA states a
+    given input visits — lazy determinization — which is linear per string
+    regardless of the full DFA's size.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why is the minimal DFA <em>unique</em>? Couldn't there be two different 4-state DFAs?</summary>
+    <p>Myhill–Nerode: the states of <em>any</em> minimal DFA correspond one-to-one
+    with the language's <em>right-language equivalence classes</em> — a property
+    of the language, not of any machine. So every minimal DFA for a language has
+    the same number of states and the same transition structure: they're all
+    isomorphic.</p>
+  </details>
+
+  <details>
+    <summary>Table filling is O(n²) pairs × O(n) rounds × |Σ|. Hopcroft is O(n log n). Is it worth learning Hopcroft?</summary>
+    <p>For a lexer's DFA — hundreds of states — either finishes instantly.
+    Hopcroft matters for genuinely huge automata (natural-language morphology,
+    bioinformatics). Moore's method / table filling is the one to understand;
+    Hopcroft is an optimisation of the same idea with a clever "process the
+    smaller half" trick.</p>
+  </details>
+
+  <details>
+    <summary>Did the dead state get merged into the start for <code>(a|b)*abb</code>?</summary>
+    <p>There is no dead state here — from every state of that DFA you can still
+    reach the accepting state, because <code>(a|b)*abb</code> lets you "start
+    over" on a mismatched character. <code>D0</code> and <code>D2</code> merged
+    because both mean the same thing: "zero characters of the suffix
+    <code>abb</code> matched so far."</p>
+  </details>
+
+  <details>
+    <summary>What's the minimal DFA for a language that rejects everything?</summary>
+    <p>One state — non-accepting, self-looping on every symbol. Same shape (one
+    state, self-looping) minimizes <code>Σ*</code>, except that state is
+    accepting. Any regular language's minimal DFA has at least one state.</p>
+  </details>
+
+  <details>
+    <summary>If I minimize, do I lose which regex position an accepting state came from?</summary>
+    <p>Yes — merging discards provenance. That's fine for a yes/no matcher. For a
+    <em>tokeniser</em> (Module 16) each accepting state is labelled with which
+    token it recognises, and minimization must be told never to merge states
+    with different labels — otherwise "keyword vs. identifier" collapses.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>The <code>regex → minimal DFA</code> pipeline is complete and optimal. Time
+  to use it. <b>Module 15 — Maximal Munch &amp; Token Priority</b> is the
+  lexer's two disambiguation rules: <em>longest match wins</em>, and <em>ties go
+  to the rule declared first</em>. You'll run the DFA over the input,
+  remembering the last position where it was in an accepting state, and — when
+  it gets stuck — back up to that mark and emit a token. Then Module 16
+  assembles a complete lexical analyzer from a list of token patterns: the
+  equivalent of CSE 340's Project 1.</p>
+</section>
+
+<nav class="pager">
+  <a href="../13-subset-construction/tutorial.html"><span class="dir">Previous</span>← Module 13 · Subset Construction</a>
+  <a href="../15-maximal-munch-priority/tutorial.html"><span class="dir">Next</span>Module 15 · Maximal Munch &amp; Token Priority →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 14 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>14-dfa-minimization/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

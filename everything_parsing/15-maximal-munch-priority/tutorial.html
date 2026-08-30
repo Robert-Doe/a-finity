@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 15 — Maximal Munch &amp; Token Priority | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#4560A0;--accent-wash:#E8ECF7;--accent-line:#B7C3E4}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 15 · Part II — Lexical Analysis</p>
+  <h1>Maximal Munch &amp;<em>Token Priority</em></h1>
+  <p class="thesis">Two rules turn a pile of token patterns into a scanner.
+  <b>Longest match wins</b> — <code>iffy</code> is one identifier, not
+  <code>if</code> + <code>fy</code>. <b>Ties go to the pattern declared first</b>
+  — that is exactly how <code>if</code> becomes a keyword and not an
+  identifier.</p>
+
+  <div class="headline">
+    <span class="lbl">The mechanism, in one sentence</span>
+    <p>Run the pattern's DFA over the input, <span class="hi">remember the last
+    position it was accepting</span>, and when it gets stuck, back up to that
+    mark and emit a token.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../14-dfa-minimization/tutorial.html">regex → minimal DFA (Modules 12–14)</a></li>
+    <li><a href="../10-dfa/tutorial.html">running a DFA, accepting states (Module 10)</a></li>
+    <li><a href="../09-input-buffering/tutorial.html">retract / back-up (Module 9)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — reading a long word aloud</h2></div>
+
+  <div class="picture">
+    <p>Read this out loud: <b>understandable</b>. You didn't say "under",
+    "stand", "able" — three real words. You read the <em>whole thing</em>,
+    because as long as the letters keep forming <em>something valid</em>, you
+    keep going. You only commit to a word when the next letter can't continue
+    it, or you hit a space.</p>
+    <p>That is <b>maximal munch</b>. The scanner extends the current token as
+    far as the characters still form <em>some</em> valid token, and takes the
+    longest such run. <code>iffy</code>: after <code>if</code> it could stop
+    (that's the keyword) — but <code>iffy</code> is also valid (an identifier),
+    and longer, so it keeps going.</p>
+    <p>Now: some words are spelled the same. "bank" — river's edge, or money?
+    A dictionary lists one sense first and calls it primary. <b>Token
+    priority</b> is that list: when two patterns match the <em>same</em> length,
+    the one written first in your rule list wins. <code>if</code> matches the
+    keyword pattern and the identifier pattern, both at length 2 — the keyword
+    pattern is listed first, so <code>if</code> is a keyword.</p>
+    <p>And the order is fixed: <b>length first, list-order only to break a
+    tie</b>. Priority never makes a shorter match win.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Reading aloud</th><th>Lexing</th></tr></thead>
+    <tbody>
+      <tr><td>keep going while the letters form something valid</td><td>keep the DFA running while it can advance</td></tr>
+      <tr><td>the longest run you could read</td><td>the last position the DFA was accepting</td></tr>
+      <tr><td>commit when a letter breaks it</td><td>on stuck, back up to the last-accept mark</td></tr>
+      <tr><td>"understandable" is one word, not three</td><td><code>iffy</code> is one <code>ID</code>, not <code>if</code> + <code>fy</code></td></tr>
+      <tr><td>the dictionary's primary sense</td><td>the first-declared pattern</td></tr>
+      <tr><td>same spelling → dictionary order decides</td><td>same length → rule order decides</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li>Compile each token pattern to a minimal DFA (Modules 12–14).</li>
+      <li>At position <code>pos</code>, for every pattern:
+        <ul>
+          <li><code>state = dfa.start</code>; <code>lastAccept = -1</code></li>
+          <li>for <code>i = pos, pos+1, …</code>: step the DFA on
+            <code>input[i]</code>; if the character isn't in the alphabet, stop;
+            if the new state is accepting, <code>lastAccept = i + 1</code></li>
+          <li>the pattern's match length is <code>lastAccept - pos</code>
+            (or 0 if it never accepted)</li>
+        </ul>
+      </li>
+      <li><b>RULE 1:</b> the token's length = the maximum match length over all
+        patterns.</li>
+      <li><b>RULE 2:</b> among patterns achieving that maximum, the token's kind
+        = the first-declared one. (In code: only update the best on
+        <code>len &gt; bestLen</code>, strictly.)</li>
+      <li>If the best length is 0 → lexical error at <code>pos</code>. Otherwise
+        emit the token and set <code>pos += length</code>.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Scanning <code>iffy</code> — two patterns, two last-accept marks</h3>
+  <div class="diagram"><pre>  KW_IF  = if
+  ID     = (i|f|x|y)(i|f|x|y)*
+
+  pos:      0   1   2   3
+  input:    i   f   f   y
+
+  KW_IF DFA:  --i-->  --f-->  (ACCEPT)  --f-->  (stuck)
+              last accept = position 2   → match "if", length 2
+
+  ID DFA:     --i--> (ACCEPT) --f--> (ACCEPT) --f--> (ACCEPT) --y--> (ACCEPT)
+              last accept = position 4   → match "iffy", length 4
+
+  RULE 1:  max(2, 4) = 4   →   the token is 4 characters
+  RULE 2:  only ID reached length 4   →   ID "iffy"</pre></div>
+
+  <h3>The tie — <code>if</code></h3>
+  <div class="diagram"><pre>  input:  i f          KW_IF: last accept = 2      ID: last accept = 2
+
+  RULE 1:  max(2, 2) = 2
+  RULE 2:  KW_IF and ID both reached 2  →  tie  →  KW_IF   (declared at index 0 &lt; 1)
+
+  swap the declaration order  →  ID would win  →  "if" lexes as an identifier</pre></div>
+
+  <h3>Operators — <code>==</code></h3>
+  <div class="diagram"><pre>  ASSIGN = ==     EQ = =
+
+  input:  = =      EQ: accepts at length 1        ASSIGN: accepts at length 2
+
+  RULE 1:  max(1, 2) = 2   →   ASSIGN "=="        (not EQ + EQ)
+  "===" then lexes as  ASSIGN "==" @0  ,  EQ "=" @2</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The last-accept mark — <code>longestAccept</code></h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Lexer.java</figcaption>
+<pre><code><span class="k">static int</span> longestAccept(Dfa dfa, String input, <span class="k">int</span> pos) {
+  String state = dfa.start;
+  <span class="k">int</span> lastAccept = dfa.accept.contains(state) ? pos : -<span class="y">1</span>;
+  <span class="k">for</span> (<span class="k">int</span> i = pos; i &lt; input.length(); i++) {
+    String sym = String.valueOf(input.charAt(i));
+    <span class="k">if</span> (!dfa.alphabet.contains(sym)) <span class="k">break</span>;          <span class="c">// char not in this pattern's alphabet</span>
+    state = dfa.step(state, sym);
+    <span class="k">if</span> (dfa.accept.contains(state)) lastAccept = i + <span class="y">1</span>;  <span class="c">// overwrite: keep the LAST</span>
+  }
+  <span class="k">return</span> lastAccept;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/lexer.mjs</figcaption>
+<pre><code><span class="k">export function</span> longestAccept(dfa, input, pos) {
+  <span class="k">let</span> state = dfa.start;
+  <span class="k">let</span> lastAccept = dfa.accept.has(state) ? pos : -<span class="y">1</span>;
+  <span class="k">for</span> (<span class="k">let</span> i = pos; i &lt; input.length; i++) {
+    <span class="k">const</span> sym = input[i];
+    <span class="k">if</span> (!dfa.alphabet.includes(sym)) <span class="k">break</span>;
+    state = dfa.step(state, sym);
+    <span class="k">if</span> (dfa.accept.has(state)) lastAccept = i + <span class="y">1</span>;
+  }
+  <span class="k">return</span> lastAccept;
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>The two rules, in one comparison</h3>
+<pre><code><span class="k">for</span> (<span class="k">int</span> i = <span class="y">0</span>; i &lt; rules.size(); i++) {
+  <span class="k">int</span> len = ...longestAccept(...);
+  <span class="k">if</span> (len &gt; bestLen) {        <span class="c">// STRICTLY greater</span>
+    bestLen = len;              <span class="c">//   → RULE 1: a longer match replaces the best</span>
+    bestRule = i;               <span class="c">//   → RULE 2: on a tie (len == bestLen) the earlier i already sits in bestRule</span>
+  }
+}</code></pre>
+  <p>That one word — <b>strictly</b> greater — is the entire priority rule. Loop
+  the rules in declaration order and the first to reach the winning length keeps
+  it.</p>
+
+  <div class="callout brain">
+    <span class="ct">Why <code>lastAccept</code>, not <code>firstAccept</code></span>
+    <p>Stop at the first accepting state and <code>iffy</code> tokenises as the
+    keyword <code>if</code>. Stop at the first accepting state and <code>==</code>
+    is two <code>=</code>. The scanner has to keep running <em>past</em> a valid
+    token to see if a longer one is coming, then rewind. This is the same
+    "read ahead, then retract" the input buffer (Module 9) was built for.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Scan in O(input) total — one DFA per rule means O(rules × input) (Module 16 combines them).</li>
+        <li>Read a token-spec file — the rules are hard-coded (Module 16).</li>
+        <li>Skip whitespace or comments — no such rule here; a space is an error.</li>
+        <li>Attach line/column to tokens (the trivia layer, later).</li>
+        <li>Reject a pattern that matches the empty string at load time (Module 16's "epsilon is not a token").</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Apply maximal munch: the token is the longest prefix any pattern matches.</li>
+        <li>Apply priority: ties go to the first-declared pattern.</li>
+        <li>Trace the last-accept mark for any pattern on any input.</li>
+        <li>Tokenise a whole string, or fail with an exact error position.</li>
+        <li>Show that swapping rule order changes which token <code>if</code> becomes.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg)</h4>
+<pre><code>cd 15-maximal-munch-priority
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>RULE 1 -- longest match wins:
+  "iffy"   -&gt; ID "iffy" @0   (KW_IF/EQ would have matched a shorter prefix)
+
+RULE 2 -- on a length tie, the EARLIER rule wins:
+  "if"   -&gt; KW_IF matches len 2,  ID matches len 2  -- tie  -&gt;  <span class="exp">KW_IF "if" @0</span>   (rule 0 &lt; rule 1)
+
+  ID       on "iffy":  i(ACCEPT@1) if(ACCEPT@2) iff(ACCEPT@3) iffy(ACCEPT@4)   -&gt; last accept = 4</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out LexerTest    # OK 17 passed
+node js/lexer.test.mjs         # OK 17 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>A keyword lexes as an identifier</b> — the identifier rule is declared
+    before the keyword rule. Keywords first.<br>
+    <b><code>iffy</code> → <code>if</code> + <code>fy</code></b> — you compared
+    <em>first</em> match, not <em>longest</em>. Track the last-accept position.<br>
+    <b><code>lexical error at position N</code></b> — the character at
+    <code>N</code> is in no pattern's alphabet. Add a rule (whitespace,
+    punctuation) — Module 16 handles the full spec.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> In a language with both <code>--</code> (decrement) and
+  <code>-</code> (minus), maximal munch tokenises <code>a---b</code> as
+  <code>a</code> <code>--</code> <code>-</code> <code>b</code> — which is a
+  syntax error. A human clearly meant <code>a - (--b)</code> or
+  <code>(a--) - b</code>. Should the lexer be smarter? <b>(2)</b> One DFA per
+  rule is O(rules × input) per token. How does a real lexer get O(input)
+  <em>total</em>?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> No. The lexer runs <em>before</em> and <em>independent of</em>
+    the parser — making it "smart" about intent means feeding parser context
+    back into lexing, which destroys the clean phase separation and can make
+    lexing ambiguous. Real languages either accept the munch and require a space
+    (<code>a-- -b</code>), or add a narrow parser-level fix-up. The famous case:
+    C++ <code>vector&lt;vector&lt;int&gt;&gt;</code> — the <code>&gt;&gt;</code>
+    used to munch as a shift operator and be an error; C++11 added a
+    <em>parser</em> rule to re-split <code>&gt;&gt;</code> into two
+    <code>&gt;</code> in a template context. That special case exists precisely
+    because everyone agrees the lexer itself must stay dumb.</p>
+    <p><b>(2)</b> Combine all the rules into <em>one</em> DFA (Module 16): take
+    the union of every rule's NFA, tag each accepting state with which rule it
+    came from (lowest rule index = highest priority), then determinise. Now one
+    left-to-right pass — one DFA step per character — tracks <em>all</em>
+    patterns at once, and each accepting DFA state already knows the winning
+    token kind. Total cost: O(input), regardless of how many rules there are.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why longest match and not shortest?</summary>
+    <p>Shortest would make nearly every identifier one character long and
+    <code>1234</code> four separate number tokens. Longest is what matches how
+    people read — <code>PARKING</code> is one word even though <code>PARK</code>
+    is also a word.</p>
+  </details>
+
+  <details>
+    <summary>The <code>if</code> keyword — why not lex everything as an identifier and look up keywords in a table?</summary>
+    <p>That's the other standard implementation — the "reserved word trick"
+    (Module 18). Lex <code>if</code> as an identifier, then check a keyword table
+    and re-label it. It's equivalent to putting the keyword rule first, and often
+    simpler (one identifier DFA instead of one per keyword). Both are used in
+    real lexers.</p>
+  </details>
+
+  <details>
+    <summary>What if I want the <em>shorter</em> match in some case?</summary>
+    <p>You don't fight maximal munch — you restructure the token set. If
+    <code>..</code> and <code>...</code> are both tokens, <code>....</code>
+    munches as <code>...</code> then <code>.</code>; if that's wrong for your
+    language, either forbid <code>....</code> or make the range operator a
+    parser-level construction from single dots.</p>
+  </details>
+
+  <details>
+    <summary>The lexer errored on a space. Isn't whitespace normal?</summary>
+    <p>A real lexer has a whitespace rule that matches spaces/tabs/newlines and
+    then either emits a "trivia" token (kept, attached to the next real token) or
+    produces nothing (skipped). This demo deliberately has no such rule so the
+    error path is visible; Module 16 adds one.</p>
+  </details>
+
+  <details>
+    <summary>Can maximal munch loop forever?</summary>
+    <p>Only if a token pattern matches the empty string — e.g. you wrote
+    <code>x*</code> as a whole token. Then every position "matches" length 0,
+    the scanner advances by 0, and spins. The <code>bestLen == 0 →</code> error
+    guard here catches it; Module 16 rejects such a pattern when the spec is
+    loaded (CSE 340's "epsilon is not a token").</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>You have the two rules. <b>Module 16 — The Lexical Analyzer (Project 1)</b>
+  assembles the real thing: a token-spec file (names + regexes), all patterns
+  compiled into <em>one</em> combined DFA whose accepting states are tagged with
+  the winning token kind, a single O(input) maximal-munch pass, exact
+  byte-for-byte output, lexical-error reporting with position, and the
+  load-time check that no pattern matches the empty string — the equivalent of
+  ASU CSE 340's Project 1, top to bottom.</p>
+</section>
+
+<nav class="pager">
+  <a href="../14-dfa-minimization/tutorial.html"><span class="dir">Previous</span>← Module 14 · DFA Minimization</a>
+  <a href="../16-lexer-project1/tutorial.html"><span class="dir">Next</span>Module 16 · The Lexical Analyzer (Project 1) →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 15 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>15-maximal-munch-priority/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

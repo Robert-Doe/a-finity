@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 21 — Nullable &amp; FIRST Sets | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3F5E8C;--accent-wash:#E6ECF4;--accent-line:#BFCDE2}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 21 · Part III — Top-Down Parsing</p>
+  <h1>Nullable &amp; <em>FIRST</em> Sets</h1>
+  <p class="thesis">Module 20 used FIRST and <em>nullable</em> as if computing
+  them were obvious. They're not — the definitions are <b>circular</b>.
+  <code>FIRST(E)</code> depends on <code>FIRST(T)</code> depends on
+  <code>FIRST(F)</code> which, through <code>F → ( E )</code>, depends back on
+  <code>FIRST(E)</code>. You break the circle with a <b>least fixed point</b>:
+  start from nothing, apply the rules until a full pass changes nothing, and the
+  answer you land on is the smallest one consistent with the grammar.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>Watch it converge. For <code>X → Y</code>, <code>Y → Z</code>,
+    <code>Z → z | ε</code>: nullable is
+    <span class="hi">{} → {Z} → {Y,Z} → {X,Y,Z} → {X,Y,Z}</span>. Each round
+    peels one layer; the repeat with no change is the proof you're done.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../20-predictive-condition/tutorial.html">FIRST, FOLLOW, PREDICT, LL(1) (Module 20)</a></li>
+    <li><a href="../prerequisites/sets-relations-fixed-points.html">monotone functions &amp; least fixed points</a></li>
+    <li><a href="../prerequisites/induction-and-recursion.html">induction (why the iteration is correct)</a></li>
+    <li><a href="../04-cfg-formal-definition/tutorial.html">productions, nonterminals, ε (Module 4)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — rumours through an office</h2></div>
+
+  <div class="picture">
+    <p>A fact gets out. On Monday, only the people who <em>witnessed</em> it know
+    (that's <code>Z → ε</code> — directly nullable). On Tuesday, everyone who
+    talks to a Monday-knower knows (<code>Y → Z</code>, so <code>Y</code>
+    inherits it). On Wednesday, their contacts know (<code>X → Y</code>). Each
+    day the circle of knowers grows by exactly one hop. Eventually a day passes
+    where nobody <em>new</em> finds out — the rumour has saturated the office.
+    That day is your signal to stop.</p>
+    <p>That's a <b>fixed-point iteration</b>. "Who knows the rumour" only ever
+    grows, it can't grow past the whole office, so it must settle. And it
+    settles on the <em>smallest</em> set that's closed under "if you talk to a
+    knower, you know" — nobody is in it who wasn't reachable from an actual
+    witness. That smallest closed set is the <b>least fixed point</b>, and it's
+    the honest answer: it doesn't credit anyone with knowledge they have no path
+    to.</p>
+    <p><code>nullable</code> is "who can derive the empty string." FIRST is "which
+    terminals can show up first" — same office, same rumour dynamics, just a
+    richer fact travelling.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Office rumour</th><th>Fixed-point computation</th></tr></thead>
+    <tbody>
+      <tr><td>Monday: only witnesses know</td><td>round 1: only directly nullable NTs (<code>A → ε</code>)</td></tr>
+      <tr><td>each day, contacts of knowers learn it</td><td>each round, NTs with an all-nullable rhs join</td></tr>
+      <tr><td>the set of knowers only grows</td><td>monotone — elements are only ever added</td></tr>
+      <tr><td>can't exceed the whole office</td><td>bounded by the finite symbol set</td></tr>
+      <tr><td>a day with no new knower</td><td>a pass that adds nothing → fixed point, stop</td></tr>
+      <tr><td>nobody credited without a real path</td><td>least fixed point — the smallest closed set</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <h3>nullable</h3>
+    <ol>
+      <li>Start <code>N = {}</code>.</li>
+      <li>Pass over every production <code>A → X₁…Xₖ</code>. If <code>A ∉ N</code>
+        and every <code>Xᵢ ∈ N</code> (vacuously true for an empty rhs), add
+        <code>A</code> to <code>N</code>.</li>
+      <li>If the pass added anything, go again. Otherwise stop —
+        <code>N</code> is <code>nullable</code>.</li>
+    </ol>
+    <h3>FIRST</h3>
+    <ol>
+      <li>Start <code>FIRST(A) = {}</code> for every nonterminal.</li>
+      <li>Pass over every production <code>A → X₁…Xₖ</code>. Walk the rhs
+        left to right:
+        <ul>
+          <li><code>Xᵢ</code> a terminal → add <code>Xᵢ</code> to
+            <code>FIRST(A)</code>, stop walking this rhs.</li>
+          <li><code>Xᵢ</code> a nonterminal → add
+            <code>FIRST(Xᵢ) \ {ε}</code>; if <code>Xᵢ</code> is nullable,
+            continue to <code>Xᵢ₊₁</code>, else stop.</li>
+          <li>walked off the end (all nullable) → add <code>ε</code> to
+            <code>FIRST(A)</code>.</li>
+        </ul>
+      </li>
+      <li>If the pass changed any set, go again. Otherwise stop.</li>
+    </ol>
+    <p>nullable is computed <em>first</em> and used as a fixed input to the FIRST
+    pass — that keeps FIRST a single monotone iteration instead of two
+    intertwined ones.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>nullable, layer by layer — <code>indirect.grammar</code></h3>
+  <div class="diagram"><pre>  X -> Y      Y -> Z      Z -> z | epsilon
+
+  round 0:  { }                         nothing assumed
+  round 1:  { Z }                        Z -> epsilon  fires
+  round 2:  { Y, Z }                     Y -> Z, and Z is now nullable
+  round 3:  { X, Y, Z }                  X -> Y, and Y is now nullable
+  round 4:  { X, Y, Z }                  no change  -> STOP</pre></div>
+
+  <h3>FIRST waiting on a chain — <code>expr.grammar</code></h3>
+  <div class="diagram"><pre>  E -> T Ep     T -> F Tp     F -> ( E ) | num | id
+
+  round 0:  FIRST(E)={}  FIRST(T)={}  FIRST(F)={}
+  round 1:  FIRST(E)={}  FIRST(T)={}  FIRST(F)={ ( id num }    F's terminals land
+  round 2:  FIRST(E)={}  FIRST(T)={ ( id num }                 T <- F
+  round 3:  FIRST(E)={ ( id num }                              E <- T
+  round 4:  no change  -> STOP
+
+  FIRST(E) is genuinely empty for two rounds. It has nothing wrong with it —
+  the information just hasn't arrived through the E <- T <- F chain yet.</pre></div>
+
+  <h3>FIRST past a nullable prefix — <code>cascade.grammar</code></h3>
+  <div class="diagram"><pre>  S -> A B C d      A -> a|epsilon    B -> b|epsilon    C -> c|epsilon
+
+  walking S's rhs:  A (nullable) add {a}, continue
+                    B (nullable) add {b}, continue
+                    C (nullable) add {c}, continue
+                    d (terminal) add {d}, STOP
+  FIRST(S) = { a b c d }        epsilon NOT included: 'd' is not nullable</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>nullable — the whole loop</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/FirstSets.java</figcaption>
+<pre><code>Set&lt;String&gt; n = <span class="k">new</span> LinkedHashSet&lt;&gt;();
+<span class="k">boolean</span> changed = <span class="k">true</span>;
+<span class="k">while</span> (changed) {
+  changed = <span class="k">false</span>;
+  <span class="k">for</span> (Grammar.Production p : g.productions) {
+    <span class="k">if</span> (n.contains(p.lhs())) <span class="k">continue</span>;
+    <span class="k">boolean</span> allNull = <span class="k">true</span>;
+    <span class="k">for</span> (String s : p.rhs())
+      <span class="k">if</span> (!n.contains(s)) { allNull = <span class="k">false</span>; <span class="k">break</span>; }
+    <span class="k">if</span> (allNull) { n.add(p.lhs()); changed = <span class="k">true</span>; }  <span class="c">// empty rhs: allNull stays true</span>
+  }
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/firstsets.mjs</figcaption>
+<pre><code><span class="k">const</span> n = <span class="k">new</span> Set();
+<span class="k">let</span> changed = <span class="k">true</span>;
+<span class="k">while</span> (changed) {
+  changed = <span class="k">false</span>;
+  <span class="k">for</span> (<span class="k">const</span> p <span class="k">of</span> <span class="k">this</span>.g.productions) {
+    <span class="k">if</span> (n.has(p.lhs)) <span class="k">continue</span>;
+    <span class="k">let</span> allNull = <span class="k">true</span>;
+    <span class="k">for</span> (<span class="k">const</span> s <span class="k">of</span> p.rhs)
+      <span class="k">if</span> (!n.has(s)) { allNull = <span class="k">false</span>; <span class="k">break</span>; }
+    <span class="k">if</span> (allNull) { n.add(p.lhs); changed = <span class="k">true</span>; }
+  }
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>FIRST of a sequence — stop at the first non-nullable symbol</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/FirstSets.java</figcaption>
+<pre><code>Set&lt;String&gt; out = <span class="k">new</span> LinkedHashSet&lt;&gt;();
+<span class="k">boolean</span> allNullable = <span class="k">true</span>;
+<span class="k">for</span> (String sym : seq) {
+  <span class="k">if</span> (!g.isNonterminal(sym)) { out.add(sym); allNullable = <span class="k">false</span>; <span class="k">break</span>; }
+  <span class="k">for</span> (String x : f.get(sym)) <span class="k">if</span> (!x.equals(EPS)) out.add(x);
+  <span class="k">if</span> (!nullable.contains(sym)) { allNullable = <span class="k">false</span>; <span class="k">break</span>; }
+}
+<span class="k">if</span> (allNullable) out.add(EPS);</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/firstsets.mjs</figcaption>
+<pre><code><span class="k">const</span> out = <span class="k">new</span> Set();
+<span class="k">let</span> allNullable = <span class="k">true</span>;
+<span class="k">for</span> (<span class="k">const</span> sym <span class="k">of</span> seq) {
+  <span class="k">if</span> (!<span class="k">this</span>.g.isNonterminal(sym)) { out.add(sym); allNullable = <span class="k">false</span>; <span class="k">break</span>; }
+  <span class="k">for</span> (<span class="k">const</span> x <span class="k">of</span> f.get(sym)) <span class="k">if</span> (x !== EPS) out.add(x);
+  <span class="k">if</span> (!<span class="k">this</span>.nullable.has(sym)) { allNullable = <span class="k">false</span>; <span class="k">break</span>; }
+}
+<span class="k">if</span> (allNullable) out.add(EPS);</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Why it always terminates — the two-line proof</span>
+    <p><b>Monotone:</b> every line of the loop only ever calls <code>add</code>.
+    No element is ever removed. <b>Bounded:</b> <code>nullable</code> can't
+    exceed the finite set of nonterminals; each <code>FIRST(A)</code> can't
+    exceed the finite set of terminals plus <code>{ε}</code>. A sequence that
+    only grows and can't grow forever must stabilise. The number of rounds is at
+    most the number of nonterminals plus one.</p>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Least, not just any</span>
+    <p>The grammar's equations can have many solutions. For
+    <code>A → A</code>, both <code>FIRST(A) = {}</code> and
+    <code>FIRST(A) = {x}</code> satisfy "<code>FIRST(A) ⊇ FIRST(A)</code>." Only
+    the empty one is <em>correct</em> — no string is actually derivable from
+    <code>A</code>. Starting from <code>{}</code> and adding only what a rule
+    forces guarantees you land on the <b>least</b> fixed point: every element in
+    it traces back to a real terminal in a real production. A larger fixed point
+    would be a parser that expects tokens the grammar can't actually produce
+    there.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>FOLLOW sets — Module 22 (they need FIRST as an input, plus their own iteration and the <code>$</code> marker).</li>
+        <li>The LL(1) parse <em>table</em> — Module 25.</li>
+        <li>Worklist / SCC-based speed-ups (Tarjan) — Module 28's Project 2 tool.</li>
+        <li>Handle a grammar with useless (unreachable / non-productive) nonterminals gracefully — grammar hygiene, Module 28.</li>
+        <li>ε as a first-class production symbol mixed with others (<code>A → ε b</code> is rejected at load — Module 4's rule).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Compute <code>nullable</code> as a least fixed point, with the round-by-round trace.</li>
+        <li>Compute <code>FIRST</code> for every nonterminal and every rhs sequence.</li>
+        <li>Show the iteration converging and confirm it's a fixed point.</li>
+        <li>Handle direct <em>and</em> indirect nullability, and nullable prefixes.</li>
+        <li>Agree, element for element, with Module 20's independent FIRST.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 21-nullable-first
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>########## fixtures/indirect.grammar
+NULLABLE iteration:
+  round 0: {  }
+  round 1: { Z }
+  round 2: { Y Z }
+  round 3: { X Y Z }
+  round 4: { X Y Z }   (stable -- one more pass adds nothing)
+
+########## fixtures/expr.grammar
+FIRST iteration:
+  round 1:
+      FIRST(E ) = {  }
+      ...
+      FIRST(F ) = { ( id num }
+  round 3:
+      FIRST(E ) = { ( id num }
+  one more pass changes nothing? true
+cross-check vs Module 20 Predict.firstOf: MATCH</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out FirstSetsTest    # OK 23 passed
+node js/firstsets.test.mjs          # OK 23 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>A → ε</code> doesn't mark <code>A</code> nullable</b> — an empty
+    rhs must make the "all symbols nullable" test vacuously true.<br>
+    <b>Indirect nullability missed</b> — you ran one pass, not to convergence.<br>
+    <b><code>FIRST</code> stops too early</b> — keep adding
+    <code>FIRST(Xᵢ₊₁)</code> while <code>Xᵢ</code> is nullable.<br>
+    <b><code>ε</code> in <code>FIRST(S)</code> when <code>S</code> isn't
+    nullable</b> — only add <code>ε</code> if the <em>whole</em> rhs is
+    nullable.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Grammar <code>S → A a</code>, <code>A → B C</code>,
+  <code>B → b | ε</code>, <code>C → c | ε</code>. Run the nullable iteration by
+  hand. Is <code>A</code> nullable? Is <code>S</code>? <b>(2)</b> Compute
+  <code>FIRST(S)</code>. Why isn't <code>a</code> alone the answer?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> round 1: <code>B, C</code> (both have an ε production).
+    round 2: <code>A</code> — <code>A → B C</code> and both are now nullable.
+    round 3: no change. <code>A</code> is nullable; <code>S</code> is <em>not</em>
+    — <code>S → A a</code> has the terminal <code>a</code>.</p>
+    <p><b>(2)</b> Walk <code>S</code>'s rhs <code>A a</code>: <code>A</code> is
+    nullable, so add <code>FIRST(A) \ {ε}</code>. <code>FIRST(A)</code>: walk
+    <code>B C</code> — <code>B</code> nullable, add <code>{b}</code>; <code>C</code>
+    nullable, add <code>{c}</code>; off the end, add <code>ε</code> →
+    <code>{b, c, ε}</code>. So from <code>A</code> we contribute <code>{b, c}</code>.
+    Then <code>A</code> nullable, continue to <code>a</code> (terminal) → add
+    <code>{a}</code>, stop. <code>FIRST(S) = {a, b, c}</code>. <code>a</code>
+    alone is wrong because <code>A</code> can vanish, exposing whatever
+    <code>A</code> itself could start with.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why compute nullable separately instead of folding it into FIRST?</summary>
+    <p>You could — <code>ε ∈ FIRST(A)</code> <em>is</em> "<code>A</code> is
+    nullable." Computing nullable first, as its own fixed point, makes the FIRST
+    pass a single clean monotone iteration with nullable as a constant input,
+    instead of two mutually-recursive iterations. Same answer, easier to reason
+    about and to trace.</p>
+  </details>
+
+  <details>
+    <summary>How many rounds does it take?</summary>
+    <p>At most (number of nonterminals + 1). Each productive round adds at least
+    one element along a dependency chain no longer than the nonterminal count;
+    the final round is the confirming pass that adds nothing. Real grammars
+    converge in a handful of rounds regardless.</p>
+  </details>
+
+  <details>
+    <summary>What's a "fixed point" in one sentence?</summary>
+    <p>A value the function maps to itself: apply the rules to it and you get the
+    same value back. Here: run one more pass over the productions and no set
+    changes.</p>
+  </details>
+
+  <details>
+    <summary>Could the iteration land on the <em>wrong</em> fixed point?</summary>
+    <p>Not if you start from empty and only add. That path always reaches the
+    <em>least</em> fixed point, which is the correct one — it contains exactly
+    the terminals/nullability that some real derivation justifies. Starting from
+    a non-empty guess could overshoot.</p>
+  </details>
+
+  <details>
+    <summary>Does a left-recursive grammar break this?</summary>
+    <p>No — FIRST and nullable are computed fine for any grammar, left recursion
+    included (<code>FIRST(A)</code> for <code>A → A x</code> just contributes
+    nothing new on the self-reference). Left recursion breaks <em>parsing</em>
+    (Module 19) and LL(1)-ness (Module 20), not these sets.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p><b>Module 22 — FOLLOW Sets</b> does the other half. FOLLOW takes FIRST as an
+  input and runs its own least-fixed-point iteration: for every
+  <code>B → α A β</code>, whatever can start <code>β</code> can follow
+  <code>A</code>, and if <code>β</code> is nullable, whatever follows
+  <code>B</code> follows <code>A</code> too. Plus the <code>$</code> end-marker,
+  which turns out not to be optional. With FIRST and FOLLOW both in hand,
+  Module 25 assembles the LL(1) parsing table.</p>
+</section>
+
+<nav class="pager">
+  <a href="../20-predictive-condition/tutorial.html"><span class="dir">Previous</span>← Module 20 · The Predictive Parsing Condition</a>
+  <a href="../22-follow-sets/tutorial.html"><span class="dir">Next</span>Module 22 · FOLLOW Sets →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 21 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>21-nullable-first/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

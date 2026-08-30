@@ -1,0 +1,199 @@
+=== Module 28 - Grammar Analysis Tool (CSE 340 Project 2) ===
+
+one program, seven sections, each a component from Modules 20-27:
+symbols | nullable | FIRST | FOLLOW | left-recursion-free | left-factored | LL(1)
+
+##################### fixtures/stmts.grammar #####################
+
+input grammar:
+  P -> L
+  L -> S L
+  L -> epsilon
+  S -> id assign E semi
+  E -> id
+  E -> num
+
+1. SYMBOLS (in order of first appearance)
+   nonterminals: P L S E
+   terminals   : id assign semi num
+   start       : P
+
+2. NULLABLE
+   L P
+
+3. FIRST
+   FIRST(P        ) = { id epsilon }
+   FIRST(L        ) = { id epsilon }
+   FIRST(S        ) = { id }
+   FIRST(E        ) = { id num }
+
+4. FOLLOW
+   FOLLOW(P        ) = { $ }
+   FOLLOW(L        ) = { $ }
+   FOLLOW(S        ) = { id $ }
+   FOLLOW(E        ) = { semi }
+
+5. LEFT-RECURSION-FREE GRAMMAR (Paull)
+   input left-recursive? false
+   P -> L
+   L -> S L | epsilon
+   S -> id assign E semi
+   E -> id | num
+   still left-recursive? false
+
+6. LEFT-FACTORED GRAMMAR
+   input needs factoring? false
+   P -> L
+   L -> S L | epsilon
+   S -> id assign E semi
+   E -> id | num
+   still needs factoring? false
+
+7. LL(1) VERDICT
+   LL(1) = YES
+   parsing table (production index; . = blank):
+           id     assign semi   num    $      
+     P     0      .      .      .      0      
+     L     1      .      .      .      2      
+     S     3      .      .      .      .      
+     E     4      .      .      5      .      
+
+##################### fixtures/expr.grammar #####################
+
+input grammar:
+  E -> E + T
+  E -> T
+  T -> T * F
+  T -> F
+  F -> ( E )
+  F -> id
+  F -> num
+
+1. SYMBOLS (in order of first appearance)
+   nonterminals: E T F
+   terminals   : + * ( ) id num
+   start       : E
+
+2. NULLABLE
+   (none)
+
+3. FIRST
+   FIRST(E        ) = { ( id num }
+   FIRST(T        ) = { ( id num }
+   FIRST(F        ) = { ( id num }
+
+4. FOLLOW
+   FOLLOW(E        ) = { ) + $ }
+   FOLLOW(T        ) = { ) * + $ }
+   FOLLOW(F        ) = { ) * + $ }
+
+5. LEFT-RECURSION-FREE GRAMMAR (Paull)
+   input left-recursive? true
+   E -> T E'
+   E' -> + T E' | epsilon
+   T -> F T'
+   T' -> * F T' | epsilon
+   F -> ( E ) | id | num
+   still left-recursive? false
+
+6. LEFT-FACTORED GRAMMAR
+   input needs factoring? false
+   E -> E + T | T
+   T -> T * F | F
+   F -> ( E ) | id | num
+   still needs factoring? false
+
+7. LL(1) VERDICT
+   LL(1) = NO   6 conflict(s):
+     nonterminal E on token '(':  [E -> E + T]  vs  [E -> T]
+     nonterminal E on token 'id':  [E -> E + T]  vs  [E -> T]
+     nonterminal E on token 'num':  [E -> E + T]  vs  [E -> T]
+     nonterminal T on token '(':  [T -> T * F]  vs  [T -> F]
+     nonterminal T on token 'id':  [T -> T * F]  vs  [T -> F]
+     nonterminal T on token 'num':  [T -> T * F]  vs  [T -> F]
+   -> apply sections 5 and 6, then re-check.
+   after left-recursion removal + left factoring: LL(1) = YES
+
+##################### fixtures/json.grammar #####################
+
+input grammar:
+  value -> obj
+  value -> arr
+  value -> str
+  value -> num
+  value -> tru
+  value -> fls
+  value -> nul
+  obj -> lbrace rbrace
+  obj -> lbrace members rbrace
+  members -> pair
+  members -> pair comma members
+  pair -> str colon value
+  arr -> lbrack rbrack
+  arr -> lbrack elements rbrack
+  elements -> value
+  elements -> value comma elements
+
+1. SYMBOLS (in order of first appearance)
+   nonterminals: value obj members pair arr elements
+   terminals   : str num tru fls nul lbrace rbrace comma colon lbrack rbrack
+   start       : value
+
+2. NULLABLE
+   (none)
+
+3. FIRST
+   FIRST(value    ) = { fls lbrace lbrack nul num str tru }
+   FIRST(obj      ) = { lbrace }
+   FIRST(members  ) = { str }
+   FIRST(pair     ) = { str }
+   FIRST(arr      ) = { lbrack }
+   FIRST(elements ) = { fls lbrace lbrack nul num str tru }
+
+4. FOLLOW
+   FOLLOW(value    ) = { comma rbrace rbrack $ }
+   FOLLOW(obj      ) = { comma rbrace rbrack $ }
+   FOLLOW(members  ) = { rbrace }
+   FOLLOW(pair     ) = { comma rbrace }
+   FOLLOW(arr      ) = { comma rbrace rbrack $ }
+   FOLLOW(elements ) = { rbrack }
+
+5. LEFT-RECURSION-FREE GRAMMAR (Paull)
+   input left-recursive? false
+   value -> obj | arr | str | num | tru | fls | nul
+   obj -> lbrace rbrace | lbrace members rbrace
+   members -> pair | pair comma members
+   pair -> str colon value
+   arr -> lbrack rbrack | lbrack elements rbrack
+   elements -> value | value comma elements
+   still left-recursive? false
+
+6. LEFT-FACTORED GRAMMAR
+   input needs factoring? true
+   value -> obj | arr | str | num | tru | fls | nul
+   obj -> lbrace obj'
+   obj' -> rbrace | members rbrace
+   members -> pair members'
+   members' -> epsilon | comma members
+   pair -> str colon value
+   arr -> lbrack arr'
+   arr' -> rbrack | elements rbrack
+   elements -> value elements'
+   elements' -> epsilon | comma elements
+   still needs factoring? false
+
+7. LL(1) VERDICT
+   LL(1) = NO   10 conflict(s):
+     nonterminal obj on token 'lbrace':  [obj -> lbrace rbrace]  vs  [obj -> lbrace members rbrace]
+     nonterminal members on token 'str':  [members -> pair]  vs  [members -> pair comma members]
+     nonterminal arr on token 'lbrack':  [arr -> lbrack rbrack]  vs  [arr -> lbrack elements rbrack]
+     nonterminal elements on token 'str':  [elements -> value]  vs  [elements -> value comma elements]
+     nonterminal elements on token 'num':  [elements -> value]  vs  [elements -> value comma elements]
+     nonterminal elements on token 'tru':  [elements -> value]  vs  [elements -> value comma elements]
+     nonterminal elements on token 'fls':  [elements -> value]  vs  [elements -> value comma elements]
+     nonterminal elements on token 'nul':  [elements -> value]  vs  [elements -> value comma elements]
+     nonterminal elements on token 'lbrace':  [elements -> value]  vs  [elements -> value comma elements]
+     nonterminal elements on token 'lbrack':  [elements -> value]  vs  [elements -> value comma elements]
+   -> apply sections 5 and 6, then re-check.
+   after left-recursion removal + left factoring: LL(1) = YES
+

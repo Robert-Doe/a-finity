@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 18 — Practical Lexemes | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#4A4E69;--accent-wash:#E9EAF0;--accent-line:#C5C7D4}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 18 · Part II — Lexical Analysis</p>
+  <h1>Practical <em>Lexemes</em></h1>
+  <p class="thesis">The regex-to-DFA pipeline (Modules 12–16) handles the easy
+  90% of a real token set. This module hand-codes the awkward 10%: the
+  <b>reserved-word trick</b>, <b>string escapes</b>, a <b>number state
+  machine</b> — and <b>nested comments</b>, which are <em>provably beyond
+  regular</em> and need one integer of extra memory a DFA doesn't have.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p><code>a /* outer /* nested */ still comment */ b</code> —
+    a flat <code>/\*.*\*/</code> regex closes at the first <code>*/</code> and
+    leaves <code>still comment */ b</code> dangling. The hand-coded scanner with
+    a <span class="hi">depth counter</span> consumes the whole thing and returns
+    exactly <code>a</code> and <code>b</code>.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../09-input-buffering/tutorial.html">the cursor: peek / advance / retract (Module 9)</a></li>
+    <li><a href="../15-maximal-munch-priority/tutorial.html">maximal munch &amp; token priority (Module 15)</a></li>
+    <li><a href="../07-chomsky-pumping/tutorial.html">why <code>aⁿbⁿ</code> is not regular (Module 7)</a></li>
+    <li><a href="../17-lexical-errors/tutorial.html">gap-free token streams &amp; error positions (Module 17)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the receptionist and the specialist</h2></div>
+
+  <div class="picture">
+    <p>Picture a clinic front desk. Most arrivals are routine: the receptionist
+    (the combined DFA) checks them in from a list and waves them through. Fast,
+    table-driven, no thinking required.</p>
+    <p>But a few cases need a <b>specialist</b>. Someone shows up speaking in a
+    code that has to be <em>translated</em> before it means anything — that's a
+    <b>string literal</b>, where <code>\n</code> on the page has to become an
+    actual newline in the record. Someone hands over a form with <b>boxes nested
+    inside boxes</b> — that's a <b>nested comment</b>, and to know when you're
+    finally out you have to <em>count</em> how deep you went in. And there's the
+    person whose name is on the VIP list even though they look like an ordinary
+    walk-in — that's a <b>keyword</b>: you check everyone in as a regular
+    identifier first, then glance at the short VIP list to see who gets a
+    different badge.</p>
+    <p>The receptionist can't do any of these from a checklist. The counting one
+    in particular is <b>not something a finite checklist can ever do</b> — no
+    matter how long the list, nesting can go one level deeper. That's the whole
+    "not regular" point of this module, and it's why we drop down to a
+    hand-written scanner here.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Front desk</th><th>Lexer</th></tr></thead>
+    <tbody>
+      <tr><td>check everyone in from the list</td><td>the combined DFA from Modules 12–16</td></tr>
+      <tr><td>VIP list glance after check-in</td><td><b>reserved-word trick</b>: scan an <code>ID</code>, then look it up in <code>KEYWORDS</code></td></tr>
+      <tr><td>translate the coded message</td><td><b>string escapes</b>: <code>\n \t \" \\ \uXXXX</code> decoded into the token's value</td></tr>
+      <tr><td>count how deep the nested boxes go</td><td><b>depth counter</b> for <code>/* /* */ */</code> — one integer, beyond finite state</td></tr>
+      <tr><td>read the whole number, then decide its type</td><td><b>number state machine</b>: INT → <code>.</code> → FLOAT → <code>e</code> → FLOAT, with one retract</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <p><code>lex(src)</code> runs a single loop over the cursor. At each position
+    it dispatches on the first character:</p>
+    <ol>
+      <li><b>whitespace</b> → <code>advance()</code>, loop.</li>
+      <li><code>//</code> → consume to <code>\n</code> or EOF; the <code>\n</code>
+        is <em>not</em> eaten.</li>
+      <li><code>/*</code> → <code>skipBlockComment()</code>: <code>depth = 1</code>;
+        on a further <code>/*</code> <code>depth++</code>, on <code>*/</code>
+        <code>depth--</code>; stop when <code>depth == 0</code>. EOF with
+        <code>depth &gt; 0</code> → "unterminated block comment opened at
+        position N".</li>
+      <li><b>letter or <code>_</code></b> → <code>identifierOrKeyword()</code>:
+        scan <code>[A-Za-z0-9_]*</code>, then
+        <code>KEYWORDS.contains(text) ? "KW_" + text.toUpperCase() : "ID"</code>.</li>
+      <li><b>digit</b> → <code>number()</code>: see §03.</li>
+      <li><code>"</code> → <code>string()</code>: scan char-by-char, decoding
+        escapes into the value; stop at <code>"</code>, <code>\n</code>, or EOF.
+        Unterminated → an error at the opening position + a <code>STRING?</code>
+        token.</li>
+      <li><code>+ - * =</code> → an <code>OP</code> token.</li>
+      <li>anything else → a lexical error at <code>pos</code>; advance one
+        character so the loop always makes progress (Module 17's rule).</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The number state machine — <code>1.5e-3</code>, and the <code>1e</code> retract</h3>
+  <div class="diagram"><pre>  START ── digit ──▶ INT ──┬── '.' &amp; digit next ──▶ FRAC ── digit* ──▶ (FLOAT)
+                           │                                              │
+                           └── 'e'/'E' ───────────────────┐   ┌──────────┘
+                                                          ▼   ▼
+                                          EXP?  ── optional '+'/'-' ──▶ EXP_SIGN
+                                                          │                │
+                                             digit ◀──────┴────────────────┘
+                                                          │
+                                          no digit ▶ RETRACT: pos = mark
+                                                     emit INT, then re-scan 'e' as ID
+
+  1.5e-3 :  INT "1" · '.' 5 → FRAC · 'e' · '-' · '3'         → FLOAT "1.5e-3"
+  1e10   :  INT "1" · 'e' · '1' '0'                          → FLOAT "1e10"
+  1e     :  INT "1" · 'e' · <no digit> → retract to mark     → INT "1", then ID "e"
+  0xFF   :  '0' then 'x' → HEX mode → hex digits             → HEX "0xFF"
+  12.    :  INT "12" · '.' but next is not a digit → stop    → INT "12"  ('.' left behind)</pre></div>
+
+  <h3>The depth counter — <code>/* a /* b */ c */ x</code></h3>
+  <div class="diagram"><pre>  pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17
+  chr  /  *     a     /  *     b     *  /     c     *  /     x
+
+  see "/*" at 0        depth = 1
+  see "/*" at 5        depth = 2
+  see "*/" at 9        depth = 1     ← a flat regex would STOP here, wrongly
+  see "*/" at 14       depth = 0     ← real end of the comment
+  resume at pos 16 →   ID "x"
+
+  tokens: ID "x"        (the entire nested comment is whitespace)</pre></div>
+
+  <h3>Unterminated — the error names where it <em>opened</em></h3>
+  <div class="diagram"><pre>  "/* /* only one close */ y"
+     depth: 1 at 0, 2 at 3, 1 at 21, then EOF with depth = 1
+     → ERROR: unterminated block comment opened at position 0
+
+  'oops = "no closing quote'
+     string opens at 7, hits EOF with no closing quote
+     → STRING? "no closing quote"  +  ERROR: unterminated string literal opened at position 7</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The reserved-word trick</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/PracticalLexer.java</figcaption>
+<pre><code><span class="k">static final</span> Set&lt;String&gt; KEYWORDS = Set.of(
+    <span class="y">"let"</span>,<span class="y">"in"</span>,<span class="y">"if"</span>,<span class="y">"then"</span>,<span class="y">"else"</span>,<span class="y">"true"</span>,<span class="y">"false"</span>);
+
+Token identifierOrKeyword() {
+  <span class="k">int</span> start = pos;
+  <span class="k">while</span> (!eof() &amp;&amp; (Character.isLetterOrDigit(peek()) || peek() == <span class="y">'_'</span>))
+    advance();
+  String text = src.substring(start, pos);
+  String kind = KEYWORDS.contains(text)
+      ? <span class="y">"KW_"</span> + text.toUpperCase()      <span class="c">// let → KW_LET</span>
+      : <span class="y">"ID"</span>;                          <span class="c">// lettuce → ID</span>
+  <span class="k">return new</span> Token(kind, text);
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/practicallexer.mjs</figcaption>
+<pre><code><span class="k">export const</span> KEYWORDS = <span class="k">new</span> Set(
+  [<span class="y">"let"</span>,<span class="y">"in"</span>,<span class="y">"if"</span>,<span class="y">"then"</span>,<span class="y">"else"</span>,<span class="y">"true"</span>,<span class="y">"false"</span>]);
+
+<span class="k">function</span> identifierOrKeyword() {
+  <span class="k">const</span> start = pos;
+  <span class="k">while</span> (!eof() &amp;&amp; /[A-Za-z0-9_]/.test(peek())) advance();
+  <span class="k">const</span> text = src.slice(start, pos);
+  <span class="k">const</span> kind = KEYWORDS.has(text)
+    ? <span class="y">"KW_"</span> + text.toUpperCase()
+    : <span class="y">"ID"</span>;
+  <span class="k">return</span> { kind, text };
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Why not a DFA per keyword?</span>
+    <p>You could add <code>let</code>, <code>if</code>, … as their own token
+    rules (Module 15's priority ordering breaks the ties). But that's seven more
+    NFAs to union in, and every new keyword means rebuilding the combined
+    automaton. The trick needs <b>one</b> identifier scanner plus a hash-set
+    lookup; a new keyword is a one-word edit. Every production compiler —
+    clang, rustc, go/scanner — does it this way.</p>
+  </div>
+
+  <h3>The nested-comment depth counter</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/PracticalLexer.java</figcaption>
+<pre><code><span class="k">void</span> skipBlockComment() {
+  <span class="k">int</span> open = pos;
+  advance(); advance();               <span class="c">// consume the opening /*</span>
+  <span class="k">int</span> depth = <span class="y">1</span>;
+  <span class="k">while</span> (!eof() &amp;&amp; depth &gt; <span class="y">0</span>) {
+    <span class="k">if</span> (peek() == <span class="y">'/'</span> &amp;&amp; peek(<span class="y">1</span>) == <span class="y">'*'</span>) { advance(); advance(); depth++; }
+    <span class="k">else if</span> (peek() == <span class="y">'*'</span> &amp;&amp; peek(<span class="y">1</span>) == <span class="y">'/'</span>) { advance(); advance(); depth--; }
+    <span class="k">else</span> advance();
+  }
+  <span class="k">if</span> (depth &gt; <span class="y">0</span>)
+    errors.add(<span class="y">"unterminated block comment opened at position "</span> + open);
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/practicallexer.mjs</figcaption>
+<pre><code><span class="k">function</span> skipBlockComment() {
+  <span class="k">const</span> open = pos;
+  advance(); advance();
+  <span class="k">let</span> depth = <span class="y">1</span>;
+  <span class="k">while</span> (!eof() &amp;&amp; depth &gt; <span class="y">0</span>) {
+    <span class="k">if</span> (peek() === <span class="y">'/'</span> &amp;&amp; peek(<span class="y">1</span>) === <span class="y">'*'</span>) { advance(); advance(); depth++; }
+    <span class="k">else if</span> (peek() === <span class="y">'*'</span> &amp;&amp; peek(<span class="y">1</span>) === <span class="y">'/'</span>) { advance(); advance(); depth--; }
+    <span class="k">else</span> advance();
+  }
+  <span class="k">if</span> (depth &gt; <span class="y">0</span>)
+    errors.push(<span class="y">`unterminated block comment opened at position ${open}`</span>);
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">This <code>int depth</code> is the whole point</span>
+    <p>A DFA has a <em>fixed, finite</em> set of states. Nested comments require
+    remembering a count that has no upper bound — <code>/* /* /* … */ */ */</code>
+    can nest arbitrarily deep. By the pumping lemma (Module 7), the language
+    <code>/*ⁿ …*/ⁿ</code> is <b>not regular</b>: it's the same shape as
+    <code>aⁿbⁿ</code>. So no regex, no matter how clever, can match balanced
+    nested comments. One <code>int</code> of unbounded memory — a
+    pushdown-automaton move — is the minimum needed, and that's exactly what the
+    counter is. Languages differ on this: C block comments do <em>not</em> nest
+    (so a regex works), but Rust, Swift, D, and Kotlin comments do.</p>
+  </div>
+
+  <h3>String escapes — decode into the value</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/PracticalLexer.java</figcaption>
+<pre><code><span class="k">case</span> <span class="y">'n'</span> -&gt; sb.append(<span class="y">'\n'</span>);
+<span class="k">case</span> <span class="y">'t'</span> -&gt; sb.append(<span class="y">'\t'</span>);
+<span class="k">case</span> <span class="y">'"'</span> -&gt; sb.append(<span class="y">'"'</span>);
+<span class="k">case</span> <span class="y">'\\'</span> -&gt; sb.append(<span class="y">'\\'</span>);
+<span class="k">case</span> <span class="y">'u'</span> -&gt; {
+  String hex = src.substring(pos, Math.min(pos + <span class="y">4</span>, src.length()));
+  <span class="k">if</span> (hex.length() == <span class="y">4</span> &amp;&amp; hex.matches(<span class="y">"[0-9A-Fa-f]{4}"</span>)) {
+    sb.append((<span class="k">char</span>) Integer.parseInt(hex, <span class="y">16</span>)); pos += <span class="y">4</span>;
+  } <span class="k">else</span> { errors.add(<span class="y">"bad \\u escape"</span>); sb.append(<span class="y">'?'</span>); }
+}
+<span class="k">default</span> -&gt; errors.add(<span class="y">"unknown escape \\"</span> + e);</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/practicallexer.mjs</figcaption>
+<pre><code><span class="k">const</span> map = { n:<span class="y">"\n"</span>, t:<span class="y">"\t"</span>, <span class="y">'"'</span>:<span class="y">'"'</span>, <span class="y">"\\\\"</span>:<span class="y">"\\"</span> };
+<span class="k">if</span> (e === <span class="y">"u"</span>) {
+  <span class="k">const</span> hex = src.slice(pos, pos + <span class="y">4</span>);
+  <span class="k">if</span> (/^[0-9A-Fa-f]{4}$/.test(hex)) {
+    out += String.fromCharCode(parseInt(hex, <span class="y">16</span>)); pos += <span class="y">4</span>;
+  } <span class="k">else</span> { errors.push(<span class="y">"bad \\u escape"</span>); out += <span class="y">"?"</span>; }
+} <span class="k">else if</span> (e <span class="k">in</span> map) out += map[e];
+<span class="k">else</span> errors.push(<span class="y">"unknown escape \\"</span> + e);</code></pre>
+    </figure>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Line/column tracking — positions here are raw character offsets (added when we build the real front end).</li>
+        <li>Multi-line strings (<code>"""</code>, backticks), raw strings, string interpolation.</li>
+        <li>Numeric underscores (<code>1_000_000</code>), binary/octal literals, arbitrary-precision integers.</li>
+        <li>Unicode identifiers beyond ASCII letters (Module X13 does the full input layer).</li>
+        <li>Doc comments (<code>/** */</code>, <code>///</code>) carried through as tokens for tooling.</li>
+        <li>Feed this stream to a parser — that starts in Module 19.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Lex keywords via one identifier scanner + a table (add a keyword in one edit).</li>
+        <li><code>//</code> line comments and <code>/* */</code> block comments.</li>
+        <li><b>Nested</b> <code>/* /* */ */</code> comments — correctly, with a depth counter.</li>
+        <li>String literals with <code>\n \t \" \\ \uXXXX</code>, decoded into the value.</li>
+        <li>Integers, floats (decimal + exponent), and <code>0x</code> hex, as one state machine.</li>
+        <li>Report unterminated comments and strings at their <em>opening</em> position, stream still gap-free.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 18-practical-lexemes
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>keyword table: else false if in let then true
+
+--- let x = 12 ---
+  tokens:  KW_LET "let"  ID "x"  OP "="  INT "12"
+
+--- big = 1e10 tiny = 1.5e-3 ---
+  tokens:  ID "big"  OP "="  FLOAT "1e10"  ID "tiny"  OP "="  FLOAT "1.5e-3"
+
+--- msg = "hi\nthere\t!" ---
+  tokens:  ID "msg"  OP "="  STRING "hi\nthere\t!"
+
+--- a /* outer /* nested */ still comment */ b ---
+  tokens:  ID "a"  ID "b"
+
+--- oops = "no closing quote ---
+  tokens:  ID "oops"  OP "="  STRING? "no closing quote"
+  ERROR:   unterminated string literal opened at position 7
+
+nesting is beyond regular:
+  "/* a /* b */ c */ x"  -&gt;  ID "x"
+  "/* /* only one close */ y"  -&gt;  unterminated block comment opened at position 0</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out PracticalLexerTest    # OK 30 passed
+node js/practicallexer.test.mjs         # OK 30 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>A keyword lexes as <code>ID</code></b> — it isn't in the
+    <code>KEYWORDS</code> set. Add it; that's the whole trick.<br>
+    <b><code>1e</code> becomes one token</b> — you didn't retract when
+    <code>e</code> isn't followed by a digit. Save <code>pos</code> before
+    consuming <code>e</code>; restore if no exponent digit follows.<br>
+    <b>Nested <code>/* */</code> leaves trailing garbage</b> — you're stopping at
+    the first <code>*/</code>. Use <code>depth++</code> on <code>/*</code>,
+    <code>depth--</code> on <code>*/</code>, stop at <code>depth == 0</code>.<br>
+    <b><code>"a\nb"</code> keeps a literal backslash-n</b> — you appended the
+    escape characters instead of the decoded one. On <code>\</code>, read the
+    next char and append what it <em>means</em>.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> C block comments do <em>not</em> nest. Write the plain regular
+  expression that matches one C block comment. Why does nesting break it?
+  <b>(2)</b> Our scanner stops a string at a bare <code>\n</code>. What would
+  change if the language allowed <code>"..."</code> to span lines — and what new
+  error would you now be unable to report well?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>/\* ( [^*] | \*+[^*/] )* \*+ /</code> — "slash-star, then
+    any run that never completes a <code>*/</code>, then <code>*/</code>." It's
+    regular because "have I seen <code>*/</code> yet" is a single bit of state.
+    Nesting breaks it because you'd need to match <code>/*</code> and
+    <code>*/</code> in <em>balanced pairs</em> and count the imbalance — and
+    "count to an unbounded number" is exactly what a finite automaton cannot do
+    (pumping lemma, Module 7). You need a stack, or here, one counter.</p>
+    <p><b>(2)</b> You'd drop <code>\n</code> from the stop set and only end on
+    <code>"</code> or EOF. The cost: a missing closing quote now silently
+    swallows <em>the rest of the file</em> as string content, and your
+    "unterminated string" error points at EOF instead of at the real mistake.
+    Multi-line-string languages mitigate this with a distinct delimiter
+    (<code>"""</code>, backticks) so an accidental single <code>"</code> still
+    terminates at end of line.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>If nested comments aren't regular, is my whole lexer "not regular" now?</summary>
+    <p>No — only the block-comment sub-scanner. Everything else (identifiers,
+    numbers, strings with a finite escape set, operators) is still regular. The
+    practical lesson is that a real lexer is a regular core with a few
+    hand-coded exceptions bolted on exactly where the theory says you need
+    them.</p>
+  </details>
+
+  <details>
+    <summary>Why decode <code>\n</code> in the lexer instead of leaving it for the parser?</summary>
+    <p>The value a later stage wants is the string's <em>meaning</em>, not its
+    source spelling. Decoding once, here, means every consumer gets the real
+    characters and nobody re-implements escape rules. The source spelling is
+    still recoverable from the token's span if a tool needs it.</p>
+  </details>
+
+  <details>
+    <summary>Why emit a <code>STRING?</code> token for an unterminated string at all?</summary>
+    <p>Module 17's principle: the token stream stays gap-free so a parser can
+    walk it without special-casing holes. <code>STRING?</code> carries the
+    partial value <em>and</em> flags "not closed," and the real diagnostic lives
+    in the separate <code>errors</code> list.</p>
+  </details>
+
+  <details>
+    <summary>Is the reserved-word trick ever wrong?</summary>
+    <p>Only for "contextual keywords" — words that are keywords in one position
+    and identifiers in another (<code>async</code>, <code>yield</code>,
+    <code>await</code> in some languages, <code>record</code>/<code>sealed</code>
+    in Java). Those are resolved by the parser, not the lexer: the lexer still
+    hands them over as <code>ID</code> and the grammar decides.</p>
+  </details>
+
+  <details>
+    <summary>Why does <code>12.</code> lex as <code>INT 12</code> and not <code>FLOAT 12.0</code>?</summary>
+    <p>Because <code>.</code> is also member access in most real languages, so
+    <code>list.map</code> and <code>12.toString()</code> have to work. We only
+    join <code>.</code> to a number when a digit follows it. A language without
+    member-access dots (or one that requires a digit after the point) can make
+    the other choice.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>That closes <b>Part II</b>. You now have a complete lexer: a spec of regular
+  expressions compiled to a combined DFA (Modules 12–16), longest-match with
+  priority, error recovery, and the hand-coded practical lexemes from this
+  module. The token stream is ready.</p>
+  <p><b>Part III — Top-Down Parsing</b> starts turning that stream into a tree.
+  <b>Module 19 — Recursive-Descent Parsing</b> proves the central idea: each
+  nonterminal of a grammar becomes one procedure, and the call stack <em>is</em>
+  the leftmost derivation you met in Module 5.</p>
+</section>
+
+<nav class="pager">
+  <a href="../17-lexical-errors/tutorial.html"><span class="dir">Previous</span>← Module 17 · Lexical Errors &amp; Recovery</a>
+  <a href="../19-recursive-descent/tutorial.html"><span class="dir">Next</span>Module 19 · Recursive-Descent Parsing →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 18 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>18-practical-lexemes/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# The expression grammar. NOT LR(0): states with a complete item AND a shift
+# (e.g.  T -> F .  together with nothing to shift is fine, but  E -> T .
+# together with  T -> T . * F  is a shift/reduce conflict on '*'). SLR (Module
+# 32) resolves it with FOLLOW.
+%start E
+E -> E plus T | T
+T -> T star F | F
+F -> lp E rp | id

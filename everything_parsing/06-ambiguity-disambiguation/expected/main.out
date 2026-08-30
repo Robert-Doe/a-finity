@@ -1,0 +1,150 @@
+=== Module 06 - Ambiguity & Disambiguation ===
+
+--- fixtures/expr-ambiguous.grammar ---
+  (0) E -> E + E
+  (1) E -> E * E
+  (2) E -> ( E )
+  (3) E -> id
+
+string "id + id * id" has 2 parse trees:
+
+  TREE A   value(id=2) = 6   grouping: (id + (id * id))
+    E
+    +- E
+    |  +- id
+    +- +
+    +- E
+       +- E
+       |  +- id
+       +- *
+       +- E
+          +- id
+
+  TREE B   value(id=2) = 8   grouping: ((id + id) * id)
+    E
+    +- E
+    |  +- E
+    |  |  +- id
+    |  +- +
+    |  +- E
+    |     +- id
+    +- *
+    +- E
+       +- id
+
+string "id + id + id" has 2 parse trees:
+
+  TREE A   value(id=2) = 6   grouping: ((id + id) + id)
+    E
+    +- E
+    |  +- E
+    |  |  +- id
+    |  +- +
+    |  +- E
+    |     +- id
+    +- +
+    +- E
+       +- id
+
+  TREE B   value(id=2) = 6   grouping: (id + (id + id))
+    E
+    +- E
+    |  +- id
+    +- +
+    +- E
+       +- E
+       |  +- id
+       +- +
+       +- E
+          +- id
+
+smallest ambiguous string (length <= 7): id * id * id
+
+--- fixtures/expr-unambiguous.grammar ---
+  (0) E -> E + T
+  (1) E -> T
+  (2) T -> T * F
+  (3) T -> F
+  (4) F -> ( E )
+  (5) F -> id
+
+string "id + id * id" has 1 parse tree:
+
+  TREE A   value(id=2) = 6   grouping: (id + (id * id))
+    E
+    +- E
+    |  +- T
+    |     +- F
+    |        +- id
+    +- +
+    +- T
+       +- T
+       |  +- F
+       |     +- id
+       +- *
+       +- F
+          +- id
+
+string "id + id + id" has 1 parse tree:
+
+  TREE A   value(id=2) = 6   grouping: ((id + id) + id)
+    E
+    +- E
+    |  +- E
+    |  |  +- T
+    |  |     +- F
+    |  |        +- id
+    |  +- +
+    |  +- T
+    |     +- F
+    |        +- id
+    +- +
+    +- T
+       +- F
+          +- id
+
+
+--- language equivalence (ambiguous vs disambiguated) ---
+L(ambiguous)   up to length 7: 60 strings
+L(unambiguous) up to length 7: 60 strings
+same language? true
+
+--- fixtures/dangling-else.grammar ---
+  (0) S -> if x then S
+  (1) S -> if x then S else S
+  (2) S -> a
+  (3) S -> b
+
+string "if x then if x then a else b" has 2 parse trees:
+
+  TREE A - else binds to the INNER if
+    S
+    +- if
+    +- x
+    +- then
+    +- S
+       +- if
+       +- x
+       +- then
+       +- S
+       |  +- a
+       +- else
+       +- S
+          +- b
+
+  TREE B - else binds to the OUTER if
+    S
+    +- if
+    +- x
+    +- then
+    +- S
+    |  +- if
+    |  +- x
+    |  +- then
+    |  +- S
+    |     +- a
+    +- else
+    +- S
+       +- b
+
+summary: ambiguous: 2 trees for id+id*id (values 8 vs 6), 2 for id+id+id | disambiguated: 1 tree each, same language=true | dangling-else: 2 trees

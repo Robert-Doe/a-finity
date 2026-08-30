@@ -1,0 +1,7 @@
+# A nullable cascade. A, B, C are each directly nullable; S is NOT (the 'd'),
+# but FIRST(S) has to reach past the nullable prefix to collect a, b, c, d.
+%start S
+S -> A B C d
+A -> a | epsilon
+B -> b | epsilon
+C -> c | epsilon

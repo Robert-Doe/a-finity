@@ -1,0 +1,8 @@
+# One expression per non-# line. The last three are deliberately broken.
+1 + 2 * 3
+(1 + 2) * 3
+a
+a + b + c
+1 +
+(1 + 2
+1 2

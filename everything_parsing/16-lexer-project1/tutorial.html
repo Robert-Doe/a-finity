@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 16 — The Lexical Analyzer (Project 1) | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#0E7C7B;--accent-wash:#DEF0F0;--accent-line:#A4D6D5}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 16 · Part II — Lexical Analysis · <b>CSE 340 Project 1</b></p>
+  <h1>The Lexical<em>Analyzer</em></h1>
+  <p class="thesis">A complete, data-driven scanner. Feed it a token-spec file;
+  it compiles every pattern into <b>one combined DFA</b> whose states are tagged
+  with the winning token, then makes a <b>single left-to-right pass</b> —
+  maximal munch, priority, whitespace-skipping, exact error columns, and the
+  load-time check that <b>no token matches the empty string</b>.</p>
+
+  <div class="headline">
+    <span class="lbl">This is the whole front end of a compiler's front end</span>
+    <p>8 spec lines → 1 DFA of 43 states. <code>let.x=12.in.x</code> →
+    <span class="hi">KW_LET ID ASSIGN NUM KW_IN ID</span>. <code>inlet</code> →
+    one <code>ID</code>. <code>(a|b)*</code> as a token → rejected:
+    <em>epsilon IS NOOOOOT A TOKEN</em>.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../15-maximal-munch-priority/tutorial.html">the two lexer rules (Module 15)</a></li>
+    <li><a href="../12-thompson-construction/tutorial.html">regex → NFA (Module 12)</a></li>
+    <li><a href="../13-subset-construction/tutorial.html">NFA → DFA (Module 13)</a></li>
+    <li><a href="../11-nfa-epsilon/tutorial.html">ε-closure — the "matches ε" check (Module 11)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — one receptionist who knows every form</h2></div>
+
+  <div class="picture">
+    <p>The naive design has eight specialists — a keyword clerk, an identifier
+    clerk, a number clerk — and you'd have to try your document at each desk.</p>
+    <p>Instead: <b>one receptionist</b> who has memorised every document type.
+    They read your paper <b>character by character</b>, and at every moment they
+    know: <em>"if this ended right now, it would be a purchase order — or an
+    invoice."</em> They keep reading as long as it's still becoming
+    <em>something valid</em>. When they can't read further, they stamp it with
+    the <b>highest-priority category</b> it currently qualifies as, tear off that
+    much paper, and start reading the rest.</p>
+    <p>Blank separator sheets between documents? The receptionist recognises
+    them and quietly bins them (<b>whitespace, skipped</b>). A character that
+    fits <em>no</em> document type? They stop and tell you exactly which
+    character, at which position (<b>lexical error</b>).</p>
+    <p>And before you even hand them the rulebook: if one rule says "a document
+    can be zero pages long," they refuse the rulebook. A zero-length document
+    would let them "recognise" one at every position without moving — forever.
+    <b>Epsilon is not a token.</b></p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Receptionist</th><th>Lexer</th></tr></thead>
+    <tbody>
+      <tr><td>memorised every document type</td><td>one combined DFA (union of all pattern NFAs, determinized)</td></tr>
+      <tr><td>"if this ended now, it'd be an X or Y"</td><td>a DFA state = a set of pattern NFA states</td></tr>
+      <tr><td>the category they'd stamp</td><td>the DFA state's <em>tag</em> = lowest rule index in its subset</td></tr>
+      <tr><td>keep reading while it's still valid</td><td>run the DFA; track the last accepting <code>(pos, token)</code></td></tr>
+      <tr><td>stamp the highest-priority category</td><td>maximal munch + priority, in one pass</td></tr>
+      <tr><td>bin the blank separator sheets</td><td><code>%skip WS</code></td></tr>
+      <tr><td>"this character fits nothing"</td><td><code>LexicalError(pos, char)</code></td></tr>
+      <tr><td>refuse a "zero-page document" rule</td><td>reject a pattern that matches <code>ε</code>, at load</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <p><b>LOAD:</b></p>
+    <ol>
+      <li>Parse the spec: <code>NAME  regex</code> per line, priority = file
+        order; <code>%skip NAME</code> lines mark trivia.</li>
+      <li><b>Reject nullable patterns.</b> For each pattern, build its Thompson
+        NFA; if <code>εClosure({start}) ∩ accept ≠ ∅</code>, the pattern matches
+        <code>""</code> → error, *"epsilon IS NOOOOOT A TOKEN"*.</li>
+      <li><b>Combine.</b> Fresh <code>START</code>; <code>START -ε-> ruleᵢ.start</code>
+        for each pattern; tag each pattern's accept state with its rule index.</li>
+      <li><b>Determinize</b> (Module 13). For each combined-DFA state, its
+        <em>token</em> = the smallest rule index among the tagged NFA states in
+        its subset.</li>
+    </ol>
+    <p><b>SCAN</b> (from <code>pos = 0</code>):</p>
+    <ol>
+      <li><code>state = dfa.start</code>; <code>lastPos = -1</code>.</li>
+      <li>Step the DFA over <code>input[pos..]</code>; each time it enters a
+        tagged state, record <code>(lastPos = i+1, lastRule = tag)</code>. Stop
+        when it can't advance.</li>
+      <li>If <code>lastPos ≤ pos</code> → <code>LexicalError(pos, input[pos])</code>.</li>
+      <li>Emit token <code>(rules[lastRule].name, input[pos..lastPos])</code>
+        unless it's a <code>%skip</code> kind. Set <code>pos = lastPos</code>.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The combined automaton</h3>
+  <div class="diagram"><pre>              ┌─ε─▶ [ NFA for "let" ]      ──accept──▶ tag 0  (KW_LET)
+              ├─ε─▶ [ NFA for "in" ]       ──accept──▶ tag 1  (KW_IN)
+   START ─────┼─ε─▶ [ NFA for ID regex ]   ──accept──▶ tag 2  (ID)
+              ├─ε─▶ [ NFA for NUM regex ]  ──accept──▶ tag 3  (NUM)
+              ├─ε─▶ [ NFA for "&lt;=" ]        ──accept──▶ tag 4  (LE)
+              └─ ...                                 (LT=5, ASSIGN=6, WS=7)
+
+   determinize  →  one DFA.  each state's tag = MIN rule index it can accept.
+                             tag 0 &lt; tag 2  →  "let" beats "ID" on a length tie.</pre></div>
+
+  <h3>Scanning <code>let.x</code></h3>
+  <div class="diagram"><pre>  pos 0:  state D0
+    'l' → Dp   (ID-live)            no accept yet
+    'e' → Dq   (ID-live)            accept ID @2 ... wait "le" is a valid ID → lastPos=2, tag=2
+    't' → Dr   (KW_LET accept + ID accept)  →  tag = min(0, 2) = 0   → lastPos=3, tag=0
+    '.' → not reachable from Dr in any pattern except WS... 'l/e/t/i/n/x/y'  → '.' stuck
+  emit  KW_LET "let" @0            (tag 0 beat tag 2 at length 3)
+  pos = 3
+
+  pos 3:  '.' → WS accept @4, tag 7   → emit nothing (WS is %skip)
+  pos 4:  'x' → ID accept @5, tag 2   → emit  ID "x" @4</pre></div>
+
+  <h3>The epsilon check</h3>
+  <div class="diagram"><pre>  MAYBE = (a|b)*    →   Thompson NFA:   start --ε--> ... --ε--> accept
+                       εClosure({start}) already contains accept
+                       →  matches ""  →  REJECT the spec at load
+                          "token 'MAYBE' can match the empty string
+                           (epsilon IS NOOOOOT A TOKEN)"</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Tagging the combined DFA</h3>
+<pre><code><span class="c">// each combined-DFA state -> the highest-priority (lowest index) token it accepts</span>
+<span class="k">for</span> (var e : legend.entrySet()) {        <span class="c">// legend: DFA state name -> its subset of NFA states</span>
+  <span class="k">int</span> best = Integer.MAX_VALUE;
+  <span class="k">for</span> (String nfaState : e.getValue()) {
+    Integer ri = acceptRule.get(nfaState);   <span class="c">// null unless this NFA state is a tagged accept</span>
+    <span class="k">if</span> (ri != <span class="k">null</span> &amp;&amp; ri &lt; best) best = ri;
+  }
+  <span class="k">if</span> (best != Integer.MAX_VALUE) stateToken.put(e.getKey(), best);
+}</code></pre>
+
+  <h3>The scan — maximal munch over the combined DFA</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/SpecLexer.java</figcaption>
+<pre><code><span class="k">while</span> (pos &lt; input.length()) {
+  String state = dfa.start;
+  <span class="k">int</span> lastPos = -<span class="y">1</span>, lastRule = -<span class="y">1</span>;
+  <span class="k">for</span> (<span class="k">int</span> i = pos; i &lt; input.length(); i++) {
+    String sym = String.valueOf(input.charAt(i));
+    <span class="k">if</span> (!dfa.alphabet.contains(sym)) <span class="k">break</span>;
+    state = dfa.step(state, sym);
+    Integer ri = stateToken.get(state);
+    <span class="k">if</span> (ri != <span class="k">null</span>) { lastPos = i + <span class="y">1</span>; lastRule = ri; }  <span class="c">// remember the LAST accept</span>
+  }
+  <span class="k">if</span> (lastPos &lt;= pos) <span class="k">throw new</span> LexicalError(pos, input.charAt(pos));
+  String kind = rules.get(lastRule).name();
+  <span class="k">if</span> (!skip.contains(kind))
+    out.add(<span class="k">new</span> Token(kind, input.substring(pos, lastPos), pos));
+  pos = lastPos;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/speclexer.mjs</figcaption>
+<pre><code><span class="k">while</span> (pos &lt; input.length) {
+  <span class="k">let</span> state = <span class="k">this</span>.dfa.start;
+  <span class="k">let</span> lastPos = -<span class="y">1</span>, lastRule = -<span class="y">1</span>;
+  <span class="k">for</span> (<span class="k">let</span> i = pos; i &lt; input.length; i++) {
+    <span class="k">const</span> sym = input[i];
+    <span class="k">if</span> (!<span class="k">this</span>.dfa.alphabet.includes(sym)) <span class="k">break</span>;
+    state = <span class="k">this</span>.dfa.step(state, sym);
+    <span class="k">const</span> ri = <span class="k">this</span>.stateToken.get(state);
+    <span class="k">if</span> (ri !== <span class="k">undefined</span>) { lastPos = i + <span class="y">1</span>; lastRule = ri; }
+  }
+  <span class="k">if</span> (lastPos &lt;= pos) <span class="k">throw new</span> LexicalError(pos, input[pos]);
+  <span class="k">const</span> kind = <span class="k">this</span>.rules[lastRule].name;
+  <span class="k">if</span> (!<span class="k">this</span>.skip.has(kind)) out.push({ kind, lexeme: input.slice(pos, lastPos), pos });
+  pos = lastPos;
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — "epsilon IS NOOOOOT A TOKEN"</span>
+    <p>That exact, capitalised, over-exclaimed phrase is from ASU CSE 340's
+    Project 1 autograder. It's shouted because a nullable token pattern is the
+    single most common way a student's scanner hangs: every position "matches"
+    length 0, <code>pos</code> never advances, infinite loop. Catching it at
+    <em>load</em> — <code>εClosure({start}) ∩ accept ≠ ∅</code> on the pattern's
+    NFA — turns an infinite loop into one clear error. This course keeps the
+    phrase.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Minimize the combined DFA — naive minimization merges different token tags (needs tag-aware partitioning).</li>
+        <li>Recover from a lexical error and keep going (Module 17).</li>
+        <li>Handle regex features Module 3 lacks — character classes, negation, escapes — so no <code>[a-z]</code>, no <code>//.*</code> comments.</li>
+        <li>The reserved-word trick, nested comments, string escapes (Module 18).</li>
+        <li>Attach line/column ranges to tokens — only a single start position.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Build a working lexer entirely from a text spec file.</li>
+        <li>Compile all patterns into one tagged DFA and scan in O(input).</li>
+        <li>Apply maximal munch and priority together, in a single pass.</li>
+        <li>Skip whitespace/trivia while keeping source positions correct.</li>
+        <li>Report a lexical error with an exact character position.</li>
+        <li>Reject a nullable token pattern before scanning ever starts.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 16-lexer-project1
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>epsilon check:  no token can match the empty string  -&gt;  OK
+combined DFA:  43 states  (union of 8 pattern NFAs, tagged, determinized)
+
+"let.let.in"
+  <span class="exp">KW_LET   "let" @0</span>
+  KW_LET   "let" @4
+  KW_IN    "in" @8
+
+--- bad spec: a token that matches epsilon ---
+  fixtures/bad.spec  -&gt;  rejected:  token 'MAYBE' can match the empty string  (epsilon IS NOOOOOT A TOKEN)</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out SpecLexerTest    # OK 15 passed
+node js/speclexer.test.mjs         # OK 15 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>token 'X' can match the empty string</code></b> — a pattern is
+    nullable (<code>a?</code>, <code>(a|b)*</code>, <code>()</code>). Every token
+    must consume ≥ 1 character.<br>
+    <b><code>'(' has nothing to apply to</code> while loading</b> — a token
+    literal is a regex metacharacter, and Module 3's regex has no escaping.<br>
+    <b>A keyword lexes as <code>ID</code></b> — <code>ID</code> is declared
+    before the keyword. Keywords go first.<br>
+    <b>Positions drift after whitespace</b> — <code>pos</code> must advance by
+    the lexeme length, skipped tokens included.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> The combined DFA has 43 un-minimized states. Minimize it with the
+  standard <code>{F} | {Q\F}</code> initial partition — what breaks? What's the
+  fix? <b>(2)</b> Our spec uses "priority = file order." <code>flex</code> uses
+  "longest match, then earliest rule." Same thing? Give an input where they'd
+  differ, or argue they can't.</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Standard minimization merges accepting states that behave
+    identically on future input — so a state that accepts <code>KW_LET</code>
+    and a state that accepts <code>ID</code> could merge if their transitions
+    match, and the merged state can no longer say <em>which</em> token. The fix
+    is <b>tag-aware minimization</b>: the initial partition has one block per
+    token tag (plus one for non-accepting), so no split ever puts two different
+    token kinds together. <code>flex</code> and <code>re2c</code> do exactly
+    this, then compress the tables.</p>
+    <p><b>(2)</b> Same thing, for token boundaries. Both say: the token is the
+    longest prefix any pattern matches (maximal munch); on a length tie, the
+    earliest-declared pattern. Where "leftmost-longest," POSIX, and backtracking
+    semantics differ is in <em>submatch / capture-group</em> resolution — which
+    a tokenizer doesn't use. For deciding where one token ends and the next
+    begins, every serious lexer agrees.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why one combined DFA instead of just trying each pattern's DFA?</summary>
+    <p>Speed and standard practice. Trying each pattern is O(rules × input) per
+    token; the combined DFA is O(input) total, one step per character, regardless
+    of how many token kinds you have. <code>lex</code>, <code>flex</code>,
+    <code>re2c</code> all generate a single combined (and minimized, and
+    table-compressed) DFA.</p>
+  </details>
+
+  <details>
+    <summary>Why is CSE 340 so loud about "epsilon IS NOOOOOT A TOKEN"?</summary>
+    <p>Because a nullable token pattern is the #1 cause of a Project 1 scanner
+    hanging: every position "matches" length zero, the cursor never moves,
+    infinite loop, autograder timeout. Detecting it at load and shouting turns a
+    silent hang into a one-line fix.</p>
+  </details>
+
+  <details>
+    <summary>How do real lexers do <code>//</code>-to-end-of-line or <code>/* */</code> comments?</summary>
+    <p>With regex features Module 3 doesn't have — character-class negation
+    (<code>//[^\n]*</code>) — or with lexer <em>modes</em>: on seeing
+    <code>/*</code>, switch to a "in comment" state that consumes everything
+    until <code>*/</code>. Nested comments need a counter, which is technically
+    beyond regular — a small hand-coded exception. Module 18 covers these.</p>
+  </details>
+
+  <details>
+    <summary>43 states for 8 tiny patterns — isn't that bloated?</summary>
+    <p>Yes. Un-minimized union DFAs carry all the ε-scaffolding from Thompson's
+    construction. Tag-aware minimization (Brain Exercise) would cut it to maybe a
+    dozen, and table compression shrinks it further. This module leaves it
+    un-minimized to keep the union-and-tag construction in focus.</p>
+  </details>
+
+  <details>
+    <summary>Can two different specs produce the same lexer?</summary>
+    <p>Yes — reorder rules that can never tie, rename tokens, or write equivalent
+    regexes (Module 14 can prove two regexes equivalent). What's observable is
+    the token stream a given input produces; many specs yield the identical
+    stream.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>Right now, one bad character stops the lexer dead. <b>Module 17 — Lexical
+  Errors &amp; Recovery</b> lets it <em>keep going</em>: report the error with a
+  position, then <b>resynchronize</b> — skip forward to the next whitespace or
+  plausible token start — and resume scanning, so a single typo doesn't hide
+  every later mistake. That's the difference between "error at line 4" and "37
+  errors, here they all are." Then Module 18 handles the messy real-world
+  lexemes: the reserved-word trick, nested and line comments, string escapes and
+  exponents.</p>
+</section>
+
+<nav class="pager">
+  <a href="../15-maximal-munch-priority/tutorial.html"><span class="dir">Previous</span>← Module 15 · Maximal Munch &amp; Token Priority</a>
+  <a href="../17-lexical-errors/tutorial.html"><span class="dir">Next</span>Module 17 · Lexical Errors &amp; Recovery →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 16 · CSE 340 Project 1 ·
+verified against OpenJDK 24 and Node v22.14.0. All output real, from
+<code>16-lexer-project1/</code>. See <a href="DECISIONS.md">DECISIONS.md</a> and
+<a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

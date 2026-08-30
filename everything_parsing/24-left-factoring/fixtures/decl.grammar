@@ -1,0 +1,10 @@
+# A realistic case: a declaration and an assignment both start with an id.
+#   stmt -> id ( args ) ;        function call
+#         | id = expr ;          assignment
+#         | id : type ;          typed declaration
+# Factor the leading id so the parser commits after seeing what follows it.
+%start stmt
+stmt -> id lp args rp semi | id assign expr semi | id colon type semi
+args -> expr | epsilon
+expr -> id | num
+type -> id

@@ -1,0 +1,8 @@
+# The left-recursion-eliminated expression grammar (output of Module 23).
+# LL(1): its table has no cell with two productions.
+%start E
+E  -> T Ep
+Ep -> + T Ep | epsilon
+T  -> F Tp
+Tp -> * F Tp | epsilon
+F  -> ( E ) | id | num

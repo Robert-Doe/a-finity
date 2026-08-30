@@ -1,0 +1,4 @@
+# Balanced parentheses (the Dyck language over one bracket pair).
+# Shows a grammar with three productions and a recursive nonterminal that
+# appears twice in one right-hand side.
+S -> ( S ) S | epsilon

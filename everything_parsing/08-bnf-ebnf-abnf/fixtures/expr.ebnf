@@ -1,0 +1,5 @@
+// An expression grammar in EBNF: grouping, repetition, quoted terminals.
+// Unquoted names with no rule of their own (NUM) are terminals.
+expr   = term (('+' | '-') term)* ;
+term   = factor (('*' | '/') factor)* ;
+factor = '(' expr ')' | NUM ;

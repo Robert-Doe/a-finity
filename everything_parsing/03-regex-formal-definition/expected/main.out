@@ -1,0 +1,60 @@
+=== Module 03 - Regular Expressions: Formal Definition ===
+
+[1] /(a|b)*abb/
+    tree : (cat (cat (cat (star (alt a b)) a) b) b)
+    L (up to length 6): { abb, aabb, babb, aaabb, ababb, baabb, bbabb, aaaabb, aababb, abaabb, abbabb, baaabb, ... (15 total) }
+    "abb"     match
+    "aabb"    match
+    "babb"    match
+    "abababb" match
+    "ab"      no
+    "abba"    no
+    ""        no
+
+[2] /a*b*/
+    tree : (cat (star a) (star b))
+    L (up to length 6): { epsilon, a, b, aa, ab, bb, aaa, aab, abb, bbb, aaaa, aaab, ... (28 total) }
+    ""        match
+    "a"       match
+    "b"       match
+    "ab"      match
+    "aabbb"   match
+    "ba"      no
+
+[3] /(ab)*a/
+    tree : (cat (star (cat a b)) a)
+    L (up to length 6): { a, aba, ababa }
+    "a"       match
+    "aba"     match
+    "ababa"   match
+    "ab"      no
+    "abaa"    no
+
+[4] /a?b?c?/
+    tree : (cat (cat (alt a eps) (alt b eps)) (alt c eps))
+    L (up to length 6): { epsilon, a, b, c, ab, ac, bc, abc }
+    ""        match
+    "a"       match
+    "c"       match
+    "abc"     match
+    "acb"     no
+    "abcc"    no
+
+[5] /a|bc*/
+    tree : (alt a (cat b (star c)))
+    L (up to length 6): { a, b, bc, bcc, bccc, bcccc, bccccc }
+    "a"       match
+    "b"       match
+    "bc"      match
+    "bccc"    match
+    "c"       no
+    "abc"     no
+
+precedence check (tightest: * , then concatenation, then |):
+    /a|bc*     ->  (alt a (cat b (star c)))
+    /ab*       ->  (cat a (star b))
+    /(ab)*     ->  (star (cat a b))
+    /a|b|c     ->  (alt (alt a b) c)
+    /ab|cd     ->  (alt (cat a b) (cat c d))
+
+summary: regexes=5  nodeKinds=6 (Empty, Epsilon, Char, Union, Concat, Star)  sugar: + ? desugared at parse time

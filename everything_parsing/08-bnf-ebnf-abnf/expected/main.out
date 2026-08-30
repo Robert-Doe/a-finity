@@ -1,0 +1,49 @@
+=== Module 08 - BNF, EBNF, ABNF & Syntax Diagrams ===
+
+--- fixtures/expr.ebnf ---
+EBNF, ISO-style  ( { } = zero or more,  [ ] = optional ):
+  expr     = term { ( '+' | '-' ) term }
+  term     = factor { ( '*' | '/' ) factor }
+  factor   = '(' expr ')' | NUM
+
+desugared to pure BNF:
+  expr -> term rep_1
+  term -> factor rep_4
+  factor -> ( expr ) | NUM
+  rep_1 -> grp_2 rep_1 | epsilon
+  grp_2 -> grp_3 term
+  grp_3 -> + | -
+  rep_4 -> grp_5 rep_4 | epsilon
+  grp_5 -> grp_6 factor
+  grp_6 -> * | /
+
+equivalence check (BNF enumerated to length 7):
+  220 strings in L(BNF); every one also accepted by the EBNF matcher: true
+  sample accepts all pass: true   sample rejects all pass: true
+
+--- fixtures/signed.ebnf ---
+EBNF, ISO-style  ( { } = zero or more,  [ ] = optional ):
+  number   = [ '-' ] digit { digit }
+  digit    = '0' | '1' | '2'
+
+desugared to pure BNF:
+  number -> opt_1 plus_2
+  digit -> 0 | 1 | 2
+  opt_1 -> - | epsilon
+  plus_2 -> digit plus_2 | digit
+
+equivalence check (BNF enumerated to length 4):
+  159 strings in L(BNF); every one also accepted by the EBNF matcher: true
+  sample accepts all pass: true   sample rejects all pass: true
+
+notation cheat-sheet:
+  concept        BNF              EBNF (this course)   ISO-EBNF     ABNF
+  define         ::=  or  ->      =                    =            =
+  alternative    |                |                    |            /
+  optional       (extra rule)     x?                   [ x ]        [x]  /  *1x
+  zero or more   (recursion)      x*                   { x }        *x
+  one or more    (recursion)      x+                   x { x }      1*x
+  grouping       (extra rule)     ( x )                ( x )        ( x )
+  terminal       literal text     'x'  "x"             'x'  "x"     "x" (ci),  %x41
+
+summary: expr.ebnf -> BNF, same language | signed.ebnf -> BNF, same language | operators ? * + ( ) all desugared into fresh nonterminals

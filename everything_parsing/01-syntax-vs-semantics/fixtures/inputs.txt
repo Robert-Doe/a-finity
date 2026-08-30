@@ -1,0 +1,10 @@
+# Module 01 — RPN inputs. One per line, wrapped in double quotes.
+# Main strips the quotes; "" is the empty expression.
+# Blank lines and lines starting with '#' are ignored.
+"3 4 +"
+"3 4 + +"
+"3 4"
+"12 0 /"
+"10 2 - 3 *"
+"3 x +"
+""

@@ -1,0 +1,38 @@
+=== Module 04 - Context-Free Grammars ===
+
+grammar: fixtures/balanced.grammar
+  nonterminals: S
+  terminals   : ( )
+  start       : S
+  productions :
+    (0) S -> ( S ) S
+    (1) S -> epsilon
+
+leftmost derivation of ( ) ( )  [choices: 0 1 0 1 1]
+    S
+=>  ( S ) S         (0) S -> ( S ) S
+=>  ( ) S           (1) S -> epsilon
+=>  ( ) ( S ) S     (0) S -> ( S ) S
+=>  ( ) ( ) S       (1) S -> epsilon
+=>  ( ) ( )         (1) S -> epsilon
+    6 sentential forms, 5 steps
+
+language up to length 6:
+    len 0: epsilon
+    len 2: ( )
+    len 4: ( ( ) )
+  |  ( ) ( )
+    len 6: ( ( ( ) ) )
+  |  ( ( ) ( ) )
+  |  ( ( ) ) ( )
+  |  ( ) ( ( ) )
+  |  ( ) ( ) ( )
+    9 strings of length <= 6 -- raise the bound and the list always grows (the grammar is infinite)
+
+membership (bounded derivation search):
+    ( )           DERIVABLE      (S =>* ( ) in 3 steps)
+    ( ( ) )       DERIVABLE      (S =>* ( ( ) ) in 5 steps)
+    ( ) )         NOT DERIVABLE  (searched every sentential form with <= 3 terminal symbols)
+    ""            DERIVABLE      (S =>* "" in 1 step)
+
+summary: productions=2  language=infinite  testsDerivable=3/4

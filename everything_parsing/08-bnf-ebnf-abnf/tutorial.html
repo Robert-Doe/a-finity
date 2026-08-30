@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 08 — BNF, EBNF, ABNF &amp; Syntax Diagrams | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#455A75;--accent-wash:#E7ECF2;--accent-line:#B4C2D6}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 08 · Part I — Foundations</p>
+  <h1>BNF, EBNF,<em>ABNF</em></h1>
+  <p class="thesis">EBNF's <code>?</code>, <code>*</code>, <code>+</code>, and
+  <code>( )</code> are <b>shorthand</b>. This module parses EBNF and
+  <b>desugars every operator into plain BNF</b> — recursion and
+  <code>epsilon</code>, nothing else — then proves the two describe the same
+  language. Same move as Module 3 made for regex, now for grammars.</p>
+
+  <div class="headline">
+    <span class="lbl">The claim, checkable</span>
+    <p><span class="hi">expr = term (('+'|'-') term)*</span> becomes seven plain
+    BNF rules. Every one of the 220 strings that BNF generates (up to length 7)
+    is accepted by an exact matcher run against the <em>original</em> EBNF. The
+    operators added zero power.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../04-cfg-formal-definition/tutorial.html">the BNF grammar format, enumerate (Module 4)</a></li>
+    <li><a href="../03-regex-formal-definition/tutorial.html">desugaring +/? , the leftover-suffix matcher (Module 3)</a></li>
+    <li><a href="../prerequisites/trees.html">recursion over an AST</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — stenography</h2></div>
+
+  <div class="picture">
+    <p>A court stenographer writes "the witness" as one short stroke. Expanded,
+    it's two words. "Objection, sustained" is a squiggle. The transcript that
+    gets typed up later spells everything out — longer, but word-for-word the
+    same testimony.</p>
+    <p>EBNF is grammar stenography. <code>x*</code> is one stroke meaning "zero
+    or more x." Spelled out in BNF it's a whole extra rule:
+    <code>rep → x rep | ε</code>. <code>x?</code> is a stroke for
+    <code>opt → x | ε</code>. The desugared grammar is longer and has invented
+    rule names, but it accepts <em>exactly</em> the same strings.</p>
+    <p>And there are competing stenographic systems. <b>Gregg vs. Pitman</b> for
+    shorthand; <b>BNF vs. EBNF vs. ISO-EBNF vs. ABNF</b> for grammars — different
+    symbols (<code>::=</code> vs <code>=</code>, <code>|</code> vs <code>/</code>,
+    <code>x*</code> vs <code>{ x }</code> vs <code>*x</code>), same underlying
+    grammar. Learn to read any of them; they transcribe to the same thing.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Stenography</th><th>Grammar notation</th></tr></thead>
+    <tbody>
+      <tr><td>a shorthand stroke</td><td>an EBNF operator (<code>? * + ( )</code>)</td></tr>
+      <tr><td>the typed-up transcript</td><td>the desugared BNF</td></tr>
+      <tr><td>"same testimony, more words"</td><td>same language, more rules</td></tr>
+      <tr><td>Gregg / Pitman / Teeline</td><td>BNF / EBNF / ISO-EBNF / ABNF</td></tr>
+      <tr><td>a stroke that means nothing on its own</td><td>a fresh rule name like <code>grp_3</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Lex the EBNF:</b> quoted strings → terminals, identifiers →
+        names, and the punctuation <code>= ; | ( ) ? * +</code>. <code>//</code>
+        line comments dropped.</li>
+      <li><b>Parse</b> by the EBNF meta-grammar
+        (<code>rule → IDENT '=' alt ';'</code>, <code>alt → seq ('|' seq)*</code>,
+        …) into an AST of <code>Terminal</code>, <code>Nonterminal</code>,
+        <code>Seq</code>, <code>Alt</code>, <code>Opt</code>, <code>Star</code>,
+        <code>Plus</code>.</li>
+      <li><b>Desugar.</b> Walk the AST. Every <code>Opt</code>/<code>Star</code>/
+        <code>Plus</code>/parenthesised <code>Alt</code>/<code>Seq</code> becomes
+        one fresh nonterminal:
+        <ul>
+          <li><code>x?</code> → <code>opt_N → x | epsilon</code></li>
+          <li><code>x*</code> → <code>rep_N → x rep_N | epsilon</code></li>
+          <li><code>x+</code> → <code>plus_N → x plus_N | x</code></li>
+          <li><code>( a | b )</code> → <code>grp_N → a | b</code></li>
+        </ul>
+        Reserve each name before recursing, so helpers print in creation order.</li>
+      <li><b>Emit BNF text</b> and hand it to Module 4's <code>Grammar.parse</code>.</li>
+      <li><b>Verify:</b> enumerate <code>L(BNF)</code> up to a length bound; check
+        every string is accepted by an exact leftover-suffix matcher run against
+        the original EBNF AST. Plus sample positives and negatives.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>One rule, three notations</h3>
+  <div class="diagram"><pre>  this course :  expr = term (('+' | '-') term)* ;
+
+  ISO-EBNF    :  expr = term { ( '+' | '-' ) term }        { } = zero or more
+
+  pure BNF    :  expr  -> term rep_1
+                 rep_1 -> grp_2 rep_1 | epsilon            ← the *
+                 grp_2 -> grp_3 term                       ← the ( ... ) group
+                 grp_3 -> + | -                             ← the ( '+' | '-' )</pre></div>
+
+  <h3>The desugaring, as a tree walk</h3>
+  <div class="diagram"><pre>  Seq[ term , Star( Seq[ Alt['+','-'] , term ] ) ]
+        │            │         │
+        │            │         └─ Alt  → grp_3 -> + | -            (fresh)
+        │            └─ Seq     → grp_2 -> grp_3 term              (fresh)
+        └─ Star                 → rep_1 -> grp_2 rep_1 | epsilon    (fresh)
+
+  expr's body becomes the two symbols:  term  rep_1
+  so:  expr -> term rep_1</pre></div>
+
+  <h3>Every operator, its BNF</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>EBNF</th><th>desugars to</th><th>meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>x?</code></td><td><code>opt → x | ε</code></td><td>x, or nothing</td></tr>
+      <tr><td><code>x*</code></td><td><code>rep → x rep | ε</code></td><td>zero or more x (right-recursive)</td></tr>
+      <tr><td><code>x+</code></td><td><code>plus → x plus | x</code></td><td>one or more x</td></tr>
+      <tr><td><code>( … )</code></td><td><code>grp → …</code> (only if not a bare atom)</td><td>grouping</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The desugarer — one fresh nonterminal per operator</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Ebnf.java — symbol()</figcaption>
+<pre><code>String prefix = e <span class="k">instanceof</span> Opt ? <span class="y">"opt_"</span> : e <span class="k">instanceof</span> Star ? <span class="y">"rep_"</span>
+              : e <span class="k">instanceof</span> Plus ? <span class="y">"plus_"</span> : <span class="y">"grp_"</span>;
+String name = prefix + (++counter[<span class="y">0</span>]);
+extra.put(name, <span class="y">""</span>);                         <span class="c">// reserve the slot NOW, in creation order</span>
+
+String body;
+<span class="k">if</span> (e <span class="k">instanceof</span> Opt o)
+  body = name + <span class="y">" -> "</span> + symbol(o.inner(), counter, extra) + <span class="y">" | epsilon"</span>;
+<span class="k">else if</span> (e <span class="k">instanceof</span> Star st) {
+  String x = symbol(st.inner(), counter, extra);
+  body = name + <span class="y">" -> "</span> + x + <span class="y">" "</span> + name + <span class="y">" | epsilon"</span>;      <span class="c">// x rep | ε</span>
+} <span class="k">else if</span> (e <span class="k">instanceof</span> Plus pl) {
+  String x = symbol(pl.inner(), counter, extra);
+  body = name + <span class="y">" -> "</span> + x + <span class="y">" "</span> + name + <span class="y">" | "</span> + x;             <span class="c">// x plus | x</span>
+} <span class="k">else</span> body = rule(name, alternatives(e, counter, extra));   <span class="c">// Alt / Seq group</span>
+
+extra.put(name, body);
+<span class="k">return</span> name;</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/ebnf.mjs — symbol()</figcaption>
+<pre><code><span class="k">const</span> prefix = e.k === <span class="y">"OPT"</span> ? <span class="y">"opt_"</span> : e.k === <span class="y">"STAR"</span> ? <span class="y">"rep_"</span>
+  : e.k === <span class="y">"PLUS"</span> ? <span class="y">"plus_"</span> : <span class="y">"grp_"</span>;
+<span class="k">const</span> name = prefix + (++counter.n);
+extra.set(name, <span class="y">""</span>);
+
+<span class="k">let</span> body;
+<span class="k">if</span> (e.k === <span class="y">"OPT"</span>)
+  body = name + <span class="y">" -> "</span> + symbol(e.inner, counter, extra) + <span class="y">" | epsilon"</span>;
+<span class="k">else if</span> (e.k === <span class="y">"STAR"</span>) {
+  <span class="k">const</span> x = symbol(e.inner, counter, extra);
+  body = name + <span class="y">" -> "</span> + x + <span class="y">" "</span> + name + <span class="y">" | epsilon"</span>;
+} <span class="k">else if</span> (e.k === <span class="y">"PLUS"</span>) {
+  <span class="k">const</span> x = symbol(e.inner, counter, extra);
+  body = name + <span class="y">" -> "</span> + x + <span class="y">" "</span> + name + <span class="y">" | "</span> + x;
+} <span class="k">else</span> body = ruleText(name, alternatives(e, counter, extra));
+
+extra.set(name, body);
+<span class="k">return</span> name;</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Why reserve the name <em>before</em> recursing</span>
+    <p>If you fill <code>extra</code> after computing the body, the sub-helpers
+    (<code>grp_2</code>, <code>grp_3</code>) get inserted first and the grammar
+    prints inside-out. Reserving <code>rep_1</code>'s slot first, then recursing,
+    then filling it means the map's insertion order is
+    <code>rep_1, grp_2, grp_3</code> — the grammar reads top-down. See
+    <a href="DECISIONS.md">DECISIONS.md</a> #7.</p>
+  </div>
+
+  <h3>The equivalence check — a matcher over the EBNF AST</h3>
+<pre><code><span class="c">// exactly Module 3's leftover-suffix method, over token positions instead of characters</span>
+<span class="k">case</span> Star st -> {
+  out.add(pos);                                    <span class="c">// zero repetitions</span>
+  <span class="k">for</span> (<span class="k">int</span> p : leftovers(g, st.inner(), in, pos))
+    <span class="k">if</span> (p != pos)                                  <span class="c">// must consume ≥ 1 token — the same guard as regex</span>
+      out.addAll(leftovers(g, <span class="k">new</span> Star(st.inner()), in, p));
+}
+<span class="c">// a token list is accepted iff the start rule can reach position == in.size()</span></code></pre>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Handle full ISO-EBNF or ABNF syntax — just the four core operators.</li>
+        <li>Prove <code>L(BNF) = L(EBNF)</code> exactly — only compare a bounded slice (CFL equivalence is undecidable).</li>
+        <li>Draw an actual railroad diagram — the <code>{ } [ ]</code> rendering is its linear form (Appendix X16 draws the tracks).</li>
+        <li>Preserve the parse-tree shape through desugaring — the desugared grammar's trees have extra <code>rep_</code>/<code>grp_</code> nodes.</li>
+        <li>Desugar EBNF that's left-recursive after expansion (Module 16).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Parse EBNF with <code>? * + ( ) |</code> and quoted/bare terminals.</li>
+        <li>Desugar every operator to pure BNF: recursion + <code>epsilon</code>.</li>
+        <li>Render the same grammar as-written, ISO-style, and as BNF.</li>
+        <li>Match a token list exactly against an EBNF grammar.</li>
+        <li>Confirm the desugared BNF accepts the same bounded language.</li>
+        <li>Lay the four notations side by side in one table.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg)</h4>
+<pre><code>cd 08-bnf-ebnf-abnf
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>--- fixtures/expr.ebnf ---
+EBNF, ISO-style  ( { } = zero or more,  [ ] = optional ):
+  expr     = term { ( '+' | '-' ) term }
+
+desugared to pure BNF:
+  expr -&gt; term rep_1
+  rep_1 -&gt; grp_2 rep_1 | epsilon
+  grp_2 -&gt; grp_3 term
+  grp_3 -&gt; + | -
+  ...
+
+equivalence check (BNF enumerated to length 7):
+  <span class="exp">220 strings in L(BNF); every one also accepted by the EBNF matcher: true</span></code></pre>
+    <h4>Tests — both "OK 26 passed"</h4>
+<pre><code>java -cp java/out EbnfTest
+node js/ebnf.test.mjs</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>EBNF: expected ';'</code></b> — every rule ends with
+    <code>;</code>.<br>
+    <b>More BNF rules than expected</b> — each <code>? * +</code> and each
+    parenthesised group is one fresh nonterminal. Count the operators.<br>
+    <b><code>every one also accepted by the EBNF matcher: false</code></b> — the
+    desugaring and matcher disagree; check <code>Plus</code> is
+    <code>x P | x</code> (one-or-more), not <code>x P | ε</code>.<br>
+    <b>A sample accept fails</b> — the sample string is longer than the
+    enumeration bound; raise <code>maxLen</code>.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p>We desugared <code>x*</code> to <b>right</b>-recursion:
+  <code>rep → x rep | ε</code>. Suppose you used <b>left</b>-recursion instead:
+  <code>rep → rep x | ε</code>.</p>
+  <p><b>(1)</b> Same language? <b>(2)</b> Same parse trees? <b>(3)</b> Which
+  choice matters, and for what?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Same language exactly — both generate
+    <code>{ε, x, xx, xxx, …}</code>.</p>
+    <p><b>(2)</b> Different tree shapes. Right-recursion builds a right-leaning
+    comb (each <code>rep</code> node has <code>x</code> then a nested
+    <code>rep</code>); left-recursion builds a left-leaning one. For a bare
+    repetition the shape usually carries no meaning, so either is fine.</p>
+    <p><b>(3)</b> Two things. <em>Associativity:</em> if the repeated item is
+    <code>('+'|'-') term</code> — a left-associative operator — then the
+    recursion side determines whether <code>a - b - c</code> parses as
+    <code>(a - b) - c</code> or <code>a - (b - c)</code>. EBNF's <code>*</code>
+    is silent about this; you get it from how you desugar, which is why real
+    tools that use EBNF for expressions also specify associativity separately.
+    <em>Parsing method:</em> left-recursion is unusable by a top-down parser
+    (Module 16), so LL tools desugar <code>*</code> right-recursively and
+    rebuild a left-leaning tree afterward if they need one.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Is EBNF more powerful than BNF? Can it express a language BNF can't?</summary>
+    <p>No. This module <em>proves</em> it: every EBNF grammar desugars,
+    operator by operator, into a plain BNF grammar for the same language. Both
+    notations express exactly the context-free languages — no more, no less.
+    EBNF buys <em>brevity</em>, not <em>power</em>.</p>
+  </details>
+
+  <details>
+    <summary>ABNF uses <code>/</code> for "or" and <code>*rule</code> as a prefix. Why so different from EBNF?</summary>
+    <p>ABNF (RFC 5234) comes from the IETF — it's the notation for HTTP, email,
+    URI, and DNS grammars. <code>*rule</code>, <code>1*rule</code>,
+    <code>2*4rule</code> express exact repetition counts compactly, which
+    protocol specs lean on ("a header value is 1*(token / quoted-string)"). It's
+    a dialect tuned for a specific audience, describing the same
+    context-free-grammar object.</p>
+  </details>
+
+  <details>
+    <summary>The desugared grammar has rules like <code>grp_3 -> + | -</code>. Do the names matter?</summary>
+    <p>Not at all — they're fresh, internal, and never referenced by anything a
+    human wrote. A parser generator would leave them anonymous. This course
+    names them <code>opt_</code>/<code>rep_</code>/<code>plus_</code>/<code>grp_</code>
+    only so the printed grammar tells you which operator each rule came from.</p>
+  </details>
+
+  <details>
+    <summary>Where are the railroad diagrams — the train-track pictures?</summary>
+    <p>The ISO <code>{ x }</code> / <code>[ x ]</code> rendering <em>is</em> a
+    railroad diagram in linear text form: <code>{ x }</code> is a loop-back
+    track, <code>[ x ]</code> is a bypass. Drawing them as actual SVG tracks is
+    the grammar workbench in Appendix X16 — it reads a stored grammar (Module 4)
+    and emits both the diagrams and a live parser.</p>
+  </details>
+
+  <details>
+    <summary>Why bother with BNF at all if EBNF is shorter?</summary>
+    <p>Every parsing <em>algorithm</em> in Parts III–IV — FIRST/FOLLOW, LL
+    tables, LR items — is defined over plain productions. They don't know what
+    <code>*</code> means. Tools that accept EBNF desugar it to BNF internally
+    first, exactly like this module does, then run the algorithm on the result.
+    BNF is the machine format; EBNF is the human one.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next — Part II begins</h2></div>
+  <p>Part I is complete: you can read a grammar in any notation, generate its
+  language, detect ambiguity, and place it in the strength hierarchy.
+  <b>Part II — Lexical Analysis</b> gets concrete. <b>Module 9 — Input
+  Buffering</b> builds the layer under every scanner: how to read characters
+  with unbounded lookahead-and-retract at O(1) amortised cost. Then Modules
+  10–13 take the regex tree you built in Module 3 and compile it — node by node
+  — into a finite-state machine that matches in one left-to-right pass, and
+  Module 16 assembles a full lexical analyzer from a list of token patterns
+  (the equivalent of CSE 340's Project 1).</p>
+</section>
+
+<nav class="pager">
+  <a href="../07-chomsky-pumping/tutorial.html"><span class="dir">Previous</span>← Module 07 · The Chomsky Hierarchy &amp; Pumping Lemmas</a>
+  <a href="../09-input-buffering/tutorial.html"><span class="dir">Next</span>Module 09 · Input Buffering: Two-Buffer Scheme &amp; Sentinels →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 08 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>08-bnf-ebnf-abnf/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.
+End of Part I.</p>
+
+</div>
+</body>
+</html>

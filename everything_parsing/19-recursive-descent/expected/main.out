@@ -1,0 +1,242 @@
+=== Module 19 - Recursive-Descent Parsing ===
+
+grammar (no left recursion; Module 23 derives this from  E -> E + T):
+  E  -> T E'
+  E' -> + T E'  |  epsilon
+  T  -> F T'
+  T' -> * F T'  |  epsilon
+  F  -> ( E )   |  num  |  id
+  one method per nonterminal; the productions they fire ARE a leftmost derivation
+
+--- 1 + 2 * 3 ---
+  tokens:  num(1) + num(2) * num(3) EOF
+  productions fired, in order (top of the list = first call):
+      E -> T E'
+      T -> F T'
+      F -> num
+      T' -> epsilon
+      E' -> + T E'
+      T -> F T'
+      F -> num
+      T' -> * F T'
+      F -> num
+      T' -> epsilon
+      E' -> epsilon
+  same list, replayed as a leftmost derivation:
+      E
+      =>  T E'                     (E -> T E')
+      =>  F T' E'                  (T -> F T')
+      =>  num T' E'                (F -> num)
+      =>  num E'                   (T' -> epsilon)
+      =>  num + T E'               (E' -> + T E')
+      =>  num + F T' E'            (T -> F T')
+      =>  num + num T' E'          (F -> num)
+      =>  num + num * F T' E'      (T' -> * F T')
+      =>  num + num * num T' E'    (F -> num)
+      =>  num + num * num E'       (T' -> epsilon)
+      =>  num + num * num          (E' -> epsilon)
+  derived sentence: num + num * num
+  token kinds     : num + num * num
+  match? true
+  concrete syntax tree:
+    E
+    +- T
+    |  +- F
+    |  |  +- num (1)
+    |  +- T'
+    |     +- epsilon
+    +- E'
+       +- +
+       +- T
+       |  +- F
+       |  |  +- num (2)
+       |  +- T'
+       |     +- *
+       |     +- F
+       |     |  +- num (3)
+       |     +- T'
+       |        +- epsilon
+       +- E'
+          +- epsilon
+  yield: num + num * num
+
+--- (1 + 2) * 3 ---
+  tokens:  ( num(1) + num(2) ) * num(3) EOF
+  productions fired, in order (top of the list = first call):
+      E -> T E'
+      T -> F T'
+      F -> ( E )
+      E -> T E'
+      T -> F T'
+      F -> num
+      T' -> epsilon
+      E' -> + T E'
+      T -> F T'
+      F -> num
+      T' -> epsilon
+      E' -> epsilon
+      T' -> * F T'
+      F -> num
+      T' -> epsilon
+      E' -> epsilon
+  same list, replayed as a leftmost derivation:
+      E
+      =>  T E'                     (E -> T E')
+      =>  F T' E'                  (T -> F T')
+      =>  ( E ) T' E'              (F -> ( E ))
+      =>  ( T E' ) T' E'           (E -> T E')
+      =>  ( F T' E' ) T' E'        (T -> F T')
+      =>  ( num T' E' ) T' E'      (F -> num)
+      =>  ( num E' ) T' E'         (T' -> epsilon)
+      =>  ( num + T E' ) T' E'     (E' -> + T E')
+      =>  ( num + F T' E' ) T' E'  (T -> F T')
+      =>  ( num + num T' E' ) T' E' (F -> num)
+      =>  ( num + num E' ) T' E'   (T' -> epsilon)
+      =>  ( num + num ) T' E'      (E' -> epsilon)
+      =>  ( num + num ) * F T' E'  (T' -> * F T')
+      =>  ( num + num ) * num T' E' (F -> num)
+      =>  ( num + num ) * num E'   (T' -> epsilon)
+      =>  ( num + num ) * num      (E' -> epsilon)
+  derived sentence: ( num + num ) * num
+  token kinds     : ( num + num ) * num
+  match? true
+  concrete syntax tree:
+    E
+    +- T
+    |  +- F
+    |  |  +- (
+    |  |  +- E
+    |  |  |  +- T
+    |  |  |  |  +- F
+    |  |  |  |  |  +- num (1)
+    |  |  |  |  +- T'
+    |  |  |  |     +- epsilon
+    |  |  |  +- E'
+    |  |  |     +- +
+    |  |  |     +- T
+    |  |  |     |  +- F
+    |  |  |     |  |  +- num (2)
+    |  |  |     |  +- T'
+    |  |  |     |     +- epsilon
+    |  |  |     +- E'
+    |  |  |        +- epsilon
+    |  |  +- )
+    |  +- T'
+    |     +- *
+    |     +- F
+    |     |  +- num (3)
+    |     +- T'
+    |        +- epsilon
+    +- E'
+       +- epsilon
+  yield: ( num + num ) * num
+
+--- a ---
+  tokens:  id(a) EOF
+  productions fired, in order (top of the list = first call):
+      E -> T E'
+      T -> F T'
+      F -> id
+      T' -> epsilon
+      E' -> epsilon
+  same list, replayed as a leftmost derivation:
+      E
+      =>  T E'                     (E -> T E')
+      =>  F T' E'                  (T -> F T')
+      =>  id T' E'                 (F -> id)
+      =>  id E'                    (T' -> epsilon)
+      =>  id                       (E' -> epsilon)
+  derived sentence: id
+  token kinds     : id
+  match? true
+  concrete syntax tree:
+    E
+    +- T
+    |  +- F
+    |  |  +- id (a)
+    |  +- T'
+    |     +- epsilon
+    +- E'
+       +- epsilon
+  yield: id
+
+--- a + b + c ---
+  tokens:  id(a) + id(b) + id(c) EOF
+  productions fired, in order (top of the list = first call):
+      E -> T E'
+      T -> F T'
+      F -> id
+      T' -> epsilon
+      E' -> + T E'
+      T -> F T'
+      F -> id
+      T' -> epsilon
+      E' -> + T E'
+      T -> F T'
+      F -> id
+      T' -> epsilon
+      E' -> epsilon
+  same list, replayed as a leftmost derivation:
+      E
+      =>  T E'                     (E -> T E')
+      =>  F T' E'                  (T -> F T')
+      =>  id T' E'                 (F -> id)
+      =>  id E'                    (T' -> epsilon)
+      =>  id + T E'                (E' -> + T E')
+      =>  id + F T' E'             (T -> F T')
+      =>  id + id T' E'            (F -> id)
+      =>  id + id E'               (T' -> epsilon)
+      =>  id + id + T E'           (E' -> + T E')
+      =>  id + id + F T' E'        (T -> F T')
+      =>  id + id + id T' E'       (F -> id)
+      =>  id + id + id E'          (T' -> epsilon)
+      =>  id + id + id             (E' -> epsilon)
+  derived sentence: id + id + id
+  token kinds     : id + id + id
+  match? true
+  concrete syntax tree:
+    E
+    +- T
+    |  +- F
+    |  |  +- id (a)
+    |  +- T'
+    |     +- epsilon
+    +- E'
+       +- +
+       +- T
+       |  +- F
+       |  |  +- id (b)
+       |  +- T'
+       |     +- epsilon
+       +- E'
+          +- +
+          +- T
+          |  +- F
+          |  |  +- id (c)
+          |  +- T'
+          |     +- epsilon
+          +- E'
+             +- epsilon
+  yield: id + id + id
+
+--- 1 + ---
+  tokens:  num(1) + EOF
+  SYNTAX ERROR at position 3: expected '(', num, or id to start a factor but saw end of input
+
+--- (1 + 2 ---
+  tokens:  ( num(1) + num(2) EOF
+  SYNTAX ERROR at position 6: expected ) but saw end of input
+
+--- 1 2 ---
+  tokens:  num(1) num(2) EOF
+  SYNTAX ERROR at position 2: expected EOF but saw '2'
+
+why not parse the Module 6 grammar  E -> E + T  directly?
+  parseE() would call parseE() as its first action, cursor unmoved:
+  infinite recursion, stack overflow, zero tokens consumed. Recursive
+  descent REQUIRES a non-left-recursive grammar (Module 23). The right-
+  recursive E' here makes  a + b + c  lean RIGHT in the tree; left
+  associativity is put back when lowering to an AST (Module 39), or by
+  writing E' as a loop:
+      Node e = parseT();
+      while (at("+")) { expect("+"); e = plus(e, parseT()); }   // left-leaning

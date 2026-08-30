@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 30 — Handles, Shift-Reduce &amp; Viable Prefixes | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#2E6B4F;--accent-wash:#E4EFE9;--accent-line:#B9D6C8}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 30 · Part IV — Bottom-Up Parsing</p>
+  <h1>Handles, Shift-Reduce &amp; <em>Viable Prefixes</em></h1>
+  <p class="thesis">Top-down parsing (Part III) predicts a production and works
+  down to the tokens. Bottom-up parsing goes the other way: hold the tokens on a
+  <b>stack</b>, and whenever the top of the stack matches a production's
+  right-hand side — a <b>handle</b> — replace it with the left-hand side. Keep
+  reducing until only the start symbol is left. The reductions, played in
+  reverse, are a rightmost derivation. And it parses <b>left-recursive
+  grammars directly</b>.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>The grammar <code>E → E + T | T</code> that Part III had to transform
+    away? Bottom-up parses it <span class="hi">as written</span> — you reduce
+    <code>E + T</code> back to <code>E</code>, left recursion and all.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../05-derivations-parse-trees/tutorial.html">rightmost derivations (Module 5)</a></li>
+    <li><a href="../06-ambiguity-disambiguation/tutorial.html">precedence, associativity, ambiguity (Module 6)</a></li>
+    <li><a href="../19-recursive-descent/tutorial.html">why top-down can't do left recursion (Module 19)</a></li>
+    <li><a href="../prerequisites/the-cursor-pattern.html">a stack, push/pop</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — assembling, not disassembling</h2></div>
+
+  <div class="picture">
+    <p>Top-down parsing is like following the assembly manual from step 1:
+    "the product is a frame plus a lid; a frame is four rails plus a base…"
+    — you keep expanding until you're holding actual screws.</p>
+    <p>Bottom-up parsing is the packing crew in reverse. Parts come down the
+    conveyor belt one at a time (the tokens). You set them on a workbench (the
+    stack). The moment the parts on the right end of your bench form a complete
+    sub-assembly — "two rails and a crosspiece? that's a <em>side panel</em>" —
+    you snap them together and the sub-assembly replaces those parts on the
+    bench. You never plan ahead; you just watch the right end of the bench and
+    combine whatever's ready. When the whole bench holds one finished product,
+    you're done.</p>
+    <p>That completed group you snap together is the <b>handle</b>. The rule for
+    "what counts as a completed group" is a production read right-to-left. And
+    the trick — the thing Module 31 builds — is a little machine that watches
+    the bench and tells you <em>instantly</em> whether the right end is a handle
+    yet, or whether you should wait for one more part.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Packing crew, in reverse</th><th>Shift-reduce parser</th></tr></thead>
+    <tbody>
+      <tr><td>parts on the conveyor belt</td><td>the input token stream</td></tr>
+      <tr><td>the workbench</td><td>the stack (a <b>viable prefix</b>)</td></tr>
+      <tr><td>take the next part onto the bench</td><td><b>shift</b></td></tr>
+      <tr><td>right end forms a sub-assembly → snap it</td><td><b>reduce</b> by a production; that group is the <b>handle</b></td></tr>
+      <tr><td>bench holds one finished product</td><td>stack is <code>[start]</code>, input done → <b>accept</b></td></tr>
+      <tr><td>two different ways to group the same parts</td><td>a conflict — the grammar is ambiguous</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li>Stack empty, cursor at the first token.</li>
+      <li>Look at the top of the stack:
+        <ul>
+          <li>If the top <code>|β|</code> symbols equal some production's RHS
+            <code>β</code> <em>and</em> reducing there leads to a complete parse
+            → <b>reduce</b>: pop <code>β</code>, push the LHS <code>A</code>.
+            That <code>β</code> was the <b>handle</b>.</li>
+          <li>Otherwise → <b>shift</b>: push the next input token, advance the
+            cursor.</li>
+        </ul>
+      </li>
+      <li>Repeat until the stack is exactly <code>[start]</code> and the input
+        is consumed → <b>accept</b>. If neither move works → syntax error.</li>
+      <li>The sequence of reductions, <em>reversed</em>, is a rightmost
+        derivation of the input.</li>
+    </ol>
+    <p>The hard part is step 2's "and reducing there leads to a complete parse."
+    A real LR parser knows this in O(1) from its state (Module 31). This module
+    figures it out by trying and backtracking.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Shift-reduce trace — <code>id + id * id</code></h3>
+  <div class="diagram"><pre>  STACK          ACTION                          INPUT
+  (empty)        shift id                        id + id * id $
+  id             reduce F -> id   (handle id)    + id * id $
+  F              reduce T -> F                   + id * id $
+  T              reduce E -> T                   + id * id $
+  E              shift +                         + id * id $
+  E +            shift id                        id * id $
+  E + id         reduce F -> id                  * id $
+  E + F          reduce T -> F                   * id $
+  E + T          shift *          <- NOT reduce E -> E + T yet!   * id $
+  E + T *        shift id                        id $
+  E + T * id     reduce F -> id                  $
+  E + T * F      reduce T -> T * F  (handle T * F)   $
+  E + T          reduce E -> E + T  (handle E + T)   $
+  E              ACCEPT                          $</pre></div>
+
+  <h3>Why "shift" at <code>E + T</code> with <code>*</code> ahead</h3>
+  <div class="diagram"><pre>  the stack top E + T IS the RHS of  E -> E + T.  reducing is legal syntax.
+  but the NEXT token is '*', and '*' can only extend the T (T -> T * F).
+  reduce now and you lose the chance -- 'E * ...' isn't a right-sentential form.
+
+  so: reduce  E + T -> E  only when the lookahead can't extend T.
+  that decision is exactly what the LR automaton (Module 31) encodes.
+  it is also why '*' binds tighter than '+': T grows first.</pre></div>
+
+  <h3>Reductions reversed = rightmost derivation</h3>
+  <div class="diagram"><pre>  reductions (bottom-up order):
+    F->id, T->F, E->T, F->id, T->F, F->id, T->T*F, E->E+T
+
+  reversed:
+    E => E + T => E + T * F => E + T * id => E + F * id
+      => E + id * id => T + id * id => F + id * id => id + id * id
+
+  each => expands the RIGHTMOST nonterminal. final form == the input.</pre></div>
+
+  <h3>Two handles = ambiguity — <code>E → E + E</code> on <code>id + id + id</code></h3>
+  <div class="diagram"><pre>  reach stack  E + E  with '+' ahead.
+    reduce  E + E -> E  , then shift + , ... -> ACCEPT   (left-associative reading)
+    shift + , ... , reduce the RIGHT E + E first , ...  -> ACCEPT   (right-assoc)
+  TWO accepting moves from one state = a shift-reduce conflict.
+  the grammar has no precedence/associativity; Module 35 adds it.</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <div class="split">
+    <figure>
+      <figcaption>java/ShiftReduce.java (the core DFS)</figcaption>
+<pre><code><span class="c">// accept?</span>
+<span class="k">if</span> (stack.equals([start]) &amp;&amp; pos == input.size()) <span class="k">return</span> <span class="k">true</span>;
+
+<span class="c">// try every reduction whose RHS is a stack suffix</span>
+<span class="k">for</span> (Grammar.Production p : g.productions) {
+  <span class="k">if</span> (suffixMatches(stack, p.rhs())) {
+    var ns = stack[0 .. size-|rhs|] + [p.lhs()];   <span class="c">// pop RHS, push LHS</span>
+    <span class="k">if</span> (dfs(ns, pos, ...)) <span class="k">return</span> <span class="k">true</span>;         <span class="c">// this reduction leads to accept</span>
+    <span class="c">// else undo and try the next</span>
+  }
+}
+<span class="c">// then shift</span>
+<span class="k">if</span> (pos &lt; input.size() &amp;&amp; dfs(stack + [input.get(pos)], pos + 1, ...))
+  <span class="k">return</span> <span class="k">true</span>;
+<span class="k">return</span> <span class="k">false</span>;   <span class="c">// dead end -- caller backtracks</span></code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/shiftreduce.mjs</figcaption>
+<pre><code><span class="k">if</span> (stack.length === 1 &amp;&amp; stack[0] === g.start &amp;&amp; pos === input.length) <span class="k">return</span> <span class="k">true</span>;
+
+<span class="k">for</span> (<span class="k">const</span> p <span class="k">of</span> g.productions) {
+  <span class="k">if</span> (suffixMatches(stack, p.rhs)) {
+    <span class="k">const</span> ns = [...stack.slice(0, stack.length - p.rhs.length), p.lhs];
+    <span class="k">if</span> (this._dfs(ns, pos, ...)) <span class="k">return</span> <span class="k">true</span>;
+  }
+}
+<span class="k">if</span> (pos &lt; input.length &amp;&amp; this._dfs([...stack, input[pos]], pos + 1, ...))
+  <span class="k">return</span> <span class="k">true</span>;
+<span class="k">return</span> <span class="k">false</span>;</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">"Reduce first, then shift" + backtracking = the canonical parse</span>
+    <p>For an unambiguous grammar there's exactly one accepting sequence of
+    moves. Trying reductions before shifts, and backing out of dead ends, finds
+    it without any lookahead reasoning. The cost is exponential search in the
+    worst case — which is precisely why Module 31 replaces it with a DFA that
+    answers "shift or reduce?" in constant time.</p>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Viable prefixes are a regular language</span>
+    <p>A <b>viable prefix</b> is any string of grammar symbols that can sit on
+    the stack during some valid parse — equivalently, a prefix of a
+    right-sentential form that doesn't extend past its handle. There are
+    infinitely many, but the <em>set</em> of them is <b>regular</b>: a finite
+    automaton can recognise them. That automaton — states = sets of "LR items" —
+    is the entire engine of an LR parser. Module 31 constructs it.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Decide shift-vs-reduce in O(1) — needs the viable-prefix DFA (Module 31).</li>
+        <li>Handle grammars with ε-productions in the shift-reduce search (the fixtures avoid them).</li>
+        <li>Parse without backtracking / exponential worst case.</li>
+        <li>Resolve a shift-reduce conflict by precedence — Module 35.</li>
+        <li>Report errors at a precise point (the DFS just says "no parse").</li>
+        <li>Build the parse tree (only the reduction sequence).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Parse left-recursive grammars directly, bottom-up.</li>
+        <li>Produce the full shift-reduce trace with handles marked.</li>
+        <li>Show the reductions reversed form a rightmost derivation of the input.</li>
+        <li>Detect a shift-reduce / reduce-reduce conflict and name the state.</li>
+        <li>Demonstrate that precedence falls out of reduction order.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 30-shift-reduce-handles
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>  E + T                      shift *
+  E + T *                    shift id
+  E + T * id                 reduce F -> id
+  E + T * F                  reduce T -> T * F   (handle: T * F)
+  E + T                      reduce E -> E + T   (handle: E + T)
+  E                          ACCEPT
+  final form == input? true
+
+########## ambiguous : id + id + id
+  CONFLICT: stack [E + E], input + id $  -> two accepting moves: reduce E -> E + E; shift +;</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out ShiftReduceTest    # OK 14 passed
+node js/shiftreduce.test.mjs           # OK 14 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>"no parse found" for valid input</b> — try every reduction whose RHS is
+    a stack suffix, then shift; raise the search cap.<br>
+    <b>Reversed reductions aren't a rightmost derivation</b> — replace the
+    <em>rightmost</em> occurrence of the LHS when replaying.<br>
+    <b>Over-shifts, never reduces</b> — try reductions before shifts.<br>
+    <b>Conflict missed</b> — at each state count how many distinct moves reach
+    ACCEPT, not just the one the parser took.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Trace the shift-reduce parse of <code>id * id</code> with the
+  <code>expr</code> grammar. At which step could you <em>legally</em> reduce
+  <code>T -> F</code> but must not? <b>(2)</b> The stack contents
+  <code>E + T *</code> appears mid-parse. Is it a viable prefix? Is
+  <code>E * T</code>?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> shift <code>id</code> → <code>id</code>; reduce
+    <code>F -> id</code> → <code>F</code>; reduce <code>T -> F</code> →
+    <code>T</code>. Now the stack is <code>T</code> and the lookahead is
+    <code>*</code>. You <em>could</em> reduce <code>E -> T</code> (the stack top
+    <code>T</code> is that RHS), but you must not — <code>*</code> extends the
+    <code>T</code> via <code>T -> T * F</code>, and <code>E * ...</code> is not a
+    right-sentential form. Shift <code>*</code> instead.</p>
+    <p><b>(2)</b> <code>E + T *</code> is a viable prefix — it's a prefix of the
+    right-sentential form <code>E + T * F</code> (whose handle is
+    <code>T * F</code>), stopping before the handle's end. <code>E * T</code> is
+    <em>not</em> — no right-sentential form of this grammar starts
+    <code>E *</code> (an <code>E</code> is never immediately followed by
+    <code>*</code>). A shift-reduce parser's stack can never hold
+    <code>E * T</code>.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why is bottom-up "more powerful" than top-down?</summary>
+    <p>An LR parser doesn't have to commit to a production until it has seen the
+    <em>entire</em> right-hand side plus one lookahead token. An LL parser must
+    pick the production from just the first token(s). Seeing more before
+    deciding means LR(1) handles every LL(1) grammar and many that no LL(k)
+    grammar can express — including all left-recursive ones.</p>
+  </details>
+
+  <details>
+    <summary>Is the handle always on top of the stack?</summary>
+    <p>Yes — that's the key structural fact. In a rightmost derivation reversed,
+    each reduction happens at the right end of what's been built, which is
+    exactly the top of the stack. You never have to search the middle of the
+    stack for a handle.</p>
+  </details>
+
+  <details>
+    <summary>What's the difference between a shift-reduce and a reduce-reduce conflict?</summary>
+    <p><b>Shift-reduce</b>: from one state, both shifting the next token and
+    reducing by some production are valid. <b>Reduce-reduce</b>: two
+    <em>different</em> productions could both reduce the current stack top. Both
+    mean the grammar (or the chosen parser class) can't decide with the
+    available lookahead.</p>
+  </details>
+
+  <details>
+    <summary>Does the shift-reduce parser build a parse tree?</summary>
+    <p>It can — attach a subtree to each symbol as it's pushed, and when you
+    reduce <code>A -> β</code>, make a new <code>A</code> node whose children are
+    the subtrees of the popped <code>β</code>. This module only records the
+    reduction sequence; the tree is a small addition (and Part V builds ASTs
+    this way).</p>
+  </details>
+
+  <details>
+    <summary>Why does this module use exponential backtracking?</summary>
+    <p>Purely to make the mechanics concrete before the machinery. Module 31's
+    DFA turns "is the stack top a handle, given the lookahead?" into a table
+    lookup, and the real LR parser is linear-time with no backtracking at all.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p><b>Module 31 — LR(0) Items &amp; the Canonical Collection</b> builds the
+  machine. An <b>item</b> is a production with a dot marking how much has been
+  seen: <code>E → E · + T</code>. Sets of items are the states of a DFA;
+  <code>CLOSURE</code> and <code>GOTO</code> construct it; and that DFA is
+  exactly the recogniser for viable prefixes. Once it exists, "shift or reduce?"
+  is a table lookup and the parser is linear.</p>
+</section>
+
+<nav class="pager">
+  <a href="../29-llk-adaptive/tutorial.html"><span class="dir">Previous</span>← Module 29 · LL(k), LL(*) &amp; Backtracking RD</a>
+  <a href="../31-lr0-items/tutorial.html"><span class="dir">Next</span>Module 31 · LR(0) Items &amp; the Canonical Collection →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 30 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>30-shift-reduce-handles/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

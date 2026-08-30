@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Cursor Pattern — Prerequisites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B5BA5;--accent-wash:#E9EDF7}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Prerequisites · P3</p>
+  <h1>The <em>Cursor</em> Pattern</h1>
+  <p class="thesis">Every scanner, every parser, every table-driven engine in
+  this course reads its input through the same four-or-five-method object: an
+  array plus an integer that only moves forward (mostly).</p>
+</header>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">01</span><h2>The shape</h2></div>
+
+  <div class="mechanism">
+    <p>A <b>cursor</b> wraps a sequence <code>items</code> and an index
+    <code>pos</code> (starts at 0). Its whole interface:</p>
+    <ol>
+      <li><code>peek()</code> — return <code>items[pos]</code> without moving. At or past the end, return a designated end value (<code>'\0'</code>, <code>EOF</code>, <code>null</code>).</li>
+      <li><code>peek(k)</code> — look <code>k</code> ahead: <code>items[pos+k]</code>. <code>k=1</code> is "the token after next."</li>
+      <li><code>advance()</code> — return <code>items[pos]</code>, <em>then</em> <code>pos++</code>. (Consume one.)</li>
+      <li><code>eof()</code> — <code>pos &gt;= items.length</code>.</li>
+      <li><code>mark()</code> / <code>reset(m)</code> — save <code>pos</code>, later restore it. Only parsers that <em>backtrack</em> (PEG, Appendix) need these.</li>
+    </ol>
+    <p>Optional sugar: <code>match(x)</code> = "if <code>peek()==x</code>,
+    <code>advance()</code> and return true; else false."
+    <code>expect(x)</code> = "<code>match(x)</code> or throw a syntax error."</p>
+  </div>
+
+  <div class="picture">
+    <p>A cursor is a finger under a line of text. <code>peek</code> is looking at
+    the word your finger is under. <code>advance</code> is sliding the finger one
+    word right. <code>eof</code> is your finger falling off the end of the line.</p>
+    <p>A plain recursive-descent parser is a reader who never moves the finger
+    backward. A backtracking parser is a reader who sometimes says "wait, let me
+    re-read that bit" — that is <code>mark</code> / <code>reset</code>.</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">02</span><h2>Both languages, same object</h2></div>
+
+  <div class="split">
+    <figure>
+      <figcaption>Java</figcaption>
+<pre><code><span class="k">final class</span> Cursor {
+  <span class="k">private final</span> String s;
+  <span class="k">private int</span> pos = <span class="y">0</span>;
+  Cursor(String s) { <span class="k">this</span>.s = s; }
+
+  <span class="k">char</span> peek()      { <span class="k">return</span> peek(<span class="y">0</span>); }
+  <span class="k">char</span> peek(<span class="k">int</span> k) {
+    <span class="k">int</span> i = pos + k;
+    <span class="k">return</span> i &lt; s.length() ? s.charAt(i) : <span class="y">'\0'</span>;
+  }
+  <span class="k">char</span> advance()   { <span class="k">return</span> s.charAt(pos++); }
+  <span class="k">boolean</span> eof()   { <span class="k">return</span> pos &gt;= s.length(); }
+  <span class="k">int</span>  mark()      { <span class="k">return</span> pos; }
+  <span class="k">void</span> reset(<span class="k">int</span> m){ pos = m; }
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>JavaScript</figcaption>
+<pre><code><span class="k">class</span> Cursor {
+  <span class="k">constructor</span>(s) { <span class="k">this</span>.s = s; <span class="k">this</span>.pos = <span class="y">0</span>; }
+
+  peek(k = <span class="y">0</span>) {
+    <span class="k">const</span> i = <span class="k">this</span>.pos + k;
+    <span class="k">return</span> i &lt; <span class="k">this</span>.s.length ? <span class="k">this</span>.s[i] : <span class="y">"\0"</span>;
+  }
+  advance() { <span class="k">return</span> <span class="k">this</span>.s[<span class="k">this</span>.pos++]; }
+  eof()     { <span class="k">return</span> <span class="k">this</span>.pos &gt;= <span class="k">this</span>.s.length; }
+  mark()    { <span class="k">return</span> <span class="k">this</span>.pos; }
+  reset(m)  { <span class="k">this</span>.pos = m; }
+}</code></pre>
+    </figure>
+  </div>
+
+  <p>The only real difference: Java's <code>char</code> is a UTF-16 code unit and
+  there is a true "not a character" value (<code>'\0'</code>); JS has no char
+  type, so a one-character string <code>"\0"</code> stands in. Module 36 in the
+  Appendix is where that difference stops being cosmetic.</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">03</span><h2>The rule that keeps it honest</h2></div>
+  <div class="callout brain">
+    <span class="ct">One invariant</span>
+    <p><b>Every path through a parse function consumes at least one token, or
+    reports an error.</b> A function that can return having consumed nothing,
+    inside a loop, is an infinite loop waiting for the right input. Module 16
+    (left-recursion removal) is entirely about restoring this invariant to
+    grammars that violate it.</p>
+  </div>
+</section>
+
+<nav class="pager">
+  <a href="functions-and-notation.html"><span class="dir">Back</span>← Functions &amp; Notation</a>
+  <a href="java-and-js-setup.html"><span class="dir">Next prerequisite</span>Java &amp; JS Setup →</a>
+</nav>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# Prefixes nested inside prefixes: "a b" is shared by two, "a" by three.
+# Needs more than one factoring pass.
+%start A
+A -> a b c | a b d | a e

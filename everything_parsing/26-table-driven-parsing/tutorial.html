@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 26 — Table-Driven Predictive Parsing | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#2E7E7E;--accent-wash:#E2F0EF;--accent-line:#B7D8D6}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 26 · Part III — Top-Down Parsing</p>
+  <h1>Table-Driven Predictive <em>Parsing</em></h1>
+  <p class="thesis">Module 19 parsed with recursion — one function per
+  nonterminal, the call stack doing the bookkeeping. Module 25 built the table.
+  This module throws away the recursion: an <b>explicit stack</b>, the
+  <b>table</b>, and a <b>loop</b>. The stack holds the unfinished part of the
+  sentential form; the loop expands nonterminals via table lookup and matches
+  terminals against the input. Same leftmost derivation, same parse tree, zero
+  grammar-specific code.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>One 40-line loop parses <em>any</em> LL(1) grammar. Swap the table, parse
+    a different language. The production sequence it emits, replayed leftmost,
+    <span class="hi">reproduces the input exactly</span> — the proof it's doing
+    the same thing recursive descent does.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../25-ll1-table/tutorial.html">the LL(1) table M[A][t] (Module 25)</a></li>
+    <li><a href="../19-recursive-descent/tutorial.html">recursive descent &amp; "the call stack is the leftmost derivation" (Module 19)</a></li>
+    <li><a href="../05-derivations-parse-trees/tutorial.html">sentential forms, leftmost derivation (Module 5)</a></li>
+    <li><a href="../prerequisites/the-cursor-pattern.html">a stack, push/pop/peek</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the to-do list you keep re-topping</h2></div>
+
+  <div class="picture">
+    <p>You're assembling flat-pack furniture. Your to-do list is a stack of
+    sticky notes. The top note says "build the frame." You look it up in the
+    manual: step 12 says "the frame = left panel + back + right panel." You
+    <em>replace</em> that one note with three new notes — "right panel", "back",
+    "left panel" — stacked so "left panel" is on top, because that's what you do
+    first.</p>
+    <p>Now the top note is "left panel." The manual says a left panel is just a
+    physical part — so you go to the box, find the part labelled "left panel,"
+    and if it matches, you fit it and throw the note away. If the box hands you a
+    "right panel" when your note says "left panel," you've got the wrong kit —
+    stop.</p>
+    <p>The stack is always "everything still to do, in order." The manual is the
+    parsing table. A note naming a sub-assembly (nonterminal) gets looked up and
+    expanded; a note naming a part (terminal) gets matched against the box (the
+    input) and discarded. When the stack is empty and the box is empty, the
+    furniture is built — <b>accept</b>.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Flat-pack build</th><th>Table-driven parse</th></tr></thead>
+    <tbody>
+      <tr><td>stack of sticky notes</td><td>the parse stack</td></tr>
+      <tr><td>"build the frame" (a sub-assembly)</td><td>a nonterminal on top</td></tr>
+      <tr><td>look up the step, replace with sub-notes</td><td><code>M[A][t]</code> → pop <code>A</code>, push RHS reversed</td></tr>
+      <tr><td>"left panel" (a part)</td><td>a terminal on top</td></tr>
+      <tr><td>match it against the box, fit it, discard the note</td><td>match against the lookahead, pop, advance</td></tr>
+      <tr><td>wrong part in the box</td><td>terminal mismatch → syntax error</td></tr>
+      <tr><td>manual has no step for this</td><td>blank cell → syntax error</td></tr>
+      <tr><td>stack empty, box empty</td><td>stack <code>$</code>, lookahead <code>$</code> → accept</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li>Push <code>$</code>, then the start symbol. Append <code>$</code> to
+        the input. Set the lookahead to the first token.</li>
+      <li>Loop on the stack top <code>X</code>:
+        <ul>
+          <li><code>X = $</code>: if lookahead is <code>$</code> →
+            <b>accept</b>; else "input left over" error.</li>
+          <li><code>X</code> a <b>terminal</b>: if <code>X</code> equals the
+            lookahead → pop, advance the lookahead; else "expected
+            <code>X</code>" error.</li>
+          <li><code>X</code> a <b>nonterminal</b>: look up
+            <code>M[X][lookahead]</code>. Blank → error. One production
+            <code>X → Y₁…Yₙ</code> → record it, pop <code>X</code>, attach
+            <code>n</code> child nodes, push <code>Yₙ…Y₁</code> (so
+            <code>Y₁</code> is on top). Empty RHS → push nothing, add one
+            <code>epsilon</code> child.</li>
+        </ul>
+      </li>
+      <li>The recorded productions, in order, are a leftmost derivation of the
+        input.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Stack evolution — <code>id + id * id</code> (top on the right)</h3>
+  <div class="diagram"><pre>  stack                       input           action
+  $ E                         id + id * id $  expand E -> T Ep
+  $ Ep T                      id + id * id $  expand T -> F Tp
+  $ Ep Tp F                   id + id * id $  expand F -> id
+  $ Ep Tp id                  id + id * id $  match id
+  $ Ep Tp                     + id * id $     expand Tp -> epsilon   (M[Tp][+] = 5)
+  $ Ep                        + id * id $     expand Ep -> + T Ep    (M[Ep][+] = 1)
+  $ Ep T +                    + id * id $     match +
+  $ Ep T                      id * id $       expand T -> F Tp
+  ...                         ...
+  $ Ep                        $               expand Ep -> epsilon
+  $                           $               ACCEPT</pre></div>
+
+  <h3>The stack IS a sentential form</h3>
+  <div class="diagram"><pre>  read the stack bottom-to-top and prepend what's been matched:
+
+  matched: (nothing)   stack: E              form: E
+  matched: (nothing)   stack: T Ep           form: T Ep
+  matched: id          stack: Tp Ep          form: id Tp Ep
+  matched: id          stack: Ep             form: id Ep
+  matched: id +        stack: T Ep           form: id + T Ep
+  ...
+  matched: id + id * id  stack: (empty)      form: id + id * id
+
+  each row is one step of the leftmost derivation. the "form" column is exactly
+  what Module 19's replay produces, and what Module 5 called a sentential form.</pre></div>
+
+  <h3>An error — blank cell</h3>
+  <div class="diagram"><pre>  input  id +           (an expression can't end on an operator)
+
+   ...
+   6  top +   look +   match
+   7  top T   look $   error: M[T][$] blank cell
+
+  M[T][$] is empty: no way to start a T (a term) at end of input.
+  REJECTED: no production for T on '$' at position 2</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <div class="split">
+    <figure>
+      <figcaption>java/TableParser.java</figcaption>
+<pre><code>stack.push(<span class="k">new</span> Object[]{END, <span class="k">null</span>});
+stack.push(<span class="k">new</span> Object[]{g.start, root});
+
+<span class="k">while</span> (!stack.isEmpty()) {
+  String top = (String) stack.peek()[0];
+  Node node  = (Node)   stack.peek()[1];
+  String look = input.get(ip);
+
+  <span class="k">if</span> (top.equals(END))
+    <span class="k">return</span> look.equals(END) ? accept() : error(<span class="y">"input left over"</span>);
+
+  <span class="k">if</span> (!g.isNonterminal(top)) {                <span class="c">// terminal: match</span>
+    <span class="k">if</span> (!top.equals(look)) <span class="k">return</span> error(<span class="y">"expected "</span> + top);
+    node.lexeme = look; stack.pop(); ip++;
+    <span class="k">continue</span>;
+  }
+
+  var ps = tbl.cell(top, look);              <span class="c">// nonterminal: consult M[top][look]</span>
+  <span class="k">if</span> (ps.size() != 1) <span class="k">return</span> error(<span class="y">"no production"</span>);
+  Grammar.Production p = ps.get(0);
+  productions.add(compact(p));
+
+  stack.pop();
+  <span class="k">for</span> (String s : p.rhs()) node.kids.add(<span class="k">new</span> Node(s));
+  <span class="k">if</span> (p.rhs().isEmpty()) node.kids.add(<span class="k">new</span> Node(<span class="y">"epsilon"</span>));
+  <span class="k">for</span> (<span class="k">int</span> i = p.rhs().size() - 1; i &gt;= 0; i--)   <span class="c">// push reversed</span>
+    stack.push(<span class="k">new</span> Object[]{p.rhs().get(i), node.kids.get(i)});
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/tableparser.mjs</figcaption>
+<pre><code>const stack = [[END, null], [g.start, root]];
+
+<span class="k">while</span> (stack.length &gt; 0) {
+  const [top, nd] = stack[stack.length - 1];
+  const look = input[ip];
+
+  <span class="k">if</span> (top === END)
+    <span class="k">return</span> look === END ? accept() : error(<span class="y">"input left over"</span>);
+
+  <span class="k">if</span> (!g.isNonterminal(top)) {
+    <span class="k">if</span> (top !== look) <span class="k">return</span> error(<span class="y">"expected "</span> + top);
+    nd.lexeme = look; stack.pop(); ip++;
+    <span class="k">continue</span>;
+  }
+
+  const ps = tbl.cell(top, look);
+  <span class="k">if</span> (ps.length !== 1) <span class="k">return</span> error(<span class="y">"no production"</span>);
+  const p = ps[0];
+  productions.push(compact(p));
+
+  stack.pop();
+  const kids = [];
+  <span class="k">for</span> (const s <span class="k">of</span> p.rhs) { const k = node(s); nd.kids.push(k); kids.push(k); }
+  <span class="k">if</span> (p.rhs.length === 0) nd.kids.push(node(<span class="y">"epsilon"</span>));
+  <span class="k">for</span> (<span class="k">let</span> i = p.rhs.length - 1; i &gt;= 0; i--) stack.push([p.rhs[i], kids[i]]);
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">The (symbol, node) pairing builds the tree for free</span>
+    <p>Each stack entry carries the parse-tree node it belongs to. When a
+    nonterminal expands, its node gets one child per RHS symbol, and those child
+    nodes are pushed <em>with</em> their symbols. So by the time a terminal is
+    matched, its node is already sitting in the right place in the tree — no
+    second pass, no reconstruction from the production list.</p>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Replay: the executable proof</span>
+    <p><code>replay(productions)</code> starts at the start symbol and applies
+    each recorded production to the <em>leftmost</em> nonterminal. If the parser
+    did its job, the final form is the input, token for token. This is Module
+    19's "the call stack is the leftmost derivation" — but now there's no call
+    stack, just a data stack and a table, and the claim still holds. The table
+    parser and the recursive parser produce the <em>identical</em> production
+    sequence for any input.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Recover from an error and keep parsing — Module 27 (panic mode, FOLLOW sync sets).</li>
+        <li>Run semantic actions / build an AST (not the concrete tree) during the walk — Part V (Modules 37–39).</li>
+        <li>Lex its own input — fixtures are pre-tokenised terminal names.</li>
+        <li>Parse a non-LL(1) grammar — a conflicted cell stops it (Module 29 for more lookahead; Part IV for LR).</li>
+        <li>Report more than the first error.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Parse any LL(1) grammar with one fixed loop.</li>
+        <li>Build the concrete parse tree in the same pass.</li>
+        <li>Emit the leftmost derivation and verify it reproduces the input.</li>
+        <li>Reject malformed input with the stack top, lookahead, and position.</li>
+        <li>Do all of it with no recursion and no per-grammar code.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 26-table-driven-parsing
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>--- id + id * id ---
+   0  top E     look id    expand E -&gt; T Ep
+   1  top T     look id    expand T -&gt; F Tp
+   ...
+  16  top $     look $     ACCEPT
+  productions (a leftmost derivation):
+      E -&gt; T Ep
+      ...
+  replay -&gt; id + id * id
+  equals input? true
+
+--- id + ---
+   7  top T     look $     error: M[T][$] blank cell
+  REJECTED: no production for T on '$' at position 2</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out TableParserTest    # OK 15 passed
+node js/tableparser.test.mjs           # OK 15 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>Parse loops forever</b> — RHS pushed forward, or <code>A</code> not
+    popped before the pushes.<br>
+    <b>Tree has no <code>epsilon</code> leaves</b> — an empty RHS still needs one
+    <code>epsilon</code> child node.<br>
+    <b><code>replay</code> disagrees with the input</b> — a non-leftmost
+    expansion crept in; always take the leftmost nonterminal.<br>
+    <b>Trailing tokens accepted</b> — you didn't append <code>$</code> to the
+    input or seed the stack with <code>$</code>.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> At some step the stack (bottom→top) is <code>$ Ep Tp</code> and
+  the lookahead is <code>)</code>. What are the next few steps? <b>(2)</b> The
+  recursive-descent parser (Module 19) and this one produce the same production
+  sequence. Name one practical thing the table-driven version does
+  <em>better</em>, and one thing the recursive version does better.</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Top is <code>Tp</code>. <code>M[Tp][)] = Tp → epsilon</code> —
+    pop <code>Tp</code>, add an <code>epsilon</code> leaf. Top is now
+    <code>Ep</code>. <code>M[Ep][)] = Ep → epsilon</code> — pop, add leaf. Top
+    is <code>$</code>; if the lookahead were also <code>$</code> we'd accept, but
+    it's <code>)</code>, so this <code>)</code> must be getting matched by a
+    <code>)</code> that an enclosing <code>F → ( E )</code> pushed below — so
+    just below <code>$</code> on the real stack there'd be a <code>)</code>.
+    (In isolation, <code>$ Ep Tp</code> with lookahead <code>)</code> and nothing
+    below <code>$</code> would then error.)</p>
+    <p><b>(2)</b> Table-driven: no stack-overflow risk on deeply nested input
+    (the stack is heap data, not call frames), and the parser is
+    grammar-agnostic — a generator emits just the table. Recursive descent:
+    far easier to drop in custom error messages, semantic actions, and
+    hand-tuned lookahead at a specific rule, and it's more readable.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>If it's the same as recursive descent, why learn both?</summary>
+    <p>Recursive descent is what you hand-write; table-driven is what a generator
+    emits and what the theory analyses. Seeing they're the same algorithm —
+    call stack ↔ data stack, <code>if</code>-ladder ↔ table row — is the point.
+    LR parsing (Part IV) is <em>only</em> ever table-driven, so the stack
+    machine model matters there.</p>
+  </details>
+
+  <details>
+    <summary>Why build the concrete tree and not the AST directly?</summary>
+    <p>The concrete tree is the faithful record of which productions fired. The
+    AST drops chain rules and punctuation — that's a separate, deliberate
+    transformation (Module 39) with its own choices. Building the concrete tree
+    first keeps this module about parsing, not tree design.</p>
+  </details>
+
+  <details>
+    <summary>What happens at a conflicted cell (non-LL(1) grammar)?</summary>
+    <p>The parser sees a cell with two productions, can't choose, and reports an
+    error. It doesn't guess. To parse such a grammar you either add lookahead
+    (Module 29), resolve the cell by hand, or move to LR (Part IV).</p>
+  </details>
+
+  <details>
+    <summary>Is the stack ever huge?</summary>
+    <p>Its depth is bounded by the deepest right-hand-side nesting the input
+    forces — roughly the parse tree's height. For pathological deeply-nested
+    input (<code>((((((...))))))</code>) it grows linearly with nesting depth,
+    but it's heap data, so there's no fixed recursion limit to hit.</p>
+  </details>
+
+  <details>
+    <summary>Where does lexing fit?</summary>
+    <p>In front. Modules 9–18 turn source text into a token stream; this parser
+    consumes that stream. Here the fixtures skip the step by giving terminal
+    names directly. A full front end chains lexer → parser.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p><b>Module 27 — LL(1) Error Recovery</b> stops the parser from giving up at
+  the first blank cell. On an error it discards input tokens until it reaches one
+  in a <b>synchronizing set</b> (built from FOLLOW), pops the stack to a matching
+  state, and resumes — so one run reports many errors, like the lexer's recovery
+  in Module 17. Then <b>Module 28</b> packages Modules 20–27 into one Grammar
+  Analysis Tool — CSE 340 Project 2.</p>
+</section>
+
+<nav class="pager">
+  <a href="../25-ll1-table/tutorial.html"><span class="dir">Previous</span>← Module 25 · The LL(1) Parsing Table</a>
+  <a href="../27-ll1-error-recovery/tutorial.html"><span class="dir">Next</span>Module 27 · LL(1) Error Recovery →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 26 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>26-table-driven-parsing/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

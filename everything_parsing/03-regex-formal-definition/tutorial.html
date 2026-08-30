@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 03 — Regular Expressions: Formal Definition | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#2F6FA8;--accent-wash:#E4EEF6;--accent-line:#AEC9E1}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 03 · Part I — Foundations</p>
+  <h1>Regular Expressions,<em>Formally</em></h1>
+  <p class="thesis">A regular expression is not a string of magic punctuation.
+  It is a <b>tree</b> with exactly <b>six kinds of node</b> — three base cases,
+  three operators — and a precedence, exactly like arithmetic. This module
+  parses one into that tree and shows each node is a single operation from
+  Module 2.</p>
+
+  <div class="headline">
+    <span class="lbl">The one comparison that unlocks it</span>
+    <p><span class="hi">a|bc*</span> parses as <code>a | (b·(c*))</code> — the
+    same way <code>2 + 3 · 4²</code> groups as <code>2 + (3·(4²))</code>.
+    Star is the exponent, concatenation is the product, <code>|</code> is the
+    sum. Learn that table and every regex parses itself.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../02-strings-languages-operations/tutorial.html">union, concatenation, Kleene star (Module 2)</a></li>
+    <li><a href="../prerequisites/sets-and-languages.html">a language is a set of strings</a></li>
+    <li><a href="../prerequisites/trees.html">nodes, children, recursion over a tree</a></li>
+    <li><a href="../prerequisites/the-cursor-pattern.html">peek / advance — the parser uses it</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — regex is arithmetic with letters</h2></div>
+
+  <div class="picture">
+    <p>You already parse expressions in your head. Nobody reads <code>2 + 3 &times;
+    4</code> as <code>(2 + 3) &times; 4</code>. There is a <b>precedence table</b> —
+    exponent, then times, then plus — and it decides the shape without any
+    parentheses.</p>
+
+    <p>A regular expression is the same object with the operators renamed:</p>
+    <div class="tblwrap">
+    <table>
+      <thead><tr><th>Arithmetic</th><th>Regex</th><th>Means</th><th>Binds…</th></tr></thead>
+      <tbody>
+        <tr><td><code>x²</code> (exponent)</td><td><code>x*</code> (star)</td><td>zero or more copies</td><td>tightest</td></tr>
+        <tr><td><code>x · y</code> (times)</td><td><code>xy</code> (juxtaposition)</td><td>x then y</td><td>middle</td></tr>
+        <tr><td><code>x + y</code> (plus)</td><td><code>x|y</code> (alternation)</td><td>x or y</td><td>loosest</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>So <code>ab*|c</code> is <code>(a · (b*)) + c</code> — you would never read
+    the arithmetic version as <code>((a·b)²)</code> or <code>a·(b² + c)</code>,
+    and you shouldn't read the regex that way either. Parentheses in a regex do
+    the exact job they do in arithmetic: override the table.</p>
+
+    <p>The base cases are the "numbers": a single character <code>a</code>, the
+    empty string <code>ε</code> (like <code>0</code> under <code>+</code>, or
+    <code>1</code> under <code>·</code>), and the empty language <code>∅</code>
+    (the regex that matches nothing at all).</p>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Desugar as we parse.</b> <code>r+</code> → <code>Concat(r,
+        Star(r))</code>. <code>r?</code> → <code>Union(r, Epsilon)</code>. These
+        never become their own node kind.</li>
+      <li><b>Parse by precedence</b>, one method per level:
+        <ul>
+          <li><code>regex = concat ('|' concat)*</code> — split on <code>|</code> last</li>
+          <li><code>concat = repeat*</code> — juxtaposition; zero items means <code>ε</code></li>
+          <li><code>repeat = atom ('*'|'+'|'?')*</code> — postfix quantifiers</li>
+          <li><code>atom = '(' regex ')' | CHAR</code> — a character, or a parenthesised sub-regex</li>
+        </ul>
+      </li>
+      <li>The result is a tree of <code>Empty</code>, <code>Epsilon</code>,
+        <code>Char</code>, <code>Union</code>, <code>Concat</code>,
+        <code>Star</code>.</li>
+      <li><b>Meaning, option A — <code>toLanguage(maxLen)</code>:</b> walk the
+        tree; each node calls one Module-2 operation. Bounded because
+        <code>star</code> is.</li>
+      <li><b>Meaning, option B — <code>matches(w)</code>:</b> exact, no bound.
+        Compute the set of leftover suffixes after matching a prefix; <code>w</code>
+        matches iff <code>""</code> is a possible leftover.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>How <code>a|bc*</code> becomes a tree</h3>
+  <div class="diagram"><pre>  input:  a | b c *
+
+  regex ─┬─ concat ── repeat ── atom ─ 'a'
+         │
+         ├─ '|'
+         │
+         └─ concat ─┬─ repeat ── atom ─ 'b'
+                    └─ repeat ─┬─ atom ─ 'c'
+                               └─ '*'  → Star
+
+  tree:   (alt  a  (cat  b  (star c)))
+                │        │        │
+                │        │        └── * bound c, tightest
+                │        └── concatenation joined b and (c*)
+                └── | joined a and everything to its right, loosest</pre></div>
+
+  <h3>Each node kind → one Module-2 operation</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Node</th><th>toLanguage does</th></tr></thead>
+    <tbody>
+      <tr><td><code>Empty</code></td><td><code>Language.EMPTY</code> &nbsp;(∅)</td></tr>
+      <tr><td><code>Epsilon</code></td><td><code>Language.EPSILON</code> &nbsp;({ε})</td></tr>
+      <tr><td><code>Char c</code></td><td><code>Language.of("c")</code></td></tr>
+      <tr><td><code>Union(l,r)</code></td><td><code>l.toLanguage().union(r.toLanguage())</code></td></tr>
+      <tr><td><code>Concat(l,r)</code></td><td><code>l.toLanguage().concat(r.toLanguage())</code></td></tr>
+      <tr><td><code>Star(x)</code></td><td><code>x.toLanguage().star(maxLen)</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Exact matching: the leftover-suffix set for <code>(a|b)*abb</code> on <code>"aabb"</code></h3>
+  <div class="diagram"><pre>  leftovers( (a|b)*abb , "aabb" )
+    (a|b)* can consume ""      → leftover "aabb"   then abb needs 'a''b''b' from "aabb" → fails (…"bb" then "b")
+    (a|b)* can consume "a"     → leftover "abb"    then abb: 'a''b''b' from "abb"       → leftover ""   ✓
+    (a|b)* can consume "aa"    → leftover "bb"     then abb needs 'a' from "bb"          → fails
+  "" is in the leftover set  →  MATCH</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Precedence is which method calls which</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Regex.java — the parser core</figcaption>
+<pre><code><span class="c">// regex = concat ('|' concat)*        ← loosest</span>
+Regex regex() {
+  Regex left = concat();
+  <span class="k">while</span> (take(<span class="y">'|'</span>)) left = <span class="k">new</span> Union(left, concat());
+  <span class="k">return</span> left;
+}
+<span class="c">// concat = repeat*   (zero items = ε)  ← middle</span>
+Regex concat() {
+  <span class="k">if</span> (endsConcat()) <span class="k">return</span> <span class="k">new</span> Epsilon();
+  Regex left = repeat();
+  <span class="k">while</span> (!endsConcat()) left = <span class="k">new</span> Concat(left, repeat());
+  <span class="k">return</span> left;
+}
+<span class="c">// repeat = atom ('*'|'+'|'?')*        ← tightest</span>
+Regex repeat() {
+  Regex base = atom();
+  <span class="k">while</span> (<span class="k">true</span>) {
+    <span class="k">if</span> (take(<span class="y">'*'</span>))      base = <span class="k">new</span> Star(base);
+    <span class="k">else if</span> (take(<span class="y">'+'</span>)) base = <span class="k">new</span> Concat(base, <span class="k">new</span> Star(base)); <span class="c">// r+ = r r*</span>
+    <span class="k">else if</span> (take(<span class="y">'?'</span>)) base = <span class="k">new</span> Union(base, <span class="k">new</span> Epsilon());   <span class="c">// r? = r | ε</span>
+    <span class="k">else</span> <span class="k">return</span> base;
+  }
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/regex.mjs — same three methods</figcaption>
+<pre><code>regex() {
+  <span class="k">let</span> left = <span class="k">this</span>.concat();
+  <span class="k">while</span> (<span class="k">this</span>.take(<span class="y">"|"</span>)) left = alt(left, <span class="k">this</span>.concat());
+  <span class="k">return</span> left;
+}
+concat() {
+  <span class="k">if</span> (<span class="k">this</span>.endsConcat()) <span class="k">return</span> epsilon();
+  <span class="k">let</span> left = <span class="k">this</span>.repeat();
+  <span class="k">while</span> (!<span class="k">this</span>.endsConcat()) left = cat(left, <span class="k">this</span>.repeat());
+  <span class="k">return</span> left;
+}
+repeat() {
+  <span class="k">let</span> base = <span class="k">this</span>.atom();
+  <span class="k">for</span> (;;) {
+    <span class="k">if</span> (<span class="k">this</span>.take(<span class="y">"*"</span>))      base = star(base);
+    <span class="k">else if</span> (<span class="k">this</span>.take(<span class="y">"+"</span>)) base = cat(base, star(base));
+    <span class="k">else if</span> (<span class="k">this</span>.take(<span class="y">"?"</span>)) base = alt(base, epsilon());
+    <span class="k">else</span> <span class="k">return</span> base;
+  }
+}</code></pre>
+    </figure>
+  </div>
+  <p><code>repeat</code> (star) is the innermost call, so <code>*</code> binds
+  tightest. <code>regex</code> (union) is the outermost, so <code>|</code> binds
+  loosest. <b>The grammar's call structure <em>is</em> the precedence table</b> —
+  a fact Module 20 will make fully general.</p>
+
+  <h3>The whole semantics, six lines</h3>
+<pre><code>Language toLanguage(<span class="k">int</span> maxLen) {
+  <span class="k">if</span> (<span class="k">this</span> <span class="k">instanceof</span> Empty)     <span class="k">return</span> Language.EMPTY;
+  <span class="k">if</span> (<span class="k">this</span> <span class="k">instanceof</span> Epsilon)   <span class="k">return</span> Language.EPSILON;
+  <span class="k">if</span> (<span class="k">this</span> <span class="k">instanceof</span> Char ch)   <span class="k">return</span> Language.of(String.valueOf(ch.c));
+  <span class="k">if</span> (<span class="k">this</span> <span class="k">instanceof</span> Union u)   <span class="k">return</span> u.l.toLanguage(maxLen).union(u.r.toLanguage(maxLen)).truncate(maxLen);
+  <span class="k">if</span> (<span class="k">this</span> <span class="k">instanceof</span> Concat co) <span class="k">return</span> co.l.toLanguage(maxLen).concat(co.r.toLanguage(maxLen)).truncate(maxLen);
+  <span class="k">if</span> (<span class="k">this</span> <span class="k">instanceof</span> Star s)    <span class="k">return</span> s.x.toLanguage(maxLen).star(maxLen);
+}</code></pre>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — the one guard that keeps <code>(a*)*</code> from hanging</span>
+    <p>Exact matching walks the tree computing "leftover suffixes." For
+    <code>Star</code>, it tries matching the inner regex once and recursing on
+    what's left. But the inner regex of <code>(a*)*</code> can match
+    <em>zero</em> characters — leaving the string unchanged — so the recursion
+    would call itself on the same input forever. The fix is one line:
+    <code>if (!rest.equals(w))</code> — a repetition must consume at least one
+    character to count. It's sound because "zero repetitions" is already handled
+    by the <code>out.add(w)</code> above it. See
+    <a href="DECISIONS.md">DECISIONS.md</a> — this one is bucket (a), forced.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Match efficiently. <code>matches</code> is exponential on adversarial input — no automaton yet (Modules 10–13).</li>
+        <li>Character classes, ranges, <code>.</code>, escapes — parsed as literal characters only. (They're all unions; the tutorial lists the desugarings.)</li>
+        <li>Anchors (<code>^</code> <code>$</code>), capture groups, backreferences.</li>
+        <li>Say whether two regexes are equivalent, except by comparing bounded enumerations (Module 14 does it exactly).</li>
+        <li>Compile to a state machine — that's the entire point of Part II.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Parse any regex over the six core constructs into an unambiguous tree, honouring <code>* &gt; concat &gt; |</code>.</li>
+        <li>Desugar <code>+</code> and <code>?</code> and prove they add nothing.</li>
+        <li>Turn the tree into a bounded <code>Language</code> with a six-case recursion.</li>
+        <li>Decide <code>matches(w)</code> exactly and terminating, for every regex including <code>(a*)*</code>.</li>
+        <li>Reject malformed input with a position: <code>(</code>, <code>*a</code>, <code>a)</code>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java</h4>
+<pre><code>cd 03-regex-formal-definition
+javac -d java/out java/*.java
+java -cp java/out Main fixtures/regexes.txt</code></pre>
+    <h4>JavaScript — identical bytes</h4>
+<pre><code>node js/main.mjs fixtures/regexes.txt</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>[5] /a|bc*/
+    tree : (alt a (cat b (star c)))
+    L (up to length 6): { a, b, bc, bcc, bccc, bcccc, bccccc }
+    "a"       match
+    "b"       match
+    "bc"      match
+    "bccc"    match
+    "c"       no
+    <span class="exp">"abc"     no</span>
+
+precedence check (tightest: * , then concatenation, then |):
+    /a|bc*     ->  (alt a (cat b (star c)))
+    /ab*       ->  (cat a (star b))
+    /(ab)*     ->  (star (cat a b))</code></pre>
+    <h4>Tests — both "OK 34 passed"</h4>
+<pre><code>java -cp java/out RegexTest
+node js/regex.test.mjs</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>unexpected '|' at position 0</code></b> — the fixture line had no
+    <code>&nbsp;|&nbsp;</code> separator (space on both sides), so the tests were
+    parsed as part of the regex.<br>
+    <b><code>'*' has nothing to apply to</code></b> — a regex starting with a
+    quantifier. They're postfix; put an atom to the left.<br>
+    <b>A match you expect fails</b> — read the <code>tree:</code> line.
+    <code>ab*</code> is <code>a(b*)</code>, not <code>(ab)*</code>. Add
+    parentheses.<br>
+    <b><code>matches</code> hangs</b> — you dropped the <code>rest != w</code>
+    guard in the <code>Star</code> case.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p>The parser turns <code>concat</code> with zero items into an
+  <code>Epsilon</code> node. So <code>()</code> parses, and <code>a()b</code>
+  parses.</p>
+  <p><b>(1)</b> What tree does <code>a()b</code> produce, and what language does
+  it denote? Is it the same language as <code>ab</code>?</p>
+  <p><b>(2)</b> The empty <em>language</em> <code>∅</code> has a node kind
+  (<code>Empty</code>) but no <em>syntax</em> — there's no character you can type
+  to get one. Why is <code>Empty</code> in the AST at all? Where would a real
+  regex tool produce an <code>Empty</code> node?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>a()b</code> → <code>(cat (cat a eps) b)</code>.
+    <code>toLanguage</code>: <code>{a} · {ε} · {b} = {a} · {b} = {ab}</code>.
+    Same language as <code>ab</code>, different tree. <code>{ε}</code> is the
+    identity for concatenation (Module 2), so an <code>Epsilon</code> node
+    anywhere in a <code>Concat</code> chain is invisible to the meaning — it just
+    makes the tree taller. (This is exactly why real regex engines fold
+    <code>ε</code> away during compilation.)</p>
+    <p><b>(2)</b> <code>Empty</code> is the identity for <em>union</em> and the
+    annihilator for <em>concatenation</em> — you need it to state algebraic laws
+    and to have a total set of node kinds. A real tool produces it when
+    <em>simplifying</em>: the derivative of a non-matching character
+    (<code>d/da</code> of <code>b</code> is <code>∅</code>), intersection of
+    disjoint regexes, or subtracting a language from itself. Module 13's subset
+    construction leans on "this state accepts <code>∅</code>" — the dead
+    state.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why is <code>ab</code> a <em>Concat</em> node? I don't see an operator.</summary>
+    <p>Concatenation in regex is <em>juxtaposition</em> — writing two things next
+    to each other. The operator is invisible, exactly like <code>3x</code> means
+    <code>3 · x</code> in algebra. The parser's <code>concat()</code> method
+    loops "as long as the next thing isn't <code>|</code>, <code>)</code>, or
+    end, glue on another <code>repeat</code>."</p>
+  </details>
+
+  <details>
+    <summary>My regex library has <code>\d</code>, <code>[a-f]</code>, <code>.</code>, lazy <code>*?</code>, lookahead… where are those?</summary>
+    <p>The first three are pure sugar over union: <code>\d = 0|1|…|9</code>,
+    <code>[a-f] = a|b|c|d|e|f</code>, <code>. =</code> union of every symbol in
+    Σ. Lazy quantifiers and lookahead are <em>matching-strategy</em> features —
+    they don't change which language is described, only which match a
+    backtracking engine reports first. Backreferences (<code>\1</code>) are the
+    real outlier: they describe non-regular languages, so an engine that has them
+    isn't a regular-expression engine in the formal sense.</p>
+  </details>
+
+  <details>
+    <summary>You said "regex = arithmetic." Does that mean <code>a(b|c)</code> distributes to <code>ab|ac</code>?</summary>
+    <p>Yes — concatenation distributes over union, just like multiplication over
+    addition: <code>a(b|c) = ab|ac</code> and <code>(a|b)c = ac|bc</code>. Both
+    denote the same language (check with <code>toLanguage</code>). The trees
+    differ; the meanings don't. Regex algebra has a full set of such laws, and
+    minimising a regex (or its automaton, Module 14) is applying them.</p>
+  </details>
+
+  <details>
+    <summary>Why build <code>toLanguage</code> AND <code>matches</code>? Isn't one enough?</summary>
+    <p>They answer different questions. <code>toLanguage(n)</code> shows the
+    <em>structure</em> — "a regex is those three Module-2 operations" — but only
+    up to length <code>n</code>. <code>matches(w)</code> is the real
+    yes/no you want for one string, exact and unbounded. Neither is how a
+    production engine works (that's an automaton), but together they pin down the
+    meaning with no hand-waving.</p>
+  </details>
+
+  <details>
+    <summary>Is this parser "recursive descent"? I thought that was later.</summary>
+    <p>It is, and it is. Module 19 is where recursive descent gets its formal
+    treatment — the rule "one function per nonterminal," the conditions under
+    which it works without backtracking, the failure modes. You've now written
+    the pattern three times (M1, M4, here) precisely so that by M19 it's
+    familiar and the module can focus on <em>why</em> it works rather than
+    <em>how</em> to type it.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>You have a regex as a tree and two ways to give it meaning, neither of them
+  fast. <b>Module 4 — Context-Free Grammars: Formal Definition</b> (already
+  built) generalises the notation: a grammar has <em>named</em> rules that can
+  refer to each other and to themselves, which lets it describe languages no
+  regex can — like <code>aⁿbⁿ</code>. Then Part II comes back to this regex tree
+  and compiles it, node by node, into a finite-state machine that matches in a
+  single left-to-right pass (Modules 9–16). The <code>Star</code> node you built
+  here is where the loops in that machine come from.</p>
+</section>
+
+<nav class="pager">
+  <a href="../02-strings-languages-operations/tutorial.html"><span class="dir">Previous</span>← Module 02 · Alphabets, Strings, Languages, Operations</a>
+  <a href="../04-cfg-formal-definition/tutorial.html"><span class="dir">Next</span>Module 04 · Context-Free Grammars: Formal Definition →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 03 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>03-regex-formal-definition/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

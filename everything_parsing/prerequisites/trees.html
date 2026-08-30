@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trees — Prerequisites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B5BA5;--accent-wash:#E9EDF7}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Prerequisites · P5</p>
+  <h1>Trees</h1>
+  <p class="thesis">Parsing produces trees; every parser in this course walks
+  one. The vocabulary is small and you only need it precise, not deep.</p>
+</header>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">01</span><h2>The words</h2></div>
+  <div class="mechanism">
+    <ul>
+      <li><b>Node</b> — one item. Carries a value (a grammar symbol, a regex operator, a token) and an ordered list of child nodes.</li>
+      <li><b>Root</b> — the one node with no parent. A tree has exactly one.</li>
+      <li><b>Leaf</b> — a node with no children. In a parse tree, leaves are terminals; internal nodes are nonterminals.</li>
+      <li><b>Child order matters.</b> <code>Concat(a, b)</code> ≠ <code>Concat(b, a)</code>. These are <em>ordered</em> trees, unlike a generic graph.</li>
+      <li><b>Subtree</b> — any node plus all its descendants. Recursion over trees is "do something with this node, then recurse into each child's subtree."</li>
+      <li><b>Depth</b> — edges from the root. <b>Height</b> — longest root-to-leaf path.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">02</span><h2>Two traversals you will write constantly</h2></div>
+
+  <div class="diagram"><pre>            (cat)
+           /     \
+         a       (star)
+                   |
+                   b
+
+  pre-order   (visit node, THEN children):   cat, a, star, b
+  post-order  (children, THEN visit node):   a, b, star, cat</pre></div>
+
+  <p><b>Pre-order</b> is how you print or serialise a tree — you emit the
+  operator before its operands. <b>Post-order</b> is how you <em>evaluate</em>
+  one — a node's meaning is computed from its childrens' already-computed
+  meanings. Module 3's <code>toLanguage</code> is a post-order walk:
+  <code>Star</code> can't produce its language until <code>b</code> has produced
+  its.</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">03</span><h2>Recursion over a tree — the shape</h2></div>
+<pre><code><span class="k">Result</span> walk(Node n) {
+  <span class="k">if</span> (n is a leaf)   <span class="k">return</span> baseCaseFor(n);
+  <span class="k">Result</span> a = walk(n.child[0]);      <span class="c">// recurse first</span>
+  <span class="k">Result</span> b = walk(n.child[1]);
+  <span class="k">return</span> combine(n.kind, a, b);       <span class="c">// then use the results</span>
+}</code></pre>
+  <p>Every tree walk in this course is a variation on this. Termination is
+  automatic <em>as long as every recursive call goes to a strictly smaller
+  subtree</em> — which is true for any finite tree. The one place it bites is
+  when a "tree" secretly has a cycle (a grammar rule that refers to itself with
+  no base case); Module 16 is about spotting and removing those.</p>
+</section>
+
+<nav class="pager">
+  <a href="index.html"><span class="dir">Back</span>← All prerequisites</a>
+  <a href="the-cursor-pattern.html"><span class="dir">Related</span>The Cursor Pattern →</a>
+</nav>
+
+</div>
+</body>
+</html>

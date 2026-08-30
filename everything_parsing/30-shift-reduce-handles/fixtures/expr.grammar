@@ -1,0 +1,7 @@
+# The classic LEFT-recursive expression grammar. Top-down parsing (Part III)
+# needed it transformed; bottom-up parses it as written -- left recursion is
+# natural for shift-reduce (you reduce E + T back to E).
+%start E
+E -> E + T | T
+T -> T * F | F
+F -> ( E ) | id

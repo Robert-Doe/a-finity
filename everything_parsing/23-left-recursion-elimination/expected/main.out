@@ -1,0 +1,49 @@
+=== Module 23 - Left Recursion Elimination ===
+
+direct:   A -> A a | b        ==>   A -> b A'    A' -> a A' | epsilon
+indirect: Paull's algorithm -- fix an order, substitute lower nonterminals
+          into higher ones, then remove direct left recursion.
+
+########## fixtures/expr.grammar
+
+BEFORE:
+  E -> E + T | T
+  T -> T * F | F
+  F -> ( E ) | id | num
+  left-recursive? true
+
+AFTER (Paull):
+  E -> T E'
+  E' -> + T E' | epsilon
+  T -> F T'
+  T' -> * F T' | epsilon
+  F -> ( E ) | id | num
+  left-recursive? false
+  start symbol: E
+
+language check (all strings up to length 6):
+  before: 70 strings
+  after : 70 strings
+  identical? true
+  sample: "( ( id ) )"  "( ( num ) )"  "( id )"  "( id ) * id"  "( id ) * num"  "( id ) + id"  "( id ) + num"  "( id * id )"  
+
+########## fixtures/indirect.grammar
+
+BEFORE:
+  S -> A a | b
+  A -> A c | S d | e
+  left-recursive? true
+
+AFTER (Paull):
+  S -> A a | b
+  A -> b d A' | e A'
+  A' -> c A' | a d A' | epsilon
+  left-recursive? false
+  start symbol: S
+
+language check (all strings up to length 6):
+  before: 20 strings
+  after : 20 strings
+  identical? true
+  sample: "b"  "b d a"  "b d a d a"  "b d a d c a"  "b d c a"  "b d c a d a"  "b d c c a"  "b d c c c a"  
+

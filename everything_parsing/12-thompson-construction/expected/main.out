@@ -1,0 +1,41 @@
+=== Module 12 - Thompson's Construction: RE -> epsilon-NFA ===
+
+regex /a(b|c)/   tree: (cat a (alt b c))
+nodes: 5   |regex| (no parens): 4
+
+Thompson NFA:
+  states: q0 q1 q2 q3 q4 q5 q6 q7
+  alphabet: a b c
+  start: q0   accept: q7
+  q0 a q1
+  q1 epsilon q6
+  q2 b q3
+  q3 epsilon q7
+  q4 c q5
+  q5 epsilon q7
+  q6 epsilon q2
+  q6 epsilon q4
+  -> 8 states
+
+runs:  "ab" -> ACCEPT   "ac" -> ACCEPT   "a" -> reject   "abc" -> reject
+
+state count is always <= 2*nodes  (and <= 2*|regex|):
+  regex           nodes  chars states   <=2*nodes  <=2*chars 
+  /a/                 1      1      2   yes        yes       
+  /ab/                3      2      4   yes        yes       
+  /a|b/               3      3      6   yes        yes       
+  /a*/                2      2      4   yes        yes       
+  /(a|b)*/            4      4      8   yes        yes       
+  /(a|b)*abb/        10      7     14   yes        yes       
+  /a(b|c)*d/          8      6     12   yes        yes       
+  /((a|b)(c|d))*/      8      7     14   yes        yes       
+
+full pipeline for /(a|b)*abb/:
+  Thompson NFA:            14 states, has epsilon: true
+  removeEpsilon():         14 states, has epsilon: false
+  L(Thompson NFA) up to length 6:  15 strings
+    == L(epsilon-free NFA):        true
+    == regex /(a|b)*abb/:          true
+    == DFA(Module 10):             true
+
+summary: every regex node -> a fixed-size NFA gadget | NFA states <= 2*nodes always | L(Thompson NFA) == L(regex) == L(DFA)

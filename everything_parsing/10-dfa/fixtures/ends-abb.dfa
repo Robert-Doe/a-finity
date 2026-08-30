@@ -1,0 +1,14 @@
+# Accepts strings over {a,b} that END IN "abb"  --  i.e. the regex (a|b)*abb
+# States track "how much of the suffix abb we have matched so far".
+states: S A AB ABB
+alphabet: a b
+start: S
+accept: ABB
+S   a A
+S   b S
+A   a A
+A   b AB
+AB  a A
+AB  b ABB
+ABB a A
+ABB b S

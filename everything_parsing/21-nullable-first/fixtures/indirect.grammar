@@ -1,0 +1,6 @@
+# Indirect nullability: Z is nullable, so Y (-> Z) is nullable, so X (-> Y) is
+# nullable. The iteration discovers this one layer per round.
+%start X
+X -> Y
+Y -> Z
+Z -> z | epsilon

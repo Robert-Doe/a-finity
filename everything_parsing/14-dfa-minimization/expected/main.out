@@ -1,0 +1,33 @@
+=== Module 14 - DFA Minimization ===
+
+subset-construction DFA for /(a|b)*abb/:  5 states
+
+partition refinement -> 4 equivalence classes:
+  { D0, D2 }
+  { D1 }
+  { D3 }
+  { D4 }
+
+table filling -> 4 classes;  same partition as refinement:  true
+
+minimal DFA:  4 states
+  state      a          b         
+  -> M0       M1         M0        
+     M1       M1         M2        
+     M2       M1         M3        
+    *M3       M1         M0
+
+Module 10's hand-written DFA:  4 states (already minimal: true)
+minimal DFA is isomorphic to the hand-written DFA:  true
+
+Myhill-Nerode:  L(/(a|b)*abb/) has exactly 4 right-language classes  =  4 states, and that DFA is unique.
+
+--- regex equivalence (decided via minimal-DFA isomorphism) ---
+  /(a|b)*/       == /(a*b*)*/      :  true   (both = Sigma*)
+  /a**/          == /a*/           :  true   
+  /a(b|c)/       == /ab|ac/        :  true   (concatenation distributes over |)
+  /ab|ba/        == /(a|b)(a|b)/   :  false  (RHS also matches aa, bb)
+  /a*/           == /a+/           :  false  (a+ excludes the empty string)
+  /(a|b)*abb/    == /(a|b)*abb/    :  true   
+
+summary: subset DFA 5 -> minimal 4 | partition-refinement and table-filling agree | minimal DFA is unique (Myhill-Nerode) -> regex equivalence is decidable

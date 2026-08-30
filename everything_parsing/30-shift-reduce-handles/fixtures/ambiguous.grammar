@@ -1,0 +1,5 @@
+# Ambiguous: E -> E + E has no precedence/associativity. On id + id + id the
+# shift-reduce parser reaches a state where BOTH reducing (E + E -> E) and
+# shifting (+) lead to a valid parse -- a shift-reduce conflict, and two handles.
+%start E
+E -> E + E | id

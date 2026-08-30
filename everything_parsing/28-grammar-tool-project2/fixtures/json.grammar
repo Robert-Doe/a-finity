@@ -1,0 +1,10 @@
+# A small JSON grammar. No left recursion, but several rules share a prefix
+# (obj/arr on their bracket; members/elements on pair/value), so it is NOT LL(1)
+# as written and the tool's left-factored version fixes that.
+%start value
+value    -> obj | arr | str | num | tru | fls | nul
+obj      -> lbrace rbrace | lbrace members rbrace
+members  -> pair | pair comma members
+pair     -> str colon value
+arr      -> lbrack rbrack | lbrack elements rbrack
+elements -> value | value comma elements

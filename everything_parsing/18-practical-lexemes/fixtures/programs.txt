@@ -1,0 +1,9 @@
+# One program per non-# line, taken literally.  '~' stands for a newline.
+let x = 12
+pi = 3.14159
+big = 1e10 tiny = 1.5e-3
+hexval = 0xFF
+msg = "hi\nthere\t!"
+a /* outer /* nested */ still comment */ b
+c // rest of line ignored~d = 4
+oops = "no closing quote

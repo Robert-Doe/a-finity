@@ -1,0 +1,5 @@
+# Left-factored dangling else (output of Module 24). The cell M[S'][else] is
+# double-booked: S' -> else S  and  S' -> epsilon  both predict 'else'.
+%start S
+S  -> other | if b then S Sp
+Sp -> else S | epsilon

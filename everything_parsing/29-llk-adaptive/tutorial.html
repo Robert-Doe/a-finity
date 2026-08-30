@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 29 — LL(k), LL(*) &amp; Backtracking RD | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#B05C3B;--accent-wash:#F5E6DF;--accent-line:#E5C3B0}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 29 · Part III — Top-Down Parsing</p>
+  <h1>LL(k), LL(*) &amp; <em>Backtracking</em> RD</h1>
+  <p class="thesis">LL(1) uses one lookahead token. Sometimes one isn't enough
+  and <b>two</b> is: <code>FIRST₂</code> sets that overlap at one token separate
+  at two. Sometimes <em>no</em> fixed number works and you need <b>LL(*)</b> —
+  regular, unbounded lookahead, ANTLR's trick. And sometimes you give up on
+  lookahead and <b>backtrack</b> — which, without memoization, goes
+  exponential. This module measures all three.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>A labeled-statement grammar: on <code>id</code> the parser can't tell a
+    label from an expression. <span class="hi">Peek one more token</span> —
+    <code>colon</code> means label — and it's LL(2). The ambiguous grammar next
+    to it: 2ⁿ parse trees, and a backtracker does 2ⁿ work to find them.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../20-predictive-condition/tutorial.html">FIRST sets, the LL(1) condition (Module 20)</a></li>
+    <li><a href="../21-nullable-first/tutorial.html">FIRST as a fixed point (Module 21)</a></li>
+    <li><a href="../24-left-factoring/tutorial.html">left factoring — and when it can't help (Module 24)</a></li>
+    <li><a href="../19-recursive-descent/tutorial.html">recursive descent (Module 19)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — telling twins apart</h2></div>
+
+  <div class="picture">
+    <p>Two people walk toward you and from a distance you can't tell which is
+    which. <b>One glance</b> (LL(1)) isn't enough. Look a moment longer —
+    <b>one is wearing a badge</b> (LL(2)) — and now you know. That's what a
+    second lookahead token buys: the alternatives were identical at token 1,
+    distinct at token 2.</p>
+    <p>Some pairs need more. You watch them walk across the whole room before
+    one turns toward the door that gives it away. You didn't decide in advance
+    how many steps to watch — you watched <em>until you knew</em>. That's
+    <b>LL(*)</b>: a little machine that reads as much lookahead as it needs,
+    then commits.</p>
+    <p>And some pairs are <b>actual identical twins</b>. No amount of looking
+    helps. Your only option is to guess, follow that guess to its conclusion,
+    and if it's wrong, come back and try the other — <b>backtracking</b>. If the
+    twins have twins who have twins, the number of guesses to check explodes.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Telling people apart</th><th>Parsing</th></tr></thead>
+    <tbody>
+      <tr><td>one glance is enough</td><td>LL(1) — disjoint FIRST sets</td></tr>
+      <tr><td>need a second look (a badge)</td><td>LL(2) — FIRST₁ overlap, FIRST₂ disjoint</td></tr>
+      <tr><td>watch until you know</td><td>LL(*) — a DFA over unbounded regular lookahead</td></tr>
+      <tr><td>identical twins — guess and check</td><td>backtracking recursive descent</td></tr>
+      <tr><td>twins of twins of twins</td><td>exponential blow-up without memoization</td></tr>
+      <tr><td>remembering "I already checked that one"</td><td>packrat memoization (Appendix X2) → linear</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <h3>FIRST_k</h3>
+    <ol>
+      <li><code>FIRST_k(α)</code> = every terminal string of length ≤ k that can
+        begin a derivation from <code>α</code> (shorter than k only if
+        <code>α</code> derives something shorter).</li>
+      <li>Compute it as a fixed point, exactly like FIRST (Module 21): sets
+        start empty, fold in <code>FIRST_k(rhs)</code> per production, iterate.
+        Joining two prefixes truncates to k tokens.</li>
+      <li><b>LL(k) test</b>: for every nonterminal with ≥ 2 productions, the
+        <code>FIRST_k</code> sets of its alternatives must be pairwise disjoint.
+        (The full test also folds <code>FOLLOW_k</code> in for nullable
+        alternatives.)</li>
+      <li><code>minLL</code>: k = 1 uses Module 20's exact PREDICT check; k = 2,
+        3, 4 use the <code>FIRST_k</code>-disjoint test; if none work, the
+        grammar is not LL(k) for small k (often ambiguous).</li>
+    </ol>
+    <h3>Backtracking recognizer</h3>
+    <ol>
+      <li>To derive a nonterminal at a position, try <b>every</b> production, in
+        order, following all of them — no lookahead pruning.</li>
+      <li>Track, per end position, the <em>number of ways</em> to get there. The
+        count at end-of-input is the number of parse trees.</li>
+      <li>Count <code>entries</code> — one per production attempt — as the work.
+        With no memoization, the same (nonterminal, position) is re-solved on
+        every path that reaches it.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>LL(2) resolves what LL(1) can't — <code>label.grammar</code></h3>
+  <div class="diagram"><pre>  stmt -> label colon stmt | expr semi
+  label -> id           expr -> id | id lparen rparen
+
+  FIRST_1(label colon stmt) = { id }
+  FIRST_1(expr semi)        = { id }        <- collide on 'id'.  NOT LL(1).
+
+  FIRST_2(label colon stmt) = { id colon }
+  FIRST_2(expr semi)        = { id semi , id lparen }
+                              ^^^^^^^^^^^^^^^^^^^^^^ disjoint from { id colon }
+  minimal k = 2.
+
+  can't left-factor: 'label' and 'expr' are different nonterminals, so 'id'
+  isn't a literal shared prefix of one rule.</pre></div>
+
+  <h3>No k helps — <code>equiv.grammar</code></h3>
+  <div class="diagram"><pre>  A -> x B | x C | y     B -> A     C -> A
+
+  FIRST_k(x B) and FIRST_k(x C) are IDENTICAL for every k -- B and C both
+  derive A, so both alternatives generate exactly x (x|y)* ... .
+  minimal k = none.  the grammar is ambiguous: x^n y has 2^n parse trees.</pre></div>
+
+  <h3>Backtracking cost</h3>
+  <div class="diagram"><pre>  equiv on x^n y (no memoization):
+    n   parse trees   production tries
+    1   2             11
+    3   8             59
+    5   32            251
+    7   128           1019           <- doubles every step
+
+  expr (LL(1)) on id (+ id)^n:
+    tokens  parse trees   production tries
+    1       1             9
+    7       1             33
+    13      1             57          <- linear
+
+  the difference: expr's wrong alternatives fail on the first token and are
+  abandoned; equiv's don't -- both "x B" and "x C" match, forever.</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>FIRST_k of a sequence — join and truncate</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/FirstK.java</figcaption>
+<pre><code>Set&lt;List&lt;String&gt;&gt; acc = { [] };                <span class="c">// the empty prefix</span>
+<span class="k">for</span> (String sym : seq) {
+  Set&lt;List&lt;String&gt;&gt; symSet = g.isNT(sym) ? t.get(sym) : { [sym] };
+  Set&lt;List&lt;String&gt;&gt; next = {};
+  <span class="k">for</span> (List&lt;String&gt; pre : acc) {
+    <span class="k">if</span> (pre.size() == k) { next.add(pre); <span class="k">continue</span>; }  <span class="c">// already k tokens</span>
+    <span class="k">for</span> (List&lt;String&gt; s : symSet) {
+      List&lt;String&gt; joined = pre + s;
+      <span class="k">if</span> (joined.size() &gt; k) joined = joined.subList(0, k);
+      next.add(joined);
+    }
+    <span class="c">// empty symSet = not computed yet -&gt; contributes nothing</span>
+  }
+  acc = next;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/firstk.mjs</figcaption>
+<pre><code><span class="k">let</span> acc = <span class="k">new</span> Set([<span class="y">""</span>]);
+<span class="k">for</span> (<span class="k">const</span> sym <span class="k">of</span> seq) {
+  <span class="k">const</span> symSet = g.isNT(sym) ? (t.get(sym) ?? <span class="k">new</span> Set()) : <span class="k">new</span> Set([sym]);
+  <span class="k">const</span> next = <span class="k">new</span> Set();
+  <span class="k">for</span> (<span class="k">const</span> pre <span class="k">of</span> acc) {
+    <span class="k">const</span> preTok = pre === <span class="y">""</span> ? [] : pre.split(<span class="y">" "</span>);
+    <span class="k">if</span> (preTok.length === k) { next.add(pre); <span class="k">continue</span>; }
+    <span class="k">for</span> (<span class="k">const</span> s <span class="k">of</span> symSet) {
+      <span class="k">const</span> sTok = s === <span class="y">""</span> ? [] : s.split(<span class="y">" "</span>);
+      next.add([...preTok, ...sTok].slice(0, k).join(<span class="y">" "</span>));
+    }
+  }
+  acc = next;
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>The counting recognizer</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Backtrack.java</figcaption>
+<pre><code>Map&lt;Integer, Long&gt; deriveSym(String sym, <span class="k">int</span> pos, List&lt;String&gt; input) {
+  <span class="k">if</span> (!g.isNT(sym)) {                          <span class="c">// terminal: match or not</span>
+    <span class="k">return</span> (pos &lt; input.size() &amp;&amp; input.get(pos).equals(sym))
+      ? { pos + 1 : 1 } : { };
+  }
+  Map&lt;Integer, Long&gt; out = { };
+  <span class="k">for</span> (List&lt;String&gt; rhs : g.prods.get(sym)) {
+    entries++;                                <span class="c">// one production attempt = one unit of work</span>
+    Map&lt;Integer, Long&gt; r = deriveSeq(rhs, pos, input);
+    <span class="k">for</span> (var e : r) out.merge(e.key, e.value, Long::sum);   <span class="c">// SUM the ways</span>
+  }
+  <span class="k">return</span> out;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/backtrack.mjs</figcaption>
+<pre><code>deriveSym(sym, pos, input) {
+  <span class="k">if</span> (!<span class="k">this</span>.g.isNT(sym)) {
+    <span class="k">const</span> out = <span class="k">new</span> Map();
+    <span class="k">if</span> (pos &lt; input.length &amp;&amp; input[pos] === sym) out.set(pos + 1, 1);
+    <span class="k">return</span> out;
+  }
+  <span class="k">const</span> out = <span class="k">new</span> Map();
+  <span class="k">for</span> (<span class="k">const</span> rhs <span class="k">of</span> <span class="k">this</span>.g.prods.get(sym)) {
+    <span class="k">if</span> (++<span class="k">this</span>.entries &gt; <span class="k">this</span>.cap) <span class="k">throw</span> <span class="y">"capped"</span>;
+    <span class="k">const</span> r = <span class="k">this</span>.deriveSeq(rhs, pos, input);
+    <span class="k">for</span> (<span class="k">const</span> [e, w] <span class="k">of</span> r) out.set(e, (out.get(e) ?? 0) + w);
+  }
+  <span class="k">return</span> out;
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Why summing the ways gives the parse-tree count</span>
+    <p>Each production of <code>A</code> that succeeds from <code>pos</code>
+    contributes its own set of (end, ways) pairs. Two different productions
+    reaching the same end position are two different subtrees for <code>A</code>
+    — so their way-counts <em>add</em>. Within a production, the RHS symbols'
+    counts <em>multiply</em> (every combination of sub-parses is a distinct
+    tree). Add across alternatives, multiply along a sequence: the count at
+    end-of-input is exactly the number of parse trees.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>The full LL(k) condition with FOLLOW_k for nullable alternatives (the fixtures don't need it; the check bails rather than answer wrong).</li>
+        <li>Actually build the LL(*) lookahead DFA — described, not implemented (ANTLR's core; a project on its own).</li>
+        <li>Memoize the backtracking recognizer — that's packrat parsing, Appendix X2.</li>
+        <li>Handle left recursion in the recognizer (would loop forever).</li>
+        <li>PEG-style ordered choice, where the *first* match wins and ambiguity is impossible by definition (Appendix X1).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Compute FIRST_k for any k, as a fixed point.</li>
+        <li>Find the minimal k (or report "none") for a grammar.</li>
+        <li>Show a grammar that is LL(2) but not LL(1), and one that is no LL(k).</li>
+        <li>Count the parse trees of an ambiguous grammar exactly.</li>
+        <li>Measure backtracking work — exponential vs linear — on real inputs.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 29-llk-adaptive
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>########## fixtures/label.grammar
+  FIRST_1 per production:
+    stmt -&gt; label colon stmt  { id }
+    stmt -&gt; expr semi         { id }
+  FIRST_2 per production:
+    stmt -&gt; label colon stmt  { id colon }
+    stmt -&gt; expr semi         { id lparen , id semi }
+  minimal k: 2
+
+equiv.grammar ... on x^n y :
+    n      parse trees    production tries
+    7      128            1019</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out LlkTest    # OK 14 passed
+node js/llk.test.mjs           # OK 14 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>FIRST_1 has phantom tokens</b> — an empty not-yet-computed nonterminal
+    set is being treated as nullable; it should contribute nothing.<br>
+    <b><code>minLL</code> says 1 for a non-LL(1) grammar</b> — use the exact
+    PREDICT check for k=1, not the FIRST_k test.<br>
+    <b>Recognizer never returns</b> — the grammar has left recursion.<br>
+    <b>Parse counts overflow</b> — expected on an exponential grammar; cap and
+    report.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Grammar <code>A → a a b | a a c | a d</code>. Is it LL(1)? LL(2)?
+  LL(3)? Can left factoring make it LL(1)? <b>(2)</b> The <code>equiv</code>
+  grammar has 2ⁿ parse trees for <code>xⁿ y</code>. What single change to the
+  grammar makes it unambiguous (one tree) while generating the same language?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Not LL(1): all three FIRST_1 = <code>{a}</code>. Not LL(2):
+    <code>a a b</code> and <code>a a c</code> both have FIRST_2 =
+    <code>{a a}</code>. LL(3): FIRST_3 = <code>{a a b}</code>,
+    <code>{a a c}</code>, <code>{a d}</code> — pairwise disjoint. So minimal
+    k = 3. <b>But</b> left factoring makes it LL(1) with no lookahead cost:
+    <code>A → a A'</code>, <code>A' → a A''  | d</code>,
+    <code>A'' → b | c</code>. Prefer factoring when the shared part is a literal
+    prefix of one rule.</p>
+    <p><b>(2)</b> Merge the two equivalent alternatives. <code>A → x A | y</code>
+    (drop <code>B</code> and <code>C</code> entirely, or make just one of them).
+    Now <code>xⁿ y</code> has exactly one derivation. The ambiguity was purely
+    the pointless choice between <code>x B</code> and <code>x C</code>.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>If LL(2) is more powerful, why is LL(1) the default?</summary>
+    <p>LL(1) tables are small (one lookahead column) and the theory is clean.
+    Most practical constructs are LL(1) after left-factoring and left-recursion
+    removal. LL(2+) tables grow with k, and the cases that truly need k &gt; 1
+    are rare enough that hand-written parsers just special-case them with a
+    two-token peek at that one spot.</p>
+  </details>
+
+  <details>
+    <summary>Is LL(2) strictly more powerful than LL(1)?</summary>
+    <p>Yes — there are languages with an LL(2) grammar and no LL(1) grammar at
+    all (not just "this particular grammar isn't LL(1)"). And LL(k+1) &gt; LL(k)
+    for every k. LL(*) is more powerful still, and LR (Part IV) is more powerful
+    than all of them.</p>
+  </details>
+
+  <details>
+    <summary>What does ANTLR actually do?</summary>
+    <p>ANTLR 4 uses <em>adaptive LL(*)</em> (ALL(*)): at each decision it
+    simulates the grammar forward, building a DFA over the lookahead on the fly,
+    reading as many tokens as needed. It caches these DFAs. It falls back to
+    full-context prediction (essentially backtracking) only for genuinely
+    ambiguous spots, and then reports the ambiguity.</p>
+  </details>
+
+  <details>
+    <summary>Backtracking is exponential — is it ever used?</summary>
+    <p>Yes, with memoization it's linear: that's <b>packrat parsing</b>
+    (Appendix X2), the engine behind PEG parser generators. Memoize every
+    <code>(rule, position)</code> result and each is computed once. The cost is
+    linear <em>space</em>.</p>
+  </details>
+
+  <details>
+    <summary>How do I know if my grammar needs more than LL(1)?</summary>
+    <p>Run Module 28's tool. If section 7 says "not LL(1)" and left-factoring +
+    left-recursion removal don't fix it, you're looking at LL(k), LL(*), LR, or
+    a grammar redesign.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>That closes <b>Part III</b>. You have the entire top-down toolkit:
+  recursive descent, FIRST / FOLLOW, the two grammar transforms, the LL(1)
+  table, the table-driven parser, error recovery, the analysis tool, and now the
+  lookahead spectrum. <b>Part IV — Bottom-Up Parsing</b> comes at the problem
+  from the other end: instead of predicting productions from the top, it
+  <em>recognises</em> completed right-hand sides at the bottom and reduces them.
+  It parses a strictly larger class of grammars — including left-recursive ones,
+  directly. <b>Module 30 — Handles, Shift-Reduce &amp; Viable Prefixes</b>
+  starts there.</p>
+</section>
+
+<nav class="pager">
+  <a href="../28-grammar-tool-project2/tutorial.html"><span class="dir">Previous</span>← Module 28 · Grammar Analysis Tool (Project 2)</a>
+  <a href="../30-shift-reduce-handles/tutorial.html"><span class="dir">Next</span>Module 30 · Handles, Shift-Reduce &amp; Viable Prefixes →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 29 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>29-llk-adaptive/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

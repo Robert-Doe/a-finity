@@ -1,0 +1,119 @@
+=== Module 22 - FOLLOW Sets (least fixed point, given FIRST) ===
+
+rule 1:  $ in FOLLOW(start)
+rule 2:  B -> a A b            =>  FIRST(b)\{epsilon}  in FOLLOW(A)
+rule 3:  B -> a A b, b nullable =>  FOLLOW(B)          in FOLLOW(A)
+         (b nullable includes b empty, i.e. A is the last symbol)
+
+########## fixtures/abc.grammar
+
+  (0) S -> A B c
+  (1) A -> a
+  (2) A -> epsilon
+  (3) B -> b
+  (4) B -> epsilon
+
+FIRST (from Module 21):
+      FIRST(S ) = { a b c }
+      FIRST(A ) = { a epsilon }
+      FIRST(B ) = { b epsilon }
+  nullable: { A B }
+
+FOLLOW iteration:
+  round 0:
+      FOLLOW(S ) = { $ }
+      FOLLOW(A ) = {  }
+      FOLLOW(B ) = {  }
+  round 1:
+      FOLLOW(S ) = { $ }
+      FOLLOW(A ) = { b c }
+      FOLLOW(B ) = { c }
+  round 2  (stable -- one more pass adds nothing):
+      FOLLOW(S ) = { $ }
+      FOLLOW(A ) = { b c }
+      FOLLOW(B ) = { c }
+  one more pass changes nothing? true
+
+cross-check vs Module 20 Predict.followOf: MATCH
+
+########## fixtures/danglingelse.grammar
+
+  (0) S -> if b then S X
+  (1) S -> other
+  (2) X -> else S
+  (3) X -> epsilon
+
+FIRST (from Module 21):
+      FIRST(S ) = { if other }
+      FIRST(X ) = { else epsilon }
+  nullable: { X }
+
+FOLLOW iteration:
+  round 0:
+      FOLLOW(S ) = { $ }
+      FOLLOW(X ) = {  }
+  round 1:
+      FOLLOW(S ) = { else $ }
+      FOLLOW(X ) = { else $ }
+  round 2  (stable -- one more pass adds nothing):
+      FOLLOW(S ) = { else $ }
+      FOLLOW(X ) = { else $ }
+  one more pass changes nothing? true
+
+cross-check vs Module 20 Predict.followOf: MATCH
+
+########## fixtures/expr.grammar
+
+  (0) E -> T Ep
+  (1) Ep -> + T Ep
+  (2) Ep -> epsilon
+  (3) T -> F Tp
+  (4) Tp -> * F Tp
+  (5) Tp -> epsilon
+  (6) F -> ( E )
+  (7) F -> num
+  (8) F -> id
+
+FIRST (from Module 21):
+      FIRST(E ) = { ( id num }
+      FIRST(Ep) = { + epsilon }
+      FIRST(T ) = { ( id num }
+      FIRST(Tp) = { * epsilon }
+      FIRST(F ) = { ( id num }
+  nullable: { Ep Tp }
+
+FOLLOW iteration:
+  round 0:
+      FOLLOW(E ) = { $ }
+      FOLLOW(Ep) = {  }
+      FOLLOW(T ) = {  }
+      FOLLOW(Tp) = {  }
+      FOLLOW(F ) = {  }
+  round 1:
+      FOLLOW(E ) = { ) $ }
+      FOLLOW(Ep) = { $ }
+      FOLLOW(T ) = { + $ }
+      FOLLOW(Tp) = { + $ }
+      FOLLOW(F ) = { * + $ }
+  round 2:
+      FOLLOW(E ) = { ) $ }
+      FOLLOW(Ep) = { ) $ }
+      FOLLOW(T ) = { ) + $ }
+      FOLLOW(Tp) = { ) + $ }
+      FOLLOW(F ) = { ) * + $ }
+  round 3  (stable -- one more pass adds nothing):
+      FOLLOW(E ) = { ) $ }
+      FOLLOW(Ep) = { ) $ }
+      FOLLOW(T ) = { ) + $ }
+      FOLLOW(Tp) = { ) + $ }
+      FOLLOW(F ) = { ) * + $ }
+  one more pass changes nothing? true
+
+cross-check vs Module 20 Predict.followOf: MATCH
+
+why $ is not optional:
+  without $, FOLLOW(start) starts empty. A nullable start rule (or any
+  nullable rule that can sit at end of input) would then have an empty
+  PREDICT contribution from FOLLOW, and the parser could not tell that
+  'take the epsilon production and finish' is legal when the input runs out.
+  $ is a real terminal the driver appends to the token stream (Module 26).

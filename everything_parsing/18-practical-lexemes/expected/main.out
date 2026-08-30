@@ -1,0 +1,38 @@
+=== Module 18 - Practical Lexemes: Numbers, Strings, Comments, Keywords ===
+
+keyword table: else false if in let then true
+  -> scan an identifier, then look it up.  A new keyword is a one-line table edit.
+
+--- let x = 12 ---
+  tokens:  KW_LET "let"  ID "x"  OP "="  INT "12"
+
+--- pi = 3.14159 ---
+  tokens:  ID "pi"  OP "="  FLOAT "3.14159"
+
+--- big = 1e10 tiny = 1.5e-3 ---
+  tokens:  ID "big"  OP "="  FLOAT "1e10"  ID "tiny"  OP "="  FLOAT "1.5e-3"
+
+--- hexval = 0xFF ---
+  tokens:  ID "hexval"  OP "="  HEX "0xFF"
+
+--- msg = "hi\nthere\t!" ---
+  tokens:  ID "msg"  OP "="  STRING "hi\nthere\t!"
+
+--- a /* outer /* nested */ still comment */ b ---
+  tokens:  ID "a"  ID "b"
+
+--- c // rest of line ignored~d = 4 ---
+  tokens:  ID "c"  ID "d"  OP "="  INT "4"
+
+--- oops = "no closing quote ---
+  tokens:  ID "oops"  OP "="  STRING? "no closing quote"
+  ERROR:   unterminated string literal opened at position 7
+
+nesting is beyond regular:
+  "/* a /* b */ c */ x"  ->  ID "x"
+  a flat regex /\*.*\*/ would stop at the FIRST '*/' and leave  ' c */ x'  unparsed.
+  the hand-coded scanner uses a depth counter -- one integer of memory the DFA doesn't have.
+
+  "/* /* only one close */ y"  ->  unterminated block comment opened at position 0
+
+summary: reserved-word trick (1 DFA + lookup) | // and /* */ comments | NESTED comments need a counter (not regular) | strings with \n \t \" \\ \uXXXX | numbers: INT FLOAT exp HEX

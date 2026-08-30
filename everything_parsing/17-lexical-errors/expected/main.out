@@ -1,0 +1,68 @@
+=== Module 17 - Lexical Errors & Recovery ===
+
+spec: fixtures/mini.spec  (8 rules)  --  errors on characters not in the alphabet
+
+--- input "x@y#x" ---
+  strategy PANIC_ONE (skip one bad char, ERROR per char):
+    ID       "x" @0
+    ERROR    "@" @1
+    ID       "y" @2
+    ERROR    "#" @3
+    ID       "x" @4
+    -> 2 lexical errors:  position 1 ('@'),  position 3 ('#')
+  strategy PANIC_TO_SYNC (skip to a plausible token start):
+    ID       "x" @0
+    ERROR    "@" @1
+    ID       "y" @2
+    ERROR    "#" @3
+    ID       "x" @4
+    -> 2 lexical errors:  position 1 ('@'),  position 3 ('#')
+  Module 16 (no recovery):  stops -- lexical error at position 1 (char '@')
+
+--- input "x@@@#y" ---
+  strategy PANIC_ONE (skip one bad char, ERROR per char):
+    ID       "x" @0
+    ERROR    "@" @1
+    ERROR    "@" @2
+    ERROR    "@" @3
+    ERROR    "#" @4
+    ID       "y" @5
+    -> 4 lexical errors:  position 1 ('@'),  position 2 ('@'),  position 3 ('@'),  position 4 ('#')
+  strategy PANIC_TO_SYNC (skip to a plausible token start):
+    ID       "x" @0
+    ERROR    "@@@#" @1
+    ID       "y" @5
+    -> 1 lexical error:  positions 1..4 ("@@@#")
+  Module 16 (no recovery):  stops -- lexical error at position 1 (char '@')
+
+--- input "let.x=@=9" ---
+  strategy PANIC_ONE (skip one bad char, ERROR per char):
+    KW_LET   "let" @0
+    ID       "x" @4
+    ASSIGN   "=" @5
+    ERROR    "@" @6
+    ASSIGN   "=" @7
+    NUM      "9" @8
+    -> 1 lexical error:  position 6 ('@')
+  strategy PANIC_TO_SYNC (skip to a plausible token start):
+    KW_LET   "let" @0
+    ID       "x" @4
+    ASSIGN   "=" @5
+    ERROR    "@" @6
+    ASSIGN   "=" @7
+    NUM      "9" @8
+    -> 1 lexical error:  position 6 ('@')
+  Module 16 (no recovery):  stops -- lexical error at position 6 (char '@')
+
+--- input "@@@" ---
+  strategy PANIC_ONE (skip one bad char, ERROR per char):
+    ERROR    "@" @0
+    ERROR    "@" @1
+    ERROR    "@" @2
+    -> 3 lexical errors:  position 0 ('@'),  position 1 ('@'),  position 2 ('@')
+  strategy PANIC_TO_SYNC (skip to a plausible token start):
+    ERROR    "@@@" @0
+    -> 1 lexical error:  positions 0..2 ("@@@")
+  Module 16 (no recovery):  stops -- lexical error at position 0 (char '@')
+
+summary: recovery = report + resync | PANIC_ONE: one ERROR per bad char | PANIC_TO_SYNC: one ERROR per garbage run | one scan finds ALL errors

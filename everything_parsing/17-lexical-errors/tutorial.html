@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 17 — Lexical Errors &amp; Recovery | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#A85818;--accent-wash:#F3E9DE;--accent-line:#E1C3A2}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 17 · Part II — Lexical Analysis</p>
+  <h1>Lexical Errors &amp;<em>Recovery</em></h1>
+  <p class="thesis">Module 16's lexer <b>stops</b> at the first bad character.
+  This one <b>reports it, resynchronizes, and keeps going</b> — so a single
+  scan finds <em>every</em> lexical error, not just the first. Two strategies:
+  one <code>ERROR</code> per bad character, or one per garbage run.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p><code>@x@y@</code> — Module 16 throws at position 0 and you learn
+    nothing else. With recovery: <span class="hi">3 errors, at positions 0, 2,
+    4</span>, plus the tokens <code>x</code> and <code>y</code> in between.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../16-lexer-project1/tutorial.html">the spec-driven combined-DFA lexer (Module 16)</a></li>
+    <li><a href="../15-maximal-munch-priority/tutorial.html">maximal munch (Module 15)</a></li>
+    <li><a href="../09-input-buffering/tutorial.html">skipping / advancing the cursor (Module 9)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the proofreader who doesn't quit</h2></div>
+
+  <div class="picture">
+    <p>A junior proofreader circles the <em>first</em> typo on your page and
+    hands it back: "fix this, then I'll re-read." Ten typos, ten rounds, ten
+    days.</p>
+    <p>A good proofreader marks <b>every</b> mistake in one pass. And when they
+    hit a stretch of genuine gibberish — a smudge, a coffee stain, three lines
+    of keyboard mash — they don't stop. They draw a box around it, write
+    "<b>??</b>", and <b>resume reading from the next real word</b>.</p>
+    <p>That's error recovery. <b>PANIC_ONE</b> is circling each bad character
+    individually — precise, but a smudge covering five characters gets five
+    circles. <b>PANIC_TO_SYNC</b> is the box-and-"??" move: one mark around the
+    whole garbled run, then pick up at the next thing that could plausibly be a
+    word.</p>
+    <p>"Panic mode" is the actual textbook name — the scanner <em>panics</em>,
+    throws away input in a hurry, and scrambles back to solid ground.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Proofreader</th><th>Lexer</th></tr></thead>
+    <tbody>
+      <tr><td>marks every mistake in one pass</td><td>one scan, an <em>ordered list</em> of every lexical error</td></tr>
+      <tr><td>circle each bad character</td><td><code>PANIC_ONE</code>: one <code>ERROR</code> token per bad char</td></tr>
+      <tr><td>box the whole garbled run, write "??"</td><td><code>PANIC_TO_SYNC</code>: one <code>ERROR</code> token spanning it</td></tr>
+      <tr><td>resume at the next real word</td><td>skip to a character where the DFA can start a token</td></tr>
+      <tr><td>the good sentences still get read</td><td>valid tokens before/after the error are kept</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li>At <code>pos</code>, run the combined-DFA maximal-munch match
+        (Module 16). If it consumed ≥ 1 character → emit the token (unless
+        <code>%skip</code>), advance, repeat.</li>
+      <li><b>No progress</b> (<code>lastPos ≤ pos</code>) → a lexical error at
+        <code>pos</code>.</li>
+      <li><b>Recover:</b>
+        <ul>
+          <li><code>PANIC_ONE</code>: <code>errEnd = pos + 1</code>.</li>
+          <li><code>PANIC_TO_SYNC</code>: advance <code>errEnd</code> from
+            <code>pos + 1</code> while the character there is <em>not</em> a
+            sync point — i.e. not in the alphabet, or the DFA can't start a
+            token there (<code>longestToken(input, errEnd)[0] ≤ errEnd</code>).</li>
+        </ul>
+      </li>
+      <li>Record <code>LexError(pos, errEnd, input[pos..errEnd])</code>; emit an
+        <code>ERROR</code> token for that span; set <code>pos = errEnd</code>.</li>
+      <li>Continue. <code>errEnd</code> always started at <code>pos + 1</code>,
+        so the scanner always makes progress.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Both strategies on <code>x@@@#y</code>  (alphabet has no <code>@</code> or <code>#</code>)</h3>
+  <div class="diagram"><pre>  pos:   0   1   2   3   4   5
+  input: x   @   @   @   #   y
+
+  PANIC_ONE:
+    pos 0: match ID "x"            → pos 1
+    pos 1: no match → ERROR "@" @1 → pos 2
+    pos 2: no match → ERROR "@" @2 → pos 3
+    pos 3: no match → ERROR "@" @3 → pos 4
+    pos 4: no match → ERROR "#" @4 → pos 5
+    pos 5: match ID "y"            → done
+    tokens: ID ERROR ERROR ERROR ERROR ID     errors: 4
+
+  PANIC_TO_SYNC:
+    pos 0: match ID "x"                      → pos 1
+    pos 1: no match. skip while not a sync point:
+           input[2]='@' (not in alphabet) → skip
+           input[3]='@' → skip
+           input[4]='#' → skip
+           input[5]='y' → IN alphabet AND ID starts here → STOP
+           ERROR "@@@#" @1                   → pos 5
+    pos 5: match ID "y"                      → done
+    tokens: ID ERROR ID                      errors: 1  (positions 1..4)</pre></div>
+
+  <h3>Recovery keeps the good tokens — <code>let.x=@=9</code></h3>
+  <div class="diagram"><pre>  KW_LET "let" @0   ID "x" @4   ASSIGN "=" @5   ERROR "@" @6   ASSIGN "=" @7   NUM "9" @8
+
+  the '@' is isolated; everything before and after it still tokenises.
+  Module 16 would have stopped at position 6 and never seen the "= 9".</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The recovery loop</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Recovery.java</figcaption>
+<pre><code><span class="k">int</span>[] match = longestToken(lex, input, pos);
+<span class="k">if</span> (match[<span class="y">0</span>] &gt; pos) {                       <span class="c">// a real token</span>
+  ... emit; pos = match[<span class="y">0</span>]; <span class="k">continue</span>;
+}
+<span class="c">// lexical error at pos — recover</span>
+<span class="k">int</span> errStart = pos, errEnd = pos + <span class="y">1</span>;         <span class="c">// always consume ≥ 1</span>
+<span class="k">if</span> (strategy == Strategy.PANIC_TO_SYNC) {
+  <span class="k">while</span> (errEnd &lt; input.length()) {
+    String c = String.valueOf(input.charAt(errEnd));
+    <span class="k">if</span> (lex.dfa.alphabet.contains(c)
+        &amp;&amp; longestToken(lex, input, errEnd)[<span class="y">0</span>] &gt; errEnd) <span class="k">break</span>;  <span class="c">// a token can start here</span>
+    errEnd++;
+  }
+}
+errors.add(<span class="k">new</span> LexError(errStart, errEnd, input.substring(errStart, errEnd)));
+tokens.add(<span class="k">new</span> Token(<span class="y">"ERROR"</span>, input.substring(errStart, errEnd), errStart));
+pos = errEnd;</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/recovery.mjs</figcaption>
+<pre><code><span class="k">const</span> [end, rule] = longestToken(lex, input, pos);
+<span class="k">if</span> (end &gt; pos) { ... pos = end; <span class="k">continue</span>; }
+
+<span class="k">const</span> errStart = pos;
+<span class="k">let</span> errEnd = pos + <span class="y">1</span>;
+<span class="k">if</span> (strategy === Strategy.PANIC_TO_SYNC) {
+  <span class="k">while</span> (errEnd &lt; input.length) {
+    <span class="k">const</span> c = input[errEnd];
+    <span class="k">if</span> (lex.dfa.alphabet.includes(c)
+        &amp;&amp; longestToken(lex, input, errEnd)[<span class="y">0</span>] &gt; errEnd) <span class="k">break</span>;
+    errEnd++;
+  }
+}
+errors.push({ from: errStart, to: errEnd, text: input.slice(errStart, errEnd) });
+tokens.push({ kind: <span class="y">"ERROR"</span>, lexeme: input.slice(errStart, errEnd), pos: errStart });
+pos = errEnd;</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">The sync check is just "can a token start here?"</span>
+    <p><code>longestToken(lex, input, errEnd)[0] &gt; errEnd</code> — the
+    maximal-munch match at that position has positive length. No separate
+    "first character of any pattern" set to build and keep in sync; the scanner
+    already has the function. A real parser's sync set is a hand-picked list of
+    boundary tokens (<code>;</code>, <code>}</code>, <code>)</code>) — see the
+    Brain Exercise.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Suppress cascading follow-on errors (a compiler caps at ~20 and hides errors near a previous one).</li>
+        <li>Repair — insert a missing quote, fix a typo'd character (least-cost repair, Appendix X9).</li>
+        <li>Line-level recovery (no newlines in the toy language; same shape, sync set = {newline}).</li>
+        <li>Recover at the <em>parser</em> level — that's Modules 22 and 27.</li>
+        <li>Pick a good sync set automatically — the parser's FOLLOW sets do that (Module 27).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Report every lexical error in a single scan, with exact positions.</li>
+        <li>Keep the token stream gap-free with <code>ERROR</code> tokens.</li>
+        <li>Recover one-character-at-a-time (<code>PANIC_ONE</code>) or one-run-at-a-time (<code>PANIC_TO_SYNC</code>).</li>
+        <li>Resynchronize on "a character where a token can start."</li>
+        <li>Preserve all valid tokens before and after the garbage.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 17-lexical-errors
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>--- input "x@@@#y" ---
+  strategy PANIC_ONE (skip one bad char, ERROR per char):
+    ... ERROR "@" @1  ERROR "@" @2  ERROR "@" @3  ERROR "#" @4 ...
+    -&gt; <span class="exp">4 lexical errors</span>
+  strategy PANIC_TO_SYNC (skip to a plausible token start):
+    ID "x" @0  ERROR "@@@#" @1  ID "y" @5
+    -&gt; <span class="exp">1 lexical error:  positions 1..4 ("@@@#")</span>
+  Module 16 (no recovery):  stops -- lexical error at position 1 (char '@')</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out RecoveryTest    # OK 18 passed
+node js/recovery.test.mjs         # OK 18 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>Recovery loops forever</b> — <code>errEnd</code> must start at
+    <code>pos + 1</code>; one character is always consumed.<br>
+    <b><code>PANIC_TO_SYNC</code> makes one giant <code>ERROR</code> to EOF</b> —
+    no later character can start a token. That's correct; the rest is garbage.<br>
+    <b>A valid-looking character is flagged</b> — it isn't in the spec's
+    alphabet (no rule mentions it). Add a rule.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Our sync set is "a character where a token can start." A
+  <em>parser's</em> panic-mode recovery syncs on <code>;</code>, <code>}</code>,
+  <code>)</code> specifically. Why those? <b>(2)</b> What's the failure mode of a
+  sync set that's <em>too small</em>? Too <em>large</em>?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>;</code>, <code>}</code>, <code>)</code> mark the
+    <em>end</em> of a syntactic unit — a statement, a block, a parenthesised
+    group. Recovering there means the parser resumes at a clean boundary where
+    it knows what to expect next, instead of somewhere in the middle of a broken
+    expression. They're also frequent enough that recovery doesn't discard huge
+    spans.</p>
+    <p><b>(2)</b> <b>Too small</b> (rare sync tokens): one typo makes the scanner
+    skip most of a function looking for the next sync point — you get one error
+    and lose all the real content after it. <b>Too large</b> (almost anything
+    syncs): recovery lands immediately, often still <em>inside</em> the broken
+    construct, so the parser mis-reads the next few tokens and emits a
+    <em>cascade</em> of spurious follow-on errors. The craft is choosing tokens
+    that are both common and genuinely terminal.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why emit an <code>ERROR</code> token <em>and</em> keep a separate error list?</summary>
+    <p>The token stream stays gap-free — every source character belongs to some
+    token — so a downstream parser can walk it without special-casing holes. The
+    ordered <code>errors</code> list is the human diagnostic (positions,
+    messages). Different consumers, different shapes.</p>
+  </details>
+
+  <details>
+    <summary>Is "panic mode" really the technical term?</summary>
+    <p>Yes — it's in the Dragon Book. The scanner (or parser) "panics": it
+    abandons its current attempt, discards input as fast as it can, and races to
+    a synchronizing token where it can resume. Crude but robust, and still the
+    default in most production compilers.</p>
+  </details>
+
+  <details>
+    <summary><code>PANIC_ONE</code> just produces more errors. Why keep it?</summary>
+    <p>It's the most faithful ("here is literally every character I couldn't
+    handle") and the simplest to reason about. For an editor drawing red
+    squiggles, per-character marks can be exactly what you want. It's a genuine
+    trade-off against <code>PANIC_TO_SYNC</code>'s fewer-but-wider errors.</p>
+  </details>
+
+  <details>
+    <summary>After recovery, compilers often spew nonsense errors. Why?</summary>
+    <p>Recovery <em>guesses</em> about structure, and if it guesses wrong the
+    next tokens are interpreted in the wrong context — a missing <code>}</code>
+    can make every following declaration look misplaced. Mitigations: suppress
+    errors within <code>k</code> tokens of a previous one, cap the total (~20),
+    or use error-correcting recovery (Burke–Fisher) that tries small
+    insertions/deletions to minimise disruption.</p>
+  </details>
+
+  <details>
+    <summary>Does the parser recover too, or just the lexer?</summary>
+    <p>Both. Module 22 gives the LL parser panic-mode recovery (sync on FOLLOW-set
+    tokens), and Module 27's LR parser has its own. Same idea one layer up:
+    report, discard to a trusted token, resume.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>The lexer is now robust. <b>Module 18 — Practical Lexemes</b> handles the
+  messy real-world token rules that a naive regex spec can't: the
+  <b>reserved-word trick</b> (lex everything as an identifier, then look up
+  keywords in a table), <b>nested <code>/* */</code></b> and line
+  <code>//</code> comments (nesting is technically beyond regular — a small
+  hand-coded counter), <b>string literals</b> with <code>\n</code>,
+  <code>\"</code>, <code>\uXXXX</code> escapes, and <b>numbers</b> with signs,
+  decimal points, exponents, and hex. That closes Part II — and Part III starts
+  turning the token stream into a tree.</p>
+</section>
+
+<nav class="pager">
+  <a href="../16-lexer-project1/tutorial.html"><span class="dir">Previous</span>← Module 16 · The Lexical Analyzer (Project 1)</a>
+  <a href="../18-practical-lexemes/tutorial.html"><span class="dir">Next</span>Module 18 · Practical Lexemes →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 17 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>17-lexical-errors/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+=== Module 09 - Input Buffering: Two-Buffer Scheme & Sentinels ===
+
+source (39 chars): "the 12.5 quick brownish fox 12.go +9 ok"
+buffer half-size: 8
+
+scan trace  (token | running buffer loads):
+  WORD   "the"      loads=1  half=0
+  FLOAT  "12.5"     loads=2  half=1
+  WORD   "quick"    loads=2  half=1
+  WORD   "brownish" loads=3  half=0
+  WORD   "fox"      loads=4  half=1
+  NUM    "12"       loads=4  half=1
+  ERR    "."        loads=4  half=1
+  WORD   "go"       loads=5  half=0
+  PLUS   "+"        loads=5  half=0
+  NUM    "9"        loads=5  half=0
+  WORD   "ok"       loads=5  half=0
+
+what happened at "12.go":  read '1' '2' '.', peeked 'g' (not a digit),
+  retract(1) put '.' back  ->  NUM "12", then '.' scanned as ERR, then WORD "go"
+
+what happened at "brownish":  it begins in half 1 and ends in half 0 after a reload;
+  Buffer.lexeme() stitches across the halfway split -> "brownish"
+
+totals:
+  characters consumed : 39
+  buffer loads        : 5
+  loads per character : 0.128   (amortized O(1))
+  forward reads       : 40   (one 'data[forward]' compare per advance -- the sentinel means we never ALSO test 'forward == end')
+  retracts            : 1
+
+summary: 39 source chars | 5 buffer loads (~1 per 8-char half) | ~1 compare per char | lexeme stitched across the split | retract is O(1)

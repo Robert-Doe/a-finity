@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sets &amp; Languages — Prerequisites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B5BA5;--accent-wash:#E9EDF7}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Prerequisites · P1</p>
+  <h1>Sets &amp; <em>Languages</em></h1>
+  <p class="thesis">The entire field rests on one definition: <b>a language is a
+  set of strings.</b> Nothing more. Parsing is the job of deciding, for one
+  string, whether it is in the set — and if so, how it was built.</p>
+</header>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">01</span><h2>Alphabet, string, language</h2></div>
+
+  <div class="mechanism">
+    <p><b>Alphabet</b> &nbsp;<code>Σ</code>&nbsp; — a finite, non-empty set of
+    symbols. Examples: <code>{0,1}</code>; the 128 ASCII characters; the set of
+    token kinds <code>{IDENT, NUMBER, PLUS, LPAREN, …}</code>.</p>
+    <p><b>String</b> &nbsp;(over Σ) — a finite ordered sequence of symbols from
+    Σ. The empty string is written <code>ε</code> (epsilon), length 0.
+    <code>|w|</code> is the length of <code>w</code>.</p>
+    <p><b>Σ*</b> — the set of <em>all</em> strings over Σ, including <code>ε</code>.
+    Always infinite (once Σ is non-empty). <code>Σ⁺</code> is <code>Σ*</code>
+    without <code>ε</code>.</p>
+    <p><b>Language</b> &nbsp;<code>L</code>&nbsp; — <em>any</em> subset of
+    <code>Σ*</code>. Could be empty (<code>∅</code>), finite
+    (<code>{"cat","dog"}</code>), or infinite (all valid Java programs).</p>
+  </div>
+
+  <div class="picture">
+    <p>Σ* is an infinite warehouse holding every string you could ever type.
+    A language is a <em>shelf</em> in that warehouse — you drew a boundary and
+    said "these ones belong together."</p>
+    <p>A <b>grammar</b> is a machine that prints the shelf's contents one by one.
+    A <b>parser</b> is the clerk who takes a string you hand them and says
+    "shelf 7, third from the left" — or "not stocked here."</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">02</span><h2>Four operations you will see constantly</h2></div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Operation</th><th>Definition</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td>Union <code>L₁ ∪ L₂</code></td><td>strings in either set</td><td><code>{"a"} ∪ {"b"} = {"a","b"}</code></td></tr>
+      <tr><td>Concatenation <code>L₁ · L₂</code></td><td>every <code>xy</code> with <code>x∈L₁</code>, <code>y∈L₂</code></td><td><code>{"a","b"}·{"c"} = {"ac","bc"}</code></td></tr>
+      <tr><td>Power <code>Lⁿ</code></td><td><code>L</code> concatenated with itself n times; <code>L⁰ = {ε}</code></td><td><code>{"ab"}² = {"abab"}</code></td></tr>
+      <tr><td>Kleene star <code>L*</code></td><td><code>L⁰ ∪ L¹ ∪ L² ∪ …</code> — zero or more, always contains <code>ε</code></td><td><code>{"a"}* = {ε,"a","aa","aaa",…}</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Regular expressions (P-page for Module 3) are exactly these operations
+  written compactly: <code>a|b</code> is union, <code>ab</code> is
+  concatenation, <code>a*</code> is Kleene star. That is the whole trick.</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">03</span><h2>Why "set of strings" is the useful lens</h2></div>
+  <p>It makes precise questions you can now actually answer with code:</p>
+  <ul>
+    <li><b>Membership</b>: is <code>w ∈ L</code>? &nbsp;→ a <em>recogniser</em>.</li>
+    <li><b>Structure</b>: <em>which</em> rules produced <code>w</code>? &nbsp;→ a <em>parser</em>.</li>
+    <li><b>Comparison</b>: is <code>L₁ = L₂</code>? &nbsp;→ decidable for regular languages, <em>undecidable</em> for context-free ones. (That single fact shapes half the course.)</li>
+  </ul>
+
+  <div class="callout brain">
+    <span class="ct">Hold onto this</span>
+    <p><code>ε</code> is a string. <code>{ε}</code> is a language containing one
+    string. <code>∅</code> is a language containing no strings.
+    <code>{ε} ≠ ∅</code>. Conflating these three is the single most common
+    beginner slip, and Module 1's code has a check that fires exactly when a
+    token pattern can match <code>ε</code>.</p>
+  </div>
+</section>
+
+<nav class="pager">
+  <a href="index.html"><span class="dir">Back</span>← All prerequisites</a>
+  <a href="functions-and-notation.html"><span class="dir">Next prerequisite</span>Functions &amp; the Notation Wall →</a>
+</nav>
+
+</div>
+</body>
+</html>
