@@ -1,0 +1,332 @@
+:root {
+  --bg: #0b0b0d;
+  --bg-elevated: #141416;
+  --bg-card: #18181b;
+  --text: #eeece6;
+  --text-dim: #9a9992;
+  --accent: #d4a017;
+  --accent-soft: rgba(212, 160, 23, 0.14);
+  --border: #2a2a2e;
+  --success: #4ade80;
+  --danger: #f87171;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --display: 'Space Grotesk', system-ui, sans-serif;
+  --body: 'Inter', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle, rgba(238, 236, 230, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -12px -12px;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a { color: inherit; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: rgba(11, 11, 13, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+}
+
+.topbar__brand {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.topbar__links {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.topbar__links a {
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.topbar__links a:hover { color: var(--accent); }
+
+/* ---------- hero ---------- */
+.hero {
+  padding: 56px 28px 32px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hero h1 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(32px, 5vw, 52px);
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
+  line-height: 1.05;
+}
+
+.hero p {
+  color: var(--text-dim);
+  font-size: 17px;
+  margin: 0;
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+/* ---------- layout ---------- */
+.main {
+  flex: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 28px 64px;
+  width: 100%;
+}
+
+.playground {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .playground { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card__title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.card__body { padding: 16px; }
+
+/* ---------- examples ---------- */
+.examples {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.chip {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ---------- textarea ---------- */
+textarea.source {
+  width: 100%;
+  min-height: 340px;
+  resize: vertical;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  outline: none;
+  tab-size: 4;
+}
+
+textarea.source:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  font-family: var(--body);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #1a1305;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.btn:hover { box-shadow: 0 0 0 4px var(--accent-soft); }
+.btn:active { transform: translateY(1px); }
+
+.run-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.status {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.status.ok { color: var(--success); }
+.status.err { color: var(--danger); }
+
+/* ---------- tabs ---------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  font-family: var(--body);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--bg-card);
+  color: var(--accent);
+}
+
+/* ---------- token table ---------- */
+.token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.token-table th {
+  text-align: left;
+  color: var(--text-dim);
+  font-weight: 500;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+}
+
+.token-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(42, 42, 46, 0.6);
+  white-space: pre;
+}
+
+.token-table tr:hover td { background: rgba(212, 160, 23, 0.05); }
+
+.tok-kw { color: #c792ea; }
+.tok-num { color: #f78c6c; }
+.tok-str { color: #c3e88d; }
+.tok-ident { color: #82aaff; }
+.tok-op { color: var(--text-dim); }
+.tok-eof { color: var(--danger); }
+
+.scroll-panel {
+  max-height: 460px;
+  overflow: auto;
+}
+
+/* ---------- AST tree ---------- */
+.ast-tree {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre;
+}
+
+.ast-node { color: var(--text); }
+.ast-kind { color: var(--accent); font-weight: 600; }
+.ast-field { color: var(--text-dim); }
+.ast-val { color: #82aaff; }
+
+/* ---------- errors ---------- */
+.error-list {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--danger);
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* ---------- footer ---------- */
+.footer {
+  padding: 24px 28px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+}
+
+.footer a { color: var(--accent); text-decoration: none; }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-elevated); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
