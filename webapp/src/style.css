@@ -108,6 +108,17 @@ a { color: inherit; }
   margin: 0 auto;
   padding: 0 28px 64px;
   width: 100%;
+  transition: max-width 0.15s ease;
+}
+
+/* Grammar/Parsing Theory/Docs are read-only properties of the fixed
+   a-finity grammar, not of whatever's in Source — so Source hides and the
+   reference content gets the full page width instead of half a 50/50
+   split. Without this, the LL(1) table (~1070px of real content) was
+   squeezed into a ~510px column and forced into constant horizontal
+   scrolling on an ordinary desktop screen. */
+.main:has(.playground--wide) {
+  max-width: 1320px;
 }
 
 .playground {
@@ -115,6 +126,14 @@ a { color: inherit; }
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   align-items: start;
+}
+
+.playground--wide {
+  grid-template-columns: 1fr;
+}
+
+.playground--wide > .card:first-child {
+  display: none;
 }
 
 @media (max-width: 760px) {

@@ -246,9 +246,21 @@ const statusEl = document.getElementById('status')!;
 const panelEl = document.getElementById('panel')!;
 const examplesEl = document.getElementById('examples')!;
 const tabsEl = document.getElementById('tabs')!;
+const playgroundEl = document.querySelector('.playground')!;
 
 type Tab = 'tokens' | 'ast' | 'tree' | 'grammar' | 'theory' | 'docs';
 let activeTab: Tab = 'tokens';
+
+// Grammar/Parsing Theory/Docs are properties of the fixed a-finity
+// grammar, not of whatever the user typed in Source — so they don't need
+// Source visible alongside them, and giving them the full width instead
+// of half a 50/50 split is what the LL(1) table and grammar text actually
+// need to read without horizontal scrolling on an ordinary desktop.
+const REFERENCE_TABS = new Set<Tab>(['grammar', 'theory', 'docs']);
+
+function updateLayoutMode(): void {
+  playgroundEl.classList.toggle('playground--wide', REFERENCE_TABS.has(activeTab));
+}
 let lastTokens: Token[] = [];
 let lastAst: ASTNode | null = null;
 let lastErrors: string[] = [];
@@ -272,6 +284,7 @@ tabsEl.addEventListener('click', (e) => {
   for (const el of tabsEl.querySelectorAll('.tab')) {
     el.classList.toggle('active', (el as HTMLElement).dataset.tab === tab);
   }
+  updateLayoutMode();
   renderPanel();
 });
 
