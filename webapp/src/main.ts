@@ -2,6 +2,8 @@ import './style.css';
 import { Lexer, Token, TokenType } from './lexer';
 import { Parser } from './parser';
 import type { ASTNode } from './ast';
+import { renderAstTreeSvg } from './theory/tree';
+import { renderGrammarTab, renderParseTheoryTab, renderDocsTab } from './theory/render';
 
 const KEYWORD_TYPES = new Set<TokenType>([
   TokenType.KW_INT, TokenType.KW_RETURN, TokenType.KW_IF, TokenType.KW_ELSE,
@@ -223,6 +225,10 @@ app.innerHTML = `
         <div class="tabs" id="tabs">
           <button class="tab active" data-tab="tokens">Tokens</button>
           <button class="tab" data-tab="ast">AST</button>
+          <button class="tab" data-tab="tree">Parse Tree</button>
+          <button class="tab" data-tab="grammar">Grammar</button>
+          <button class="tab" data-tab="theory">Parsing Theory</button>
+          <button class="tab" data-tab="docs">Docs</button>
         </div>
         <div class="card__body scroll-panel" id="panel"></div>
       </div>
@@ -241,7 +247,8 @@ const panelEl = document.getElementById('panel')!;
 const examplesEl = document.getElementById('examples')!;
 const tabsEl = document.getElementById('tabs')!;
 
-let activeTab: 'tokens' | 'ast' = 'tokens';
+type Tab = 'tokens' | 'ast' | 'tree' | 'grammar' | 'theory' | 'docs';
+let activeTab: Tab = 'tokens';
 let lastTokens: Token[] = [];
 let lastAst: ASTNode | null = null;
 let lastErrors: string[] = [];
@@ -259,7 +266,7 @@ for (const ex of EXAMPLES) {
 
 tabsEl.addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
-  const tab = target.dataset.tab as 'tokens' | 'ast' | undefined;
+  const tab = target.dataset.tab as Tab | undefined;
   if (!tab) return;
   activeTab = tab;
   for (const el of tabsEl.querySelectorAll('.tab')) {
@@ -269,14 +276,32 @@ tabsEl.addEventListener('click', (e) => {
 });
 
 function renderPanel(): void {
+  // The theory tabs are static (don't depend on the parsed program) and
+  // stay visible even when the source has parse errors — you can read the
+  // grammar theory without a working example loaded.
+  if (activeTab === 'grammar') {
+    panelEl.innerHTML = renderGrammarTab();
+    return;
+  }
+  if (activeTab === 'theory') {
+    panelEl.innerHTML = renderParseTheoryTab();
+    return;
+  }
+  if (activeTab === 'docs') {
+    panelEl.innerHTML = renderDocsTab();
+    return;
+  }
+
   if (lastErrors.length > 0) {
     panelEl.innerHTML = `<ul class="error-list">${lastErrors.map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>`;
     return;
   }
   if (activeTab === 'tokens') {
     panelEl.innerHTML = renderTokenTable(lastTokens);
-  } else {
+  } else if (activeTab === 'ast') {
     panelEl.innerHTML = `<div class="ast-tree">${lastAst ? renderAst(lastAst) : ''}</div>`;
+  } else {
+    panelEl.innerHTML = `<div class="tree-view">${lastAst ? renderAstTreeSvg(lastAst) : ''}</div>`;
   }
 }
 

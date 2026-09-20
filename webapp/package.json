@@ -9,7 +9,11 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@types/d3-hierarchy": "^3.1.7",
     "typescript": "^5.5.4",
     "vite": "^5.4.0"
+  },
+  "dependencies": {
+    "d3-hierarchy": "^3.1.2"
   }
 }
