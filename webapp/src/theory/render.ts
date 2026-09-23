@@ -1,6 +1,6 @@
 /**
  * Renders the "Parsing Theory" tab: epsilon/nullable, FIRST, FOLLOW,
- * predictive parsing condition, and the LL(1) table — all computed LIVE
+ * predictive parsing condition, and the LL(1) table, all computed LIVE
  * against the real a-finity grammar by the ported course algorithms
  * (never hardcoded numbers). Concept explanations are adapted from the
  * course's own DECISIONS.md files for modules 20, 21, 22, and 25.
@@ -39,7 +39,7 @@ export function renderGrammarTab(): string {
   const rows = RULE_TRACE.map(
     (r) => `<tr>
       <td class="tok-ident">${esc(r.rule)}</td>
-      <td class="tok-num">${r.parserFn ? esc(r.parserFn) : '—'}</td>
+      <td class="tok-num">${r.parserFn ? esc(r.parserFn) : ''}</td>
       <td class="tok-op">${r.note ? esc(r.note) : ''}</td>
     </tr>`
   ).join('');
@@ -190,17 +190,17 @@ const DOCS: DocLink[] = [
   },
   {
     title: 'Dangling else (Wikipedia)',
-    description: 'The classic LL(1) conflict this grammar’s elseTail rule reproduces exactly — and how real languages resolve it by convention, not grammar rewriting.',
+    description: 'The classic LL(1) conflict this grammar’s elseTail rule reproduces exactly, and how real languages resolve it by convention, not grammar rewriting.',
     url: 'https://en.wikipedia.org/wiki/Dangling_else',
   },
   {
     title: 'Extended Backus–Naur form (Wikipedia)',
-    description: 'EBNF notation and the ISO/IEC 14977 standard — the *, ?, and ( ) sugar the Grammar tab desugars away.',
+    description: 'EBNF notation and the ISO/IEC 14977 standard, the *, ?, and ( ) sugar the Grammar tab desugars away.',
     url: 'https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form',
   },
   {
     title: 'Compilers: Principles, Techniques, and Tools (Wikipedia)',
-    description: 'The "Dragon Book" — the standard reference for everything on this tab (FIRST/FOLLOW construction, LL(1) tables, predictive parsing).',
+    description: 'The "Dragon Book", the standard reference for everything on this tab (FIRST/FOLLOW construction, LL(1) tables, predictive parsing).',
     url: 'https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools',
   },
   {
@@ -215,7 +215,7 @@ export function renderDocsTab(): string {
     (d) => `<div class="doc-card">
       <span class="doc-card-icon">\u{1F4C4}</span>
       <div class="doc-card-body">
-        <strong>${esc(d.title)}</strong> — ${esc(d.description)}<br>
+        <strong>${esc(d.title)}</strong>, ${esc(d.description)}<br>
         <a href="${d.url}" target="_blank" rel="noopener noreferrer">${d.url}</a>
       </div>
     </div>`

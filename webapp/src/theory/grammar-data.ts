@@ -3,7 +3,7 @@
  * actual recursive-descent parser (webapp/src/parser.ts, itself a port of
  * module_16's parser.c).
  *
- * EBNF_TEXT is the canonical, human-facing grammar — verbatim from
+ * EBNF_TEXT is the canonical, human-facing grammar, verbatim from
  * parser.ts's own header comment, completed with the statement
  * sub-productions it only named ("stmt := var_decl | ...").
  *
@@ -11,14 +11,14 @@
  * hand, following the exact desugaring rules taught in
  * everything_parsing/08-bnf-ebnf-abnf: `X*` becomes a fresh right-recursive
  * `Xrep -> X Xrep | epsilon`, `X?` becomes `Xopt -> X | epsilon`. Plain BNF
- * is what Grammar.parse (ported from Module 21) can consume — the
+ * is what Grammar.parse (ported from Module 21) can consume, the
  * nullable/FIRST/FOLLOW/predict machinery only operates on bare productions,
  * never on sugar.
  *
  * One deliberate substitution: `||` is written as the terminal `OR`, not the
  * literal characters. Grammar.parse's own alternative-separator is a bare
  * `|`, so a literal `||` inside a rule's right-hand side gets shredded by
- * `rhsWithBars.split("|")` into spurious empty alternatives — confirmed by
+ * `rhsWithBars.split("|")` into spurious empty alternatives, confirmed by
  * running this exact grammar through it (see scripts/validate-grammar.mjs
  * history) before this fix, `&&` is safe since it contains no `|`.
  */
@@ -98,10 +98,10 @@ export const RULE_TRACE: RuleTrace[] = [
   { rule: "params", parserFn: "parseFunc()", note: "the comma-separated loop inside parseFunc" },
   { rule: "block", parserFn: "parseBlock()" },
   { rule: "stmt", parserFn: "parseStmt()" },
-  { rule: "var_decl / return_stmt / if_stmt / while_stmt / print_stmt", parserFn: "parseStmt()", note: "one if-branch per alternative, chosen by cur.type — this is FIRST-set dispatch in disguise" },
+  { rule: "var_decl / return_stmt / if_stmt / while_stmt / print_stmt", parserFn: "parseStmt()", note: "one if-branch per alternative, chosen by cur.type, this is FIRST-set dispatch in disguise" },
   { rule: "expr_stmt", parserFn: "parseStmt()", note: "the fall-through branch" },
   { rule: "expr", parserFn: "parseExpr()" },
-  { rule: "assign", parserFn: "parseAssign()", note: "NOT predictive — saves/restores lexer state instead of choosing by lookahead alone (see the conflict below)" },
+  { rule: "assign", parserFn: "parseAssign()", note: "NOT predictive, saves/restores lexer state instead of choosing by lookahead alone (see the conflict below)" },
   { rule: "or_expr", parserFn: "parseOr()" },
   { rule: "and_expr", parserFn: "parseAnd()" },
   { rule: "eq_expr", parserFn: "parseEq()" },

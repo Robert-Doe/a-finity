@@ -1,9 +1,9 @@
 /*
- * ast.ts — AST node shapes, ported from module_16's ast.h.
+ * ast.ts, AST node shapes, ported from module_16's ast.h.
  *
  * The C version uses a tagged union (NodeKind + a big union). TypeScript
  * gets to express that natively as a discriminated union, but every kind
- * and every field name below is taken directly from ast.h — nothing added,
+ * and every field name below is taken directly from ast.h, nothing added,
  * nothing renamed.
  */
 

@@ -1,5 +1,5 @@
 /*
- * parser.ts — TypeScript port of a-finity's real recursive-descent parser.
+ * parser.ts, TypeScript port of a-finity's real recursive-descent parser.
  *
  * Ported directly from module_16 - The Complete Compiler/parser.c.
  * Grammar (verbatim from the header comment in parser.c):
@@ -189,7 +189,7 @@ export class Parser {
         this.advance(); // eat =
         return { kind: 'ASSIGN', line: ident.line, name: ident.lexeme, value: this.parseAssign() };
       }
-      // Not assignment — restore and parse as or_expr.
+      // Not assignment, restore and parse as or_expr.
       this.lex.restoreState(savedLex);
       this.cur = savedCur;
     }

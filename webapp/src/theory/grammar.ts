@@ -1,6 +1,6 @@
 /**
  * Ported from everything_parsing/21-nullable-first/js/grammar.mjs (the
- * course's own Grammar class) — same text format, same parsing rules, typed
+ * course's own Grammar class), same text format, same parsing rules, typed
  * for the webapp. A grammar is (N, Sigma, P, S): nonterminals, terminals,
  * an ordered list of productions, and a start symbol.
  */

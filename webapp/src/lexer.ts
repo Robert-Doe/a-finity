@@ -1,5 +1,5 @@
 /*
- * lexer.ts — TypeScript port of a-finity's real lexer.
+ * lexer.ts, TypeScript port of a-finity's real lexer.
  *
  * Ported directly from:
  *   module_16 - The Complete Compiler/token.h
@@ -8,7 +8,7 @@
  * This is the same hand-rolled scanner "mycc" uses: same TokenType set,
  * same keyword table, same two-character-operator disambiguation, same
  * line/col bookkeeping. Only the storage strategy changes (a JS string
- * index instead of a C pointer into a null-terminated buffer) — the
+ * index instead of a C pointer into a null-terminated buffer), the
  * control flow and character classification are a 1:1 transliteration.
  */
 
@@ -61,7 +61,7 @@ export enum TokenType {
   EOF = 'EOF',
 }
 
-/** Printable spelling for each token type — matches token_type_name() in lexer.c. */
+/** Printable spelling for each token type, matches token_type_name() in lexer.c. */
 export const TOKEN_TYPE_NAME: Record<TokenType, string> = {
   [TokenType.INT_LIT]: 'INT_LIT',
   [TokenType.IDENT]: 'IDENT',
@@ -109,7 +109,7 @@ interface KwEntry {
   type: TokenType;
 }
 
-/** Keyword table — identical rows to kw_table[] in lexer.c. */
+/** Keyword table, identical rows to kw_table[] in lexer.c. */
 const KW_TABLE: KwEntry[] = [
   { word: 'int', type: TokenType.KW_INT },
   { word: 'return', type: TokenType.KW_RETURN },
@@ -137,7 +137,7 @@ function isSpace(c: string | undefined): boolean {
 }
 
 /** Thrown to surface a lexer error (unexpected character) to the UI,
- * mirroring lexer.c's stderr diagnostic — except here we can't silently
+ * mirroring lexer.c's stderr diagnostic, except here we can't silently
  * continue with an EOF token the way the C driver does, so we collect the
  * message and let the caller decide how to display it. */
 export interface LexError {
@@ -210,7 +210,7 @@ export class Lexer {
     return { type, lexeme, line, col, ival };
   }
 
-  /** Scan and return the next token — direct port of lexer_next(). */
+  /** Scan and return the next token, direct port of lexer_next(). */
   next(): Token {
     this.skipWhitespaceAndComments();
 
@@ -272,7 +272,7 @@ export class Lexer {
 
   /** Snapshot cursor state so the parser can back out of a speculative
    * lookahead (used to disambiguate `IDENT '=' ...` from `IDENT` starting
-   * an ordinary expression — see parse_assign() in parser.c, which does
+   * an ordinary expression, see parse_assign() in parser.c, which does
    * the same thing via `Lexer saved = *p->lex;`). */
   saveState(): { pos: number; line: number; col: number } {
     return { pos: this.pos, line: this.line, col: this.col };

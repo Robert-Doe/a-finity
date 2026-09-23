@@ -1,8 +1,8 @@
 /**
  * Draws the real AST (the same tree main.ts's text view renders, from the
  * real parser.ts) as an actual node-and-edge diagram, using d3-hierarchy
- * for tree layout. Emits a plain SVG string — no DOM binding, no d3-selection
- * — so it drops straight into the existing template-string rendering style.
+ * for tree layout. Emits a plain SVG string, no DOM binding, no d3-selection
+ *, so it drops straight into the existing template-string rendering style.
  */
 import { hierarchy, tree as d3tree, type HierarchyPointNode } from 'd3-hierarchy';
 import type { ASTNode } from '../ast';

@@ -107,7 +107,7 @@ function renderTokenTable(tokens: Token[]): string {
   </table>`;
 }
 
-/** Render the AST as an indented, color-coded tree — a lightweight
+/** Render the AST as an indented, color-coded tree, a lightweight
  * nested-box view without needing a graphics library. */
 function renderAst(node: ASTNode, depth = 0): string {
   const pad = '  '.repeat(depth);
@@ -252,7 +252,7 @@ type Tab = 'tokens' | 'ast' | 'tree' | 'grammar' | 'theory' | 'docs';
 let activeTab: Tab = 'tokens';
 
 // Grammar/Parsing Theory/Docs are properties of the fixed a-finity
-// grammar, not of whatever the user typed in Source — so they don't need
+// grammar, not of whatever the user typed in Source, so they don't need
 // Source visible alongside them, and giving them the full width instead
 // of half a 50/50 split is what the LL(1) table and grammar text actually
 // need to read without horizontal scrolling on an ordinary desktop.
@@ -290,7 +290,7 @@ tabsEl.addEventListener('click', (e) => {
 
 function renderPanel(): void {
   // The theory tabs are static (don't depend on the parsed program) and
-  // stay visible even when the source has parse errors — you can read the
+  // stay visible even when the source has parse errors, you can read the
   // grammar theory without a working example loaded.
   if (activeTab === 'grammar') {
     panelEl.innerHTML = renderGrammarTab();

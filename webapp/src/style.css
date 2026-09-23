@@ -112,7 +112,7 @@ a { color: inherit; }
 }
 
 /* Grammar/Parsing Theory/Docs are read-only properties of the fixed
-   a-finity grammar, not of whatever's in Source — so Source hides and the
+   a-finity grammar, not of whatever's in Source, so Source hides and the
    reference content gets the full page width instead of half a 50/50
    split. Without this, the LL(1) table (~1070px of real content) was
    squeezed into a ~510px column and forced into constant horizontal
