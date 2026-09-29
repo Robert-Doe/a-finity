@@ -4,7 +4,6 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Module 11 — Code Generation: Control Flow</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
 <style>
   :root {
     --bg:       #0b0f1a;
@@ -25,9 +24,9 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Lato', sans-serif;
+    background: #E9EDF6;
+    color: #14201A;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 400;
     font-size: 17px;
     line-height: 1.75;
@@ -35,8 +34,8 @@
 
   /* ──────────── TOP BAR ──────────── */
   .topbar {
-    background: var(--bg2);
-    border-bottom: 2px solid var(--border);
+    background: #EAEEF6;
+    border-bottom: 2px solid #C6D0C0;
     padding: 14px 32px;
     display: flex;
     align-items: center;
@@ -47,9 +46,9 @@
   }
 
   .badge {
-    background: var(--gold);
-    color: #0b0f1a;
-    font-family: 'Lato', sans-serif;
+    background: #F4ECD7;
+    color: #0B0F1A;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 700;
     font-size: 12px;
     letter-spacing: 2px;
@@ -60,9 +59,9 @@
   }
 
   .topbar-title {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: 1.1rem;
-    color: var(--cyan);
+    color: #17688C;
     flex: 1;
   }
 
@@ -73,34 +72,34 @@
   }
 
   .nav-links a {
-    color: var(--muted);
+    color: #4B5B6C;
     text-decoration: none;
     transition: color .2s;
   }
 
-  .nav-links a:hover { color: var(--gold); }
+  .nav-links a:hover { color: #8C6F17; }
 
   /* ──────────── HERO ──────────── */
   .hero {
-    background: linear-gradient(135deg, #0b0f1a 0%, #0d1e38 50%, #0b1a2e 100%);
-    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #E9EDF6 0%, #E7EEF8 50%, #E7EEF8 100%);
+    border-bottom: 1px solid #C6D0C0;
     text-align: center;
     padding: 72px 32px 56px;
   }
 
   .hero h1 {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(2.2rem, 5vw, 3.8rem);
     font-weight: 900;
-    color: var(--gold);
+    color: #8C6F17;
     line-height: 1.15;
     margin-bottom: 16px;
   }
 
-  .hero h1 span { color: var(--cyan); }
+  .hero h1 span { color: #17688C; }
 
   .hero p {
-    color: var(--muted);
+    color: #4B5B6C;
     font-size: 1.1rem;
     max-width: 600px;
     margin: 0 auto;
@@ -119,21 +118,21 @@
   }
 
   .section-label {
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 3px;
     text-transform: uppercase;
-    color: var(--teal);
+    color: #178C82;
     margin-bottom: 8px;
   }
 
   .section h2 {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(1.5rem, 3vw, 2.1rem);
-    color: var(--gold);
+    color: #8C6F17;
     margin-bottom: 24px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #C6D0C0;
     padding-bottom: 12px;
   }
 
@@ -149,19 +148,19 @@
     padding: 20px 24px;
     overflow-x: auto;
     margin: 20px 0;
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 14px;
     line-height: 1.7;
   }
 
   code {
-    font-family: 'Source Code Pro', monospace;
-    background: var(--code-bg);
-    border: 1px solid var(--border);
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    background: #E7EDF8;
+    border: 1px solid #C6D0C0;
     border-radius: 3px;
     padding: 2px 6px;
     font-size: 0.88em;
-    color: var(--cyan);
+    color: #17688C;
   }
 
   pre code {
@@ -173,29 +172,29 @@
   }
 
   /* Syntax highlight classes */
-  .kw  { color: var(--purple); font-weight: 600; }
-  .cm  { color: var(--muted);  font-style: italic; }
-  .str { color: var(--green); }
-  .num { color: var(--gold); }
-  .lbl { color: var(--cyan); font-weight: 600; }
-  .ins { color: var(--text); }
-  .reg { color: var(--red); }
-  .op  { color: var(--teal); }
+  .kw  { color: #34178C; font-weight: 600; }
+  .cm  { color: #4B5B6C;  font-style: italic; }
+  .str { color: #198A42; }
+  .num { color: #8C6F17; }
+  .lbl { color: #17688C; font-weight: 600; }
+  .ins { color: #14201A; }
+  .reg { color: #8C1717; }
+  .op  { color: #178C82; }
 
   /* ──────────── CALLOUT BOXES ──────────── */
   .box {
-    background: var(--bg3);
-    border: 1px solid var(--border);
+    background: #EAEEF5;
+    border: 1px solid #C6D0C0;
     border-radius: 8px;
     padding: 24px 28px;
     margin: 24px 0;
   }
 
-  .box.gold   { border-left: 4px solid var(--gold);   }
-  .box.cyan   { border-left: 4px solid var(--cyan);   }
-  .box.green  { border-left: 4px solid var(--green);  }
-  .box.red    { border-left: 4px solid var(--red);    }
-  .box.purple { border-left: 4px solid var(--purple); }
+  .box.gold   { border-left: 4px solid #B18E25;   }
+  .box.cyan   { border-left: 4px solid #2586B1;   }
+  .box.green  { border-left: 4px solid #25B158;  }
+  .box.red    { border-left: 4px solid #B12525;    }
+  .box.purple { border-left: 4px solid #4925B1; }
 
   .box-title {
     font-weight: 700;
@@ -205,11 +204,11 @@
     margin-bottom: 10px;
   }
 
-  .box.gold   .box-title { color: var(--gold);   }
-  .box.cyan   .box-title { color: var(--cyan);   }
-  .box.green  .box-title { color: var(--green);  }
-  .box.red    .box-title { color: var(--red);    }
-  .box.purple .box-title { color: var(--purple); }
+  .box.gold   .box-title { color: #8C6F17;   }
+  .box.cyan   .box-title { color: #17688C;   }
+  .box.green  .box-title { color: #198A42;  }
+  .box.red    .box-title { color: #8C1717;    }
+  .box.purple .box-title { color: #34178C; }
 
   /* ──────────── TWO-COLUMN COMPARE ──────────── */
   .compare {
@@ -229,10 +228,10 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     margin-bottom: 8px;
-    color: var(--muted);
+    color: #4B5B6C;
   }
-  .compare-col.left  h4 { color: var(--cyan); }
-  .compare-col.right h4 { color: var(--green); }
+  .compare-col.left  h4 { color: #17688C; }
+  .compare-col.right h4 { color: #198A42; }
 
   /* ──────────── ARROW ──────────── */
   .arrow-row {
@@ -244,32 +243,32 @@
   }
 
   .arrow-row .ar-box {
-    background: var(--bg3);
-    border: 1px solid var(--border);
+    background: #EAEEF5;
+    border: 1px solid #C6D0C0;
     border-radius: 6px;
     padding: 8px 16px;
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 13px;
   }
 
   .arrow-row .arrow {
-    color: var(--gold);
+    color: #8C6F17;
     font-size: 1.4rem;
   }
 
   /* ──────────── BRAIN EXERCISE ──────────── */
   .brain {
-    background: linear-gradient(135deg, #1a1035 0%, #0b0f1a 100%);
-    border: 2px solid var(--purple);
+    background: linear-gradient(135deg, #ECE7F8 0%, #E9EDF6 100%);
+    border: 2px solid #4925B1;
     border-radius: 12px;
     padding: 32px;
     margin: 32px 0;
   }
 
   .brain-title {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: 1.4rem;
-    color: var(--purple);
+    color: #34178C;
     margin-bottom: 16px;
     display: flex;
     align-items: center;
@@ -284,7 +283,7 @@
 
   summary {
     cursor: pointer;
-    color: var(--gold);
+    color: #8C6F17;
     font-weight: 700;
     font-size: 0.95rem;
     letter-spacing: 0.5px;
@@ -299,23 +298,23 @@
     content: '▶';
     font-size: 0.7rem;
     transition: transform .2s;
-    color: var(--gold);
+    color: #8C6F17;
   }
 
   details[open] summary::before { transform: rotate(90deg); }
 
   .answer {
-    background: var(--bg2);
-    border: 1px solid var(--border);
+    background: #EAEEF6;
+    border: 1px solid #C6D0C0;
     border-radius: 8px;
     padding: 20px 24px;
     margin-top: 12px;
-    color: var(--text);
+    color: #14201A;
   }
 
   /* ──────────── Q&A ──────────── */
   .qa-item {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #C6D0C0;
     padding: 20px 0;
   }
 
@@ -323,15 +322,15 @@
 
   .question {
     font-weight: 700;
-    color: var(--cyan);
+    color: #17688C;
     margin-bottom: 8px;
     display: flex;
     gap: 12px;
   }
 
   .q-num {
-    background: var(--teal);
-    color: white;
+    background: #E7F8F7;
+    color: #14201A;
     font-size: 0.75rem;
     font-weight: 700;
     padding: 2px 8px;
@@ -348,13 +347,13 @@
     align-items: center;
     margin-top: 80px;
     padding-top: 32px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid #C6D0C0;
     flex-wrap: wrap;
     gap: 16px;
   }
 
   .footer-nav a {
-    color: var(--cyan);
+    color: #17688C;
     text-decoration: none;
     font-weight: 700;
     font-size: 0.95rem;
@@ -364,7 +363,7 @@
     transition: color .2s;
   }
 
-  .footer-nav a:hover { color: var(--gold); }
+  .footer-nav a:hover { color: #8C6F17; }
 
   /* ──────────── STEP DIAGRAM ──────────── */
   .step-grid {
@@ -377,8 +376,8 @@
   .step-num {
     width: 36px;
     height: 36px;
-    background: var(--teal);
-    color: white;
+    background: #E7F8F7;
+    color: #14201A;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -391,13 +390,13 @@
 
   .step-content {
     padding-bottom: 24px;
-    border-left: 2px solid var(--border);
+    border-left: 2px solid #C6D0C0;
     padding-left: 20px;
     margin-left: -22px; /* align with circle */
   }
 
   .step-content h4 {
-    color: var(--gold);
+    color: #8C6F17;
     font-size: 1rem;
     margin-bottom: 8px;
   }
@@ -411,12 +410,12 @@
   }
 
   th {
-    background: var(--bg3);
-    color: var(--cyan);
+    background: #EAEEF5;
+    color: #17688C;
     text-align: left;
     padding: 10px 14px;
-    border-bottom: 2px solid var(--border);
-    font-family: 'Lato', sans-serif;
+    border-bottom: 2px solid #C6D0C0;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 700;
     font-size: 0.8rem;
     letter-spacing: 1px;
@@ -425,15 +424,65 @@
 
   td {
     padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    font-family: 'Source Code Pro', monospace;
+    border-bottom: 1px solid #C6D0C0;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.88rem;
   }
 
   tr:last-child td { border-bottom: none; }
 
-  tr:hover td { background: var(--bg3); }
+  tr:hover td { background: #EAEEF5; }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<style>
+/* original colours for highlighting inside code blocks */
+pre .kw, .terminal .kw, .win-box .kw { color: #A78BFA }
+pre .cm, .terminal .cm, .win-box .cm { color: #7A9BBF }
+pre .num, .terminal .num, .win-box .num { color: #F5C842 }
+pre .lbl, .terminal .lbl, .win-box .lbl { color: #38BDF8 }
+pre .ins, .terminal .ins, .win-box .ins { color: #E2E8F0 }
+pre .reg, .terminal .reg, .win-box .reg { color: #F87171 }
+pre .op, .terminal .op, .win-box .op { color: #3AEEDE }
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 
@@ -503,7 +552,7 @@ make assemble # assemble + link + run; shows exit code</code></pre>
   <h2>The Stunt Coordinator Analogy</h2>
 
   <p>Picture a movie script.  It says:</p>
-  <blockquote style="border-left:4px solid var(--gold); padding-left:20px; color:var(--muted); font-style:italic; margin:20px 0;">
+  <blockquote style="border-left:4px solid #B18E25; padding-left:20px; color:#4B5B6C; font-style:italic; margin:20px 0;">
     "If the hero fails to catch the ledge, cut to Scene 42."
   </blockquote>
 

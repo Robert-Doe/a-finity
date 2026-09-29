@@ -6,7 +6,6 @@
   <title>Module 01 — Source File Reader | my_compiler</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Code+Pro:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
   <style>
     /* ── CSS variables — all colours come from here, nowhere else ── */
     :root {
@@ -30,9 +29,9 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Lato', sans-serif;
+      background: #E9EDF6;
+      color: #14201A;
+      font-family:'Newsreader', Georgia, 'Times New Roman', serif;
       font-size: 1rem;
       line-height: 1.75;
       max-width: 860px;
@@ -41,40 +40,40 @@
     }
 
     h1 {
-      font-family: 'Playfair Display', serif;
+      font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
       font-size: 2.5rem;
-      color: var(--gold);
+      color: #8C6F17;
       line-height: 1.2;
       margin-bottom: 0.4rem;
     }
     h2 {
-      font-family: 'Playfair Display', serif;
+      font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
       font-size: 1.55rem;
-      color: var(--cyan);
+      color: #17688C;
       margin: 2.8rem 0 1rem;
       padding-bottom: 0.4rem;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid #C6D0C0;
     }
     h3 {
-      font-family: 'Lato', sans-serif;
+      font-family:'Newsreader', Georgia, 'Times New Roman', serif;
       font-weight: 700;
       font-size: 1.05rem;
-      color: var(--purple);
+      color: #34178C;
       margin: 1.6rem 0 0.5rem;
     }
     p  { margin-bottom: 1rem; }
     ul, ol { margin: 0.5rem 0 1rem 1.4rem; }
     li { margin-bottom: 0.3rem; }
-    a  { color: var(--cyan); text-decoration: none; }
+    a  { color: #17688C; text-decoration: none; }
     a:hover { text-decoration: underline; }
-    strong { color: var(--text); }
+    strong { color: #14201A; }
 
     .module-badge {
       display: inline-block;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-family: 'Source Code Pro', monospace;
+      background: #EAEEF5;
+      border: 1px solid #C6D0C0;
+      color: #4B5B6C;
+      font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
       font-size: 0.78rem;
       padding: 0.2rem 0.75rem;
       border-radius: 4px;
@@ -83,22 +82,22 @@
     }
 
     .subtitle {
-      color: var(--muted);
+      color: #4B5B6C;
       font-size: 1.05rem;
       margin-bottom: 2.5rem;
     }
 
     /* ── Prereq bar ── */
     .prereq-bar {
-      background: var(--bg2);
-      border: 1px solid var(--border);
+      background: #EAEEF6;
+      border: 1px solid #C6D0C0;
       border-radius: 6px;
       padding: 0.85rem 1.1rem;
       margin-bottom: 1.5rem;
       font-size: 0.9rem;
-      color: var(--muted);
+      color: #4B5B6C;
     }
-    .prereq-bar strong { color: var(--text); margin-right: 0.5rem; }
+    .prereq-bar strong { color: #14201A; margin-right: 0.5rem; }
 
     /* ── Callout boxes ── */
     .callout {
@@ -114,16 +113,16 @@
       letter-spacing: 0.1em;
       margin-bottom: 0.5rem;
     }
-    .callout.gold   { background: #120e00; border-color: var(--gold);   }
-    .callout.gold   .callout-label { color: var(--gold);   }
-    .callout.teal   { background: #001412; border-color: var(--teal);   }
-    .callout.teal   .callout-label { color: var(--teal);   }
-    .callout.cyan   { background: #00111a; border-color: var(--cyan);   }
-    .callout.cyan   .callout-label { color: var(--cyan);   }
-    .callout.purple { background: #0c0814; border-color: var(--purple); }
-    .callout.purple .callout-label { color: var(--purple); }
-    .callout.red    { background: #140404; border-color: var(--red);    }
-    .callout.red    .callout-label { color: var(--red);    }
+    .callout.gold   { background: #F8F4E7; border-color: #B18E25;   }
+    .callout.gold   .callout-label { color: #8C6F17;   }
+    .callout.teal   { background: #E7F8F6; border-color: #25B1A4;   }
+    .callout.teal   .callout-label { color: #178C82;   }
+    .callout.cyan   { background: #E7F2F8; border-color: #2586B1;   }
+    .callout.cyan   .callout-label { color: #17688C;   }
+    .callout.purple { background: #EEE9F6; border-color: #4925B1; }
+    .callout.purple .callout-label { color: #34178C; }
+    .callout.red    { background: #F8E7E7; border-color: #B12525;    }
+    .callout.red    .callout-label { color: #8C1717;    }
 
     /* ── Code blocks ── */
     pre {
@@ -137,14 +136,14 @@
       line-height: 1.65;
     }
     code {
-      font-family: 'Source Code Pro', monospace;
-      color: var(--text);
+      font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      color: #14201A;
     }
     pre code { font-size: inherit; }
     p code, li code {
-      background: var(--code-bg);
-      border: 1px solid var(--border);
-      color: var(--cyan);
+      background: #E7EDF8;
+      border: 1px solid #C6D0C0;
+      color: #17688C;
       padding: 0.1em 0.4em;
       border-radius: 3px;
       font-size: 0.88em;
@@ -158,18 +157,18 @@
       margin: 1.3rem 0;
     }
     .crew-card {
-      background: var(--bg3);
-      border: 1px solid var(--border);
+      background: #EAEEF5;
+      border: 1px solid #C6D0C0;
       border-radius: 6px;
       padding: 0.75rem 1rem;
     }
     .crew-card.active {
-      background: #120e00;
-      border-color: var(--gold);
+      background: #F8F4E7;
+      border-color: #B18E25;
     }
     .crew-card .dept {
       font-size: 0.73rem;
-      color: var(--muted);
+      color: #4B5B6C;
       text-transform: uppercase;
       letter-spacing: 0.07em;
       margin-bottom: 0.15rem;
@@ -179,14 +178,14 @@
       font-size: 1rem;
       margin-bottom: 0.1rem;
     }
-    .crew-card.active .role-name { color: var(--gold); }
-    .crew-card:not(.active) .role-name { color: var(--muted); }
+    .crew-card.active .role-name { color: #8C6F17; }
+    .crew-card:not(.active) .role-name { color: #4B5B6C; }
     .crew-card .equiv {
-      font-family: 'Source Code Pro', monospace;
+      font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
       font-size: 0.8rem;
     }
-    .crew-card.active .equiv { color: var(--cyan); }
-    .crew-card:not(.active) .equiv { color: var(--border); }
+    .crew-card.active .equiv { color: #17688C; }
+    .crew-card:not(.active) .equiv { color: #1E3A5F; }
 
     /* ── Pipeline ── */
     .pipeline {
@@ -195,29 +194,29 @@
       flex-wrap: wrap;
       gap: 0;
       margin: 1.2rem 0;
-      font-family: 'Source Code Pro', monospace;
+      font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
       font-size: 0.82rem;
     }
     .pipeline-step {
-      background: var(--bg3);
-      border: 1px solid var(--border);
+      background: #EAEEF5;
+      border: 1px solid #C6D0C0;
       padding: 0.45rem 0.8rem;
       border-radius: 4px;
-      color: var(--muted);
+      color: #4B5B6C;
     }
     .pipeline-step.active {
-      background: #120e00;
-      border-color: var(--gold);
-      color: var(--gold);
+      background: #F8F4E7;
+      border-color: #B18E25;
+      color: #8C6F17;
     }
     .pipeline-arrow {
-      color: var(--border);
+      color: #1E3A5F;
       padding: 0 0.3rem;
     }
 
     /* ── Run It box ── */
     .win-box {
-      background: #080d0a;
+      background: #14201A;
       border: 1px solid var(--green);
       border-radius: 8px;
       padding: 1.2rem 1.4rem;
@@ -238,14 +237,14 @@
       margin: 0;
       font-size: 0.88rem;
     }
-    .cmd { color: var(--green); }
-    .out { color: var(--muted); }
-    .hi  { color: var(--cyan);  }
+    .cmd { color: #198A42; }
+    .out { color: #4B5B6C; }
+    .hi  { color: #17688C;  }
 
     /* ── Brain exercise ── */
     .brain {
-      background: var(--bg3);
-      border: 1px solid var(--purple);
+      background: #EAEEF5;
+      border: 1px solid #4925B1;
       border-radius: 8px;
       padding: 1.3rem 1.5rem;
       margin: 1.5rem 0;
@@ -253,42 +252,42 @@
     .brain-label {
       font-size: 0.73rem;
       font-weight: 700;
-      color: var(--purple);
+      color: #34178C;
       text-transform: uppercase;
       letter-spacing: 0.1em;
       margin-bottom: 0.8rem;
     }
     .brain .answer {
-      color: var(--muted);
+      color: #4B5B6C;
       font-size: 0.93rem;
-      border-top: 1px solid var(--border);
+      border-top: 1px solid #C6D0C0;
       padding-top: 1rem;
       margin-top: 1rem;
     }
-    .brain .answer strong { color: var(--text); }
+    .brain .answer strong { color: #14201A; }
 
     /* ── Q&A ── */
     .qa-pair { margin-top: 1.5rem; }
     .qa-q {
       font-weight: 700;
-      color: var(--gold);
+      color: #8C6F17;
       margin-bottom: 0.4rem;
     }
     .qa-q::before {
       content: "Q  ";
-      font-family: 'Source Code Pro', monospace;
-      color: var(--muted);
+      font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      color: #4B5B6C;
       font-weight: 400;
     }
     .qa-a {
-      color: var(--text);
+      color: #14201A;
       padding-left: 1.1rem;
-      border-left: 2px solid var(--border);
+      border-left: 2px solid #C6D0C0;
     }
     .qa-a::before {
       content: "A  ";
-      font-family: 'Source Code Pro', monospace;
-      color: var(--muted);
+      font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      color: #4B5B6C;
     }
 
     /* ── Footer ── */
@@ -298,13 +297,57 @@
       align-items: center;
       margin-top: 3.5rem;
       padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
+      border-top: 1px solid #C6D0C0;
       font-size: 0.9rem;
     }
-    .page-footer .disabled { color: var(--border); }
+    .page-footer .disabled { color: #1E3A5F; }
 
-    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    hr { border: none; border-top: 1px solid #C6D0C0; margin: 2.5rem 0; }
   </style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<style>
+/* original colours for highlighting inside code blocks */
+pre .cmd, .terminal .cmd, .win-box .cmd { color: #4ADE80 }
+pre .out, .terminal .out, .win-box .out { color: #7A9BBF }
+pre .hi, .terminal .hi, .win-box .hi { color: #38BDF8 }
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 

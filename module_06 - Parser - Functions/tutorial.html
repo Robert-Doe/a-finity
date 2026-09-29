@@ -21,33 +21,33 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #F5F7F3;
+    color: #14201A;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 16px;
     line-height: 1.7;
     padding: 2rem 1rem;
   }
   .container { max-width: 860px; margin: 0 auto; }
-  h1 { font-size: 2rem; color: var(--accent); margin-bottom: 0.25rem; }
-  h2 { font-size: 1.4rem; color: var(--accent); margin: 2.5rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
-  h3 { font-size: 1.1rem; color: var(--orange); margin: 1.5rem 0 0.5rem; }
+  h1 { font-size: 2rem; color: #174E8C; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.4rem; color: #174E8C; margin: 2.5rem 0 1rem; border-bottom: 1px solid #C6D0C0; padding-bottom: 0.4rem; }
+  h3 { font-size: 1.1rem; color: #8C4E17; margin: 1.5rem 0 0.5rem; }
   p  { margin-bottom: 1rem; }
-  a  { color: var(--accent); text-decoration: none; }
+  a  { color: #174E8C; text-decoration: none; }
   a:hover { text-decoration: underline; }
 
   /* prereq bar */
   .prereq-bar {
     display: flex; flex-wrap: wrap; gap: 0.5rem;
-    background: var(--surface); border: 1px solid var(--border);
+    background: #F5F7F4; border: 1px solid #C6D0C0;
     border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 2rem;
     align-items: center;
   }
-  .prereq-bar span { color: var(--muted); font-size: 0.85rem; margin-right: 0.5rem; }
+  .prereq-bar span { color: #545B64; font-size: 0.85rem; margin-right: 0.5rem; }
   .prereq-bar a {
-    background: var(--code-bg); border: 1px solid var(--border);
+    background: #F6F8F5; border: 1px solid #C6D0C0;
     border-radius: 4px; padding: 0.2rem 0.6rem; font-size: 0.85rem;
-    color: var(--accent);
+    color: #174E8C;
   }
 
   /* code blocks */
@@ -56,57 +56,57 @@
     border-radius: 8px; padding: 1.25rem; overflow-x: auto;
     margin: 1rem 0; font-size: 0.88rem; line-height: 1.6;
   }
-  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+  code { font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
   p code, li code {
-    background: var(--code-bg); border: 1px solid var(--border);
+    background: #F6F8F5; border: 1px solid #C6D0C0;
     border-radius: 4px; padding: 0.1rem 0.35rem; font-size: 0.87em;
   }
 
   /* call-out boxes */
   .box {
-    background: var(--surface); border: 1px solid var(--border);
-    border-left: 4px solid var(--accent);
+    background: #F5F7F4; border: 1px solid #C6D0C0;
+    border-left: 4px solid #2567B1;
     border-radius: 8px; padding: 1rem 1.25rem; margin: 1.25rem 0;
   }
-  .box.green  { border-left-color: var(--green);  }
-  .box.yellow { border-left-color: var(--yellow); }
-  .box.red    { border-left-color: var(--red);    }
-  .box.purple { border-left-color: var(--purple); }
+  .box.green  { border-left-color: #36A045;  }
+  .box.yellow { border-left-color: #B18425; }
+  .box.red    { border-left-color: #B12C25;    }
+  .box.purple { border-left-color: #6025B1; }
 
   /* annotation diagram */
   .func-diagram {
-    background: var(--code-bg); border: 1px solid var(--border);
+    background: #F6F8F5; border: 1px solid #C6D0C0;
     border-radius: 8px; padding: 1.5rem; margin: 1.25rem 0;
-    font-family: monospace; font-size: 0.92rem; position: relative;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.92rem; position: relative;
     overflow-x: auto;
   }
   .func-diagram .line { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-  .func-diagram .tok-ret   { color: var(--purple); }
-  .func-diagram .tok-name  { color: var(--green);  }
-  .func-diagram .tok-paren { color: var(--muted);  }
-  .func-diagram .tok-param { color: var(--orange); }
-  .func-diagram .tok-body  { color: var(--accent); }
+  .func-diagram .tok-ret   { color: #48178C; }
+  .func-diagram .tok-name  { color: #4B6C50;  }
+  .func-diagram .tok-paren { color: #545B64;  }
+  .func-diagram .tok-param { color: #8C4E17; }
+  .func-diagram .tok-body  { color: #174E8C; }
   .func-diagram .arrow-row {
-    display: flex; gap: 0; font-size: 0.78rem; color: var(--yellow);
+    display: flex; gap: 0; font-size: 0.78rem; color: #8C6617;
     margin-top: 0.4rem; flex-wrap: wrap;
   }
   .func-diagram .arrow-cell { min-width: 80px; text-align: center; }
 
   /* two-column table */
   table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-  th, td { border: 1px solid var(--border); padding: 0.6rem 0.85rem; text-align: left; font-size: 0.9rem; }
-  th { background: var(--surface); color: var(--accent); }
-  td:first-child { font-family: monospace; color: var(--green); }
+  th, td { border: 1px solid #C6D0C0; padding: 0.6rem 0.85rem; text-align: left; font-size: 0.9rem; }
+  th { background: #F5F7F4; color: #174E8C; }
+  td:first-child { font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; color: #4B6C50; }
 
   /* inline highlight spans */
-  .kw  { color: var(--purple); }
-  .id  { color: var(--green);  }
-  .lit { color: var(--orange); }
-  .cm  { color: var(--muted);  font-style: italic; }
+  .kw  { color: #48178C; }
+  .id  { color: #4B6C50;  }
+  .lit { color: #8C4E17; }
+  .cm  { color: #545B64;  font-style: italic; }
 
   /* Q&A */
-  details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0.75rem 0; }
-  summary { padding: 0.75rem 1rem; cursor: pointer; color: var(--accent); font-weight: 600; list-style: none; }
+  details { background: #F5F7F4; border: 1px solid #C6D0C0; border-radius: 8px; margin: 0.75rem 0; }
+  summary { padding: 0.75rem 1rem; cursor: pointer; color: #174E8C; font-weight: 600; list-style: none; }
   summary::before { content: "▶ "; font-size: 0.8em; }
   details[open] summary::before { content: "▼ "; }
   details .answer { padding: 0 1rem 1rem; }
@@ -114,17 +114,63 @@
   /* footer */
   footer {
     margin-top: 3rem; padding-top: 1rem;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid #C6D0C0;
     display: flex; justify-content: space-between;
-    font-size: 0.9rem; color: var(--muted);
+    font-size: 0.9rem; color: #545B64;
   }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<style>
+/* original colours for highlighting inside code blocks */
+pre .kw, .terminal .kw, .win-box .kw { color: #BC8CFF }
+pre .lit, .terminal .lit, .win-box .lit { color: #FFA657 }
+pre .cm, .terminal .cm, .win-box .cm { color: #8B949E }
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 <div class="container">
 
 <h1>Module 06 — Parser: Functions</h1>
-<p style="color:var(--muted)">Parsing complete function definitions and assembling a full program AST.</p>
+<p style="color:#545B64">Parsing complete function definitions and assembling a full program AST.</p>
 
 <!-- SECTION 00: Prereqs -->
 <div class="prereq-bar">
@@ -160,10 +206,10 @@
     <span class="tok-body">{ return a + b; }</span>
   </div>
   <div class="arrow-row">
-    <div class="arrow-cell">↑<br>return type<br><em style="color:var(--muted)">op='i'</em></div>
-    <div class="arrow-cell">↑<br>func name<br><em style="color:var(--muted)">sval</em></div>
-    <div class="arrow-cell" style="min-width:120px">↑<br>parameters<br><em style="color:var(--muted)">args[] of VAR_DECL</em></div>
-    <div class="arrow-cell" style="min-width:150px">↑<br>body block<br><em style="color:var(--muted)">right → AST_BLOCK</em></div>
+    <div class="arrow-cell">↑<br>return type<br><em style="color:#545B64">op='i'</em></div>
+    <div class="arrow-cell">↑<br>func name<br><em style="color:#545B64">sval</em></div>
+    <div class="arrow-cell" style="min-width:120px">↑<br>parameters<br><em style="color:#545B64">args[] of VAR_DECL</em></div>
+    <div class="arrow-cell" style="min-width:150px">↑<br>body block<br><em style="color:#545B64">right → AST_BLOCK</em></div>
   </div>
 </div>
 

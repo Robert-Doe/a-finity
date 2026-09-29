@@ -9,9 +9,9 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: #1a1a2e;
-    color: #e0e0f0;
-    font-family: Georgia, 'Times New Roman', serif;
+    background: #F6F8F5;
+    color: #14201A;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 18px;
     line-height: 1.75;
   }
@@ -29,49 +29,49 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem 1.5rem;
-    background: #16213e;
-    border-bottom: 3px solid #e94560;
-    font-family: 'Courier New', monospace;
+    background: #E8ECF7;
+    border-bottom: 3px solid #B1253C;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.9rem;
   }
   nav a {
-    color: #e94560;
+    color: #8C172A;
     text-decoration: none;
     font-weight: bold;
     letter-spacing: 0.05em;
   }
   nav a:hover { text-decoration: underline; }
-  nav .mod-title { color: #a0c4ff; }
+  nav .mod-title { color: #17438C; }
 
   /* ── Chapter headings ── */
   h1 {
     font-size: 2.6rem;
-    color: #e94560;
+    color: #8C172A;
     margin: 2rem 0 0.5rem;
     line-height: 1.2;
   }
   h2 {
     font-size: 1.7rem;
-    color: #a0c4ff;
+    color: #17438C;
     margin: 3rem 0 0.75rem;
-    border-left: 5px solid #e94560;
+    border-left: 5px solid #B1253C;
     padding-left: 0.75rem;
   }
   h3 {
     font-size: 1.2rem;
-    color: #ffd166;
+    color: #8C6917;
     margin: 2rem 0 0.5rem;
   }
 
   /* ── Prose ── */
   p { margin-bottom: 1.1rem; }
-  strong { color: #ffd166; }
-  em { color: #a0c4ff; font-style: normal; font-weight: bold; }
+  strong { color: #8C6917; }
+  em { color: #17438C; font-style: normal; font-weight: bold; }
 
   /* ── Analogy box ── */
   .analogy {
-    background: #16213e;
-    border: 2px solid #e94560;
+    background: #E8ECF7;
+    border: 2px solid #B1253C;
     border-radius: 10px;
     padding: 1.5rem 2rem;
     margin: 2rem 0;
@@ -82,9 +82,9 @@
     position: absolute;
     top: -0.75rem;
     left: 1.5rem;
-    background: #e94560;
-    color: #fff;
-    font-family: 'Courier New', monospace;
+    background: #F4D7DC;
+    color: #14201A;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.75rem;
     font-weight: bold;
     padding: 0.1rem 0.6rem;
@@ -94,8 +94,8 @@
 
   /* ── Info / note box ── */
   .note {
-    background: #0f3460;
-    border-left: 5px solid #a0c4ff;
+    background: #E7EFF8;
+    border-left: 5px solid #255AB1;
     border-radius: 0 8px 8px 0;
     padding: 1rem 1.5rem;
     margin: 1.5rem 0;
@@ -103,62 +103,62 @@
 
   /* ── Warning box ── */
   .warning {
-    background: #3a1a00;
-    border-left: 5px solid #ffd166;
+    background: #F8EFE7;
+    border-left: 5px solid #B18725;
     border-radius: 0 8px 8px 0;
     padding: 1rem 1.5rem;
     margin: 1.5rem 0;
   }
   .warning::before {
     content: "⚠ ";
-    color: #ffd166;
+    color: #8C6917;
   }
 
   /* ── Code blocks ── */
   pre {
-    background: #0d0d1a;
+    background: #14201A;
     border: 1px solid #333366;
     border-radius: 8px;
     padding: 1.25rem 1.5rem;
     overflow-x: auto;
     margin: 1.25rem 0;
-    font-family: 'Courier New', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.88rem;
     line-height: 1.6;
   }
   code {
-    font-family: 'Courier New', monospace;
-    background: #111133;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    background: #E8E8F7;
     padding: 0.1em 0.35em;
     border-radius: 3px;
     font-size: 0.9em;
-    color: #a0c4ff;
+    color: #17438C;
   }
   pre code {
     background: none;
     padding: 0;
     font-size: inherit;
-    color: #c9d1e0;
+    color: #C9D1E0;
   }
 
   /* Syntax highlight helpers inside <pre> */
-  .kw  { color: #e94560; font-weight: bold; }
-  .cm  { color: #5a7a6a; font-style: italic; }
-  .str { color: #ffd166; }
-  .fn  { color: #a0c4ff; }
-  .num { color: #06d6a0; }
-  .err { color: #ef233c; background: #3a0010; border-radius: 3px; padding: 0 3px; }
+  .kw  { color: #8C172A; font-weight: bold; }
+  .cm  { color: #4E6A5C; font-style: italic; }
+  .str { color: #8C6917; }
+  .fn  { color: #17438C; }
+  .num { color: #178C6E; }
+  .err { color: #8C1725; background: #F8E7EC; border-radius: 3px; padding: 0 3px; }
 
   /* ── Brain Exercise ── */
   .brain {
-    background: #1a0a2e;
-    border: 2px dashed #9b5de5;
+    background: #EFE7F8;
+    border: 2px dashed #6525B1;
     border-radius: 10px;
     padding: 1.5rem 2rem;
     margin: 2.5rem 0;
   }
   .brain h3 {
-    color: #9b5de5;
+    color: #4C178C;
     margin-top: 0;
   }
   .brain h3::before { content: "🧠 "; }
@@ -170,19 +170,19 @@
     overflow: hidden;
   }
   .qa-q {
-    background: #16213e;
-    border-left: 5px solid #e94560;
+    background: #E8ECF7;
+    border-left: 5px solid #B1253C;
     padding: 0.9rem 1.25rem;
     font-weight: bold;
-    color: #ffd166;
+    color: #8C6917;
   }
-  .qa-q::before { content: "Q: "; color: #e94560; }
+  .qa-q::before { content: "Q: "; color: #8C172A; }
   .qa-a {
-    background: #0f1a30;
-    border-left: 5px solid #06d6a0;
+    background: #E8EDF8;
+    border-left: 5px solid #25B18D;
     padding: 0.9rem 1.25rem;
   }
-  .qa-a::before { content: "A: "; color: #06d6a0; font-weight: bold; }
+  .qa-a::before { content: "A: "; color: #178C6E; font-weight: bold; }
 
   /* ── Step list ── */
   .steps { list-style: none; counter-reset: steps; margin: 1rem 0 1.5rem 0; }
@@ -199,10 +199,10 @@
     top: 0.1rem;
     width: 1.8rem;
     height: 1.8rem;
-    background: #e94560;
-    color: #fff;
+    background: #F4D7DC;
+    color: #14201A;
     border-radius: 50%;
-    font-family: 'Courier New', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.85rem;
     font-weight: bold;
     display: flex;
@@ -212,62 +212,128 @@
 
   /* ── Two-pass diagram ── */
   .diagram {
-    background: #0d0d1a;
-    border: 1px solid #333366;
+    background: #EBEBF5;
+    border: 1px solid #C6D0C0;
     border-radius: 10px;
     padding: 2rem;
     margin: 2rem 0;
-    font-family: 'Courier New', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.85rem;
     text-align: center;
     line-height: 2;
   }
   .diagram .box {
     display: inline-block;
-    background: #16213e;
-    border: 2px solid #a0c4ff;
+    background: #E8ECF7;
+    border: 2px solid #255AB1;
     border-radius: 6px;
     padding: 0.4rem 1.2rem;
     margin: 0.2rem 0.4rem;
-    color: #e0e0f0;
+    color: #14201A;
   }
-  .diagram .box.red { border-color: #e94560; }
-  .diagram .box.green { border-color: #06d6a0; }
-  .diagram .arrow { color: #ffd166; font-size: 1.2rem; }
-  .diagram .label { color: #a0c4ff; font-size: 0.8rem; margin-top: 0.3rem; }
+  .diagram .box.red { border-color: #B1253C; }
+  .diagram .box.green { border-color: #25B18D; }
+  .diagram .arrow { color: #8C6917; font-size: 1.2rem; }
+  .diagram .label { color: #17438C; font-size: 0.8rem; margin-top: 0.3rem; }
 
   /* ── Error sample ── */
   .error-output {
-    background: #1a0000;
-    border: 1px solid #ef233c;
+    background: #F8E7E7;
+    border: 1px solid #B12537;
     border-radius: 8px;
     padding: 1.25rem 1.5rem;
-    font-family: 'Courier New', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.88rem;
     line-height: 1.8;
     margin: 1.25rem 0;
   }
-  .error-line { color: #ef233c; }
-  .ok-line { color: #06d6a0; }
+  .error-line { color: #8C1725; }
+  .ok-line { color: #178C6E; }
 
   /* ── Divider ── */
   hr {
     border: none;
-    border-top: 2px solid #333366;
+    border-top: 2px solid #C6D0C0;
     margin: 3rem 0;
   }
 
   /* ── Footer ── */
   footer {
     text-align: center;
-    font-family: 'Courier New', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.82rem;
-    color: #555577;
+    color: #4C4C6B;
     margin-top: 4rem;
     padding-top: 1.5rem;
-    border-top: 1px solid #222244;
+    border-top: 1px solid #C6D0C0;
   }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<style>
+/* original colours for highlighting inside code blocks */
+pre .mod-title, .terminal .mod-title, .win-box .mod-title { color: #A0C4FF }
+pre .analogy, .terminal .analogy, .win-box .analogy { background: #16213E }
+pre .analogy::before, .terminal .analogy::before, .win-box .analogy::before { background: #E94560; color: #FFFFFF }
+pre .note, .terminal .note, .win-box .note { background: #0F3460 }
+pre .kw, .terminal .kw, .win-box .kw { color: #E94560 }
+pre .cm, .terminal .cm, .win-box .cm { color: #84A494 }
+pre .str, .terminal .str, .win-box .str { color: #FFD166 }
+pre .fn, .terminal .fn, .win-box .fn { color: #A0C4FF }
+pre .num, .terminal .num, .win-box .num { color: #2FF9C5 }
+pre .err, .terminal .err, .win-box .err { color: #F0374E; background: #3A0010 }
+pre .brain, .terminal .brain, .win-box .brain { background: #14201A }
+pre .qa-q, .terminal .qa-q, .win-box .qa-q { background: #16213E; color: #FFD166 }
+pre .qa-q::before, .terminal .qa-q::before, .win-box .qa-q::before { color: #E94560 }
+pre .qa-a, .terminal .qa-a, .win-box .qa-a { background: #14201A }
+pre .qa-a::before, .terminal .qa-a::before, .win-box .qa-a::before { color: #2FF9C5 }
+pre .diagram, .terminal .diagram, .win-box .diagram { background: #14201A }
+pre .box, .terminal .box, .win-box .box { background: #16213E; color: #E0E0F0 }
+pre .box.red, .terminal .box.red, .win-box .box.red { border-color: #e94560 }
+pre .box.green, .terminal .box.green, .win-box .box.green { border-color: #06d6a0 }
+pre .arrow, .terminal .arrow, .win-box .arrow { color: #FFD166 }
+pre .error-output, .terminal .error-output, .win-box .error-output { background: #1A0000 }
+pre .error-line, .terminal .error-line, .win-box .error-line { color: #F0374E }
+pre .ok-line, .terminal .ok-line, .win-box .ok-line { color: #2FF9C5 }
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 
@@ -354,7 +420,7 @@
   <div style="margin:0.5rem 0;">
     <span class="box">Pass 1: collect all function names &amp; param counts</span>
   </div>
-  <div style="margin:0.4rem 0; font-size:0.8rem; color:#a0c4ff;">
+  <div style="margin:0.4rem 0; font-size:0.8rem; color:#17438C;">
     builds: <code>FuncEntry funcs[]</code> in SemaCtx
   </div>
   <div style="margin:1rem 0;">
@@ -363,7 +429,7 @@
   <div style="margin:0.5rem 0;">
     <span class="box green">Pass 2: walk each function body — check variables &amp; calls</span>
   </div>
-  <div style="margin:0.4rem 0; font-size:0.8rem; color:#a0c4ff;">
+  <div style="margin:0.4rem 0; font-size:0.8rem; color:#17438C;">
     uses: <code>SymTab</code> (scope stack) + <code>FuncEntry funcs[]</code>
   </div>
 </div>

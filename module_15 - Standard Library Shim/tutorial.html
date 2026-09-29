@@ -6,7 +6,6 @@
 <title>Module 15 — Standard Library Shim | my_compiler</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
   /* ============================================================
      CSS VARIABLES — dark theme
@@ -39,14 +38,14 @@
   html { scroll-behavior: smooth; }
 
   body {
-    font-family: 'Lato', sans-serif;
-    background: var(--bg);
-    color: var(--text);
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
+    background: #F5F7F3;
+    color: #14201A;
     line-height: 1.7;
     font-size: 16px;
   }
 
-  a { color: var(--accent); text-decoration: none; }
+  a { color: #26178C; text-decoration: none; }
   a:hover { text-decoration: underline; }
 
   /* ============================================================
@@ -62,7 +61,7 @@
      HEADER
   ============================================================ */
   .site-header {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #C6D0C0;
     padding: 28px 0 20px;
     margin-bottom: 48px;
     display: flex;
@@ -75,9 +74,9 @@
   .header-left { display: flex; align-items: center; gap: 16px; }
 
   .module-badge {
-    background: var(--accent);
-    color: #fff;
-    font-family: 'Lato', sans-serif;
+    background: #DBD7F4;
+    color: #14201A;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 700;
     font-size: 11px;
     letter-spacing: 0.12em;
@@ -90,58 +89,58 @@
   .module-badge span { display: block; font-size: 15px; letter-spacing: 0; }
 
   .header-title {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(20px, 4vw, 28px);
     font-weight: 700;
-    color: var(--text);
+    color: #14201A;
     line-height: 1.2;
   }
   .header-title small {
     display: block;
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 13px;
     font-weight: 400;
-    color: var(--text-muted);
+    color: #505868;
     margin-top: 2px;
   }
 
   .header-nav { display: flex; gap: 12px; align-items: center; }
   .nav-btn {
-    border: 1px solid var(--border-light);
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius-sm);
     padding: 7px 14px;
     font-size: 13px;
-    color: var(--text-muted);
-    background: var(--bg-card);
+    color: #505868;
+    background: #F6F7F5;
     transition: border-color .2s, color .2s;
   }
-  .nav-btn:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
-  .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .nav-btn.primary:hover { opacity: 0.88; color: #fff; }
+  .nav-btn:hover { color: #26178C; border-color: #3725B1; text-decoration: none; }
+  .nav-btn.primary { background: #DBD7F4; color: #14201A; border-color: #3725B1; }
+  .nav-btn.primary:hover { opacity: 0.88; color: #14201A; }
 
   /* ============================================================
      TABLE OF CONTENTS
   ============================================================ */
   .toc {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: #F6F7F5;
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius);
     padding: 24px 28px;
     margin-bottom: 48px;
   }
   .toc h2 {
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: #505868;
     margin-bottom: 12px;
   }
   .toc ol { padding-left: 20px; }
-  .toc li { margin: 5px 0; font-size: 14px; color: var(--text-muted); }
-  .toc a { color: var(--text-muted); }
-  .toc a:hover { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 5px 0; font-size: 14px; color: #505868; }
+  .toc a { color: #505868; }
+  .toc a:hover { color: #26178C; text-decoration: none; }
 
   /* ============================================================
      SECTION STRUCTURE
@@ -152,34 +151,34 @@
   }
 
   .section-number {
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--accent);
+    color: #26178C;
     margin-bottom: 8px;
   }
 
   .section h2 {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(22px, 4vw, 30px);
     font-weight: 700;
-    color: var(--text);
+    color: #14201A;
     margin-bottom: 20px;
     line-height: 1.25;
   }
 
   .section h3 {
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 16px;
     font-weight: 700;
-    color: var(--text);
+    color: #14201A;
     margin: 28px 0 10px;
     letter-spacing: 0.02em;
   }
 
-  .section p { margin-bottom: 14px; color: var(--text); }
+  .section p { margin-bottom: 14px; color: #14201A; }
   .section ul, .section ol { padding-left: 22px; margin-bottom: 14px; }
   .section li { margin: 5px 0; }
 
@@ -187,16 +186,16 @@
      CARDS
   ============================================================ */
   .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: #F6F7F5;
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius);
     padding: 24px 28px;
     margin-bottom: 20px;
   }
-  .card.accent-left { border-left: 3px solid var(--accent); }
-  .card.accent-orange { border-left: 3px solid var(--accent2); }
-  .card.accent-cyan { border-left: 3px solid var(--accent3); }
-  .card.accent-green { border-left: 3px solid var(--green); }
+  .card.accent-left { border-left: 3px solid #3725B1; }
+  .card.accent-orange { border-left: 3px solid #B15F25; }
+  .card.accent-cyan { border-left: 3px solid #259EB1; }
+  .card.accent-green { border-left: 3px solid #25B158; }
 
   /* ============================================================
      CODE BLOCKS
@@ -208,38 +207,38 @@
     padding: 20px 22px;
     overflow-x: auto;
     margin: 16px 0;
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 13.5px;
     line-height: 1.6;
-    color: #c9d1d9;
+    color: #C9D1D9;
   }
 
-  pre .kw  { color: #c792ea; }
-  pre .kw2 { color: #89ddff; }
-  pre .str { color: #c3e88d; }
-  pre .num { color: #f78c6c; }
-  pre .cmt { color: #546e7a; font-style: italic; }
-  pre .fn  { color: #82aaff; }
-  pre .type { color: #ffcb6b; }
-  pre .label { color: #f97316; }
-  pre .reg { color: #4ade80; }
+  pre .kw  { color: #C792EA; }
+  pre .kw2 { color: #89DDFF; }
+  pre .str { color: #C3E88D; }
+  pre .num { color: #F78C6C; }
+  pre .cmt { color: #809BA8; font-style: italic; }
+  pre .fn  { color: #82AAFF; }
+  pre .type { color: #FFCB6B; }
+  pre .label { color: #FA822E; }
+  pre .reg { color: #4ADE80; }
 
   code {
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.88em;
-    background: var(--bg-highlight);
-    color: var(--accent3);
+    background: #F7F8F6;
+    color: #177D8C;
     padding: 2px 6px;
     border-radius: 4px;
   }
 
   .code-label {
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--text-dim);
+    color: #4F5769;
     margin-bottom: 4px;
   }
 
@@ -254,23 +253,23 @@
     margin: 20px 0;
   }
   .pipe-step {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: #F6F7F5;
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius-sm);
     padding: 10px 16px;
     font-size: 12px;
-    font-family: 'Source Code Pro', monospace;
-    color: var(--text-muted);
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    color: #505868;
     white-space: nowrap;
   }
   .pipe-step.highlight {
-    background: var(--bg-highlight);
-    border-color: var(--accent);
-    color: var(--accent);
+    background: #F7F8F6;
+    border-color: #3725B1;
+    color: #26178C;
   }
   .pipe-arrow {
     font-size: 16px;
-    color: var(--text-dim);
+    color: #4F5769;
     padding: 0 6px;
   }
 
@@ -278,8 +277,8 @@
      ANALOGY BLOCK
   ============================================================ */
   .analogy-box {
-    background: linear-gradient(135deg, #1a1630 0%, #181c27 100%);
-    border: 1px solid var(--border);
+    background: linear-gradient(135deg, #ECEAF5 0%, #F6F7F5 100%);
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius);
     padding: 32px 36px;
     margin-bottom: 24px;
@@ -291,9 +290,9 @@
     position: absolute;
     top: -10px;
     left: 20px;
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: 120px;
-    color: var(--accent);
+    color: #26178C;
     opacity: 0.08;
     line-height: 1;
     pointer-events: none;
@@ -303,26 +302,26 @@
     font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--accent);
+    color: #26178C;
     margin-bottom: 10px;
   }
   .analogy-box blockquote {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(17px, 2.5vw, 21px);
     font-weight: 400;
     line-height: 1.55;
-    color: var(--text);
+    color: #14201A;
     font-style: italic;
     margin-bottom: 16px;
   }
-  .analogy-box p { color: var(--text-muted); font-size: 14px; }
+  .analogy-box p { color: #505868; font-size: 14px; }
 
   /* ============================================================
      DIFF / CHANGE HIGHLIGHT
   ============================================================ */
-  .diff-add    { color: var(--green); }
-  .diff-remove { color: var(--red); text-decoration: line-through; opacity: 0.6; }
-  .diff-keep   { color: var(--text-dim); }
+  .diff-add    { color: #198A42; }
+  .diff-remove { color: #8C1717; text-decoration: line-through; opacity: 0.6; }
+  .diff-keep   { color: #4F5769; }
 
   /* ============================================================
      CONVERSION DIAGRAM
@@ -334,8 +333,8 @@
     margin: 20px 0;
   }
   .conv-cell {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: #F6F7F5;
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius-sm);
     padding: 16px;
     text-align: center;
@@ -345,25 +344,25 @@
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--text-dim);
+    color: #4F5769;
     margin-bottom: 8px;
   }
   .conv-cell .value {
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 18px;
-    color: var(--accent3);
+    color: #177D8C;
     font-weight: 600;
   }
   .conv-cell .sub {
     font-size: 11px;
-    color: var(--text-muted);
+    color: #505868;
     margin-top: 6px;
   }
   .conv-arrow-row {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-dim);
+    color: #4F5769;
     font-size: 22px;
     margin: 4px 0;
   }
@@ -372,8 +371,8 @@
      Q&A
   ============================================================ */
   .qa-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: #F6F7F5;
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius);
     margin-bottom: 14px;
     overflow: hidden;
@@ -382,19 +381,19 @@
     padding: 18px 22px;
     font-weight: 700;
     font-size: 15px;
-    color: var(--text);
+    color: #14201A;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
     user-select: none;
   }
-  .qa-q:hover { background: var(--bg-highlight); }
-  .qa-q::after { content: '▾'; color: var(--accent); font-size: 18px; }
+  .qa-q:hover { background: #F7F8F6; }
+  .qa-q::after { content: '▾'; color: #26178C; font-size: 18px; }
   .qa-a {
     padding: 0 22px 18px;
     font-size: 14px;
-    color: var(--text-muted);
+    color: #505868;
     line-height: 1.7;
     display: none;
   }
@@ -405,18 +404,18 @@
      TERMINAL OUTPUT
   ============================================================ */
   .terminal {
-    background: #050810;
+    background: #14201A;
     border: 1px solid #1a2540;
     border-radius: var(--radius-sm);
     padding: 20px 22px;
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 13px;
-    color: #a8b4c8;
+    color: #A8B4C8;
     margin: 16px 0;
   }
-  .terminal .prompt { color: #4ade80; }
-  .terminal .output { color: #c9d1d9; }
-  .terminal .comment { color: #546e7a; font-style: italic; }
+  .terminal .prompt { color: #4ADE80; }
+  .terminal .output { color: #C9D1D9; }
+  .terminal .comment { color: #809BA8; font-style: italic; }
 
   /* ============================================================
      CHECKLIST
@@ -426,13 +425,13 @@
     padding: 6px 0 6px 28px;
     position: relative;
     font-size: 14px;
-    color: var(--text-muted);
+    color: #505868;
   }
   .checklist li::before {
     content: '✓';
     position: absolute;
     left: 0;
-    color: var(--green);
+    color: #198A42;
     font-weight: 700;
   }
 
@@ -440,21 +439,21 @@
      CALLOUT BOX
   ============================================================ */
   .callout {
-    background: var(--bg-highlight);
-    border-left: 3px solid var(--yellow);
+    background: #F7F8F6;
+    border-left: 3px solid #B18A25;
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     padding: 14px 18px;
     margin: 16px 0;
     font-size: 14px;
-    color: var(--text-muted);
+    color: #505868;
   }
-  .callout strong { color: var(--yellow); }
+  .callout strong { color: #8C6C17; }
 
   /* ============================================================
      FOOTER NAV
   ============================================================ */
   .footer-nav {
-    border-top: 1px solid var(--border);
+    border-top: 1px solid #C6D0C0;
     padding-top: 36px;
     display: flex;
     justify-content: space-between;
@@ -469,18 +468,18 @@
   ============================================================ */
   .divider {
     border: none;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid #C6D0C0;
     margin: 48px 0;
   }
 
   .tag {
     display: inline-block;
-    background: var(--bg-highlight);
-    border: 1px solid var(--border-light);
+    background: #F7F8F6;
+    border: 1px solid #C6D0C0;
     border-radius: 4px;
     font-size: 11px;
-    font-family: 'Source Code Pro', monospace;
-    color: var(--text-muted);
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    color: #505868;
     padding: 2px 7px;
     margin: 2px;
   }
@@ -493,6 +492,49 @@
   }
   @media (max-width: 580px) { .two-col { grid-template-columns: 1fr; } }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<style>
+/* original colours for highlighting inside code blocks */
+pre .diff-add, .terminal .diff-add, .win-box .diff-add { color: #4ADE80 }
+pre .diff-keep, .terminal .diff-keep, .win-box .diff-keep { color: #858EA3 }
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 <div class="page-wrap">
@@ -835,7 +877,7 @@
     <div class="two-col">
       <div class="card accent-cyan">
         <strong>Why one <code>syscall</code>, not two?</strong><br>
-        <span style="font-size:13px;color:var(--text-muted);">
+        <span style="font-size:13px;color:#505868;">
           We build the entire string (digits + newline) in the stack buffer before
           calling <code>sys_write</code>. A single syscall is faster than two
           (one for digits, one for newline) because syscalls cross the
@@ -844,7 +886,7 @@
       </div>
       <div class="card accent-orange">
         <strong>Why not just <code>printf</code>?</strong><br>
-        <span style="font-size:13px;color:var(--text-muted);">
+        <span style="font-size:13px;color:#505868;">
           <code>printf</code> is in glibc. Our <code>gcc -no-pie</code> link
           command doesn't pull in glibc startup files. The raw
           <code>write(2)</code> syscall is always available — no library
@@ -969,7 +1011,7 @@
 
     <div class="card accent-green">
       <strong>What just happened?</strong>
-      <ol style="margin-top:10px; font-size:14px; color:var(--text-muted);">
+      <ol style="margin-top:10px; font-size:14px; color:#505868;">
         <li style="margin:4px 0;"><code>mycc15</code> compiled <code>sample15.c</code> → <code>sample15.asm</code> (NASM text)</li>
         <li style="margin:4px 0;">NASM assembled both <code>sample15.asm</code> and <code>runtime.asm</code> into <code>.o</code> files</li>
         <li style="margin:4px 0;"><code>gcc -no-pie</code> linked them together — resolving the <code>extern print_int</code> reference</li>
@@ -1118,10 +1160,10 @@ In memory (little-endian, 8 bytes):
 
     <div class="card accent-left">
       <div class="section-number" style="margin-bottom:8px;">Module 16</div>
-      <h3 style="margin-top:0; font-family:'Playfair Display',serif; font-size:22px;">
+      <h3 style="margin-top:0; font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif; font-size:22px;">
         The Complete End-to-End Pipeline
       </h3>
-      <p style="color:var(--text-muted); font-size:14px; margin-top:8px;">
+      <p style="color:#505868; font-size:14px; margin-top:8px;">
         The premiere. Module 16 wires together everything built across modules 01–15
         into a single cohesive compiler. You'll see the full pipeline — source reader,
         lexer, parser, semantic analyser, IR generator, optimiser, and code generator

@@ -6,7 +6,6 @@
 <title>Module 13 — Register Allocator (Graph Coloring)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
 <style>
 :root {
   --bg: #0b0f1a; --bg2: #111827; --bg3: #1a2235; --card: #141c2e; --border: #1e3a5f;
@@ -17,20 +16,20 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Lato', sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  font-family:'Newsreader', Georgia, 'Times New Roman', serif;
+  background: #E9EDF6;
+  color: #14201A;
   line-height: 1.7;
   font-size: 1rem;
 }
 
-a { color: var(--cyan); text-decoration: none; }
+a { color: #17688C; text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* ── Header ── */
 .site-header {
-  background: var(--bg2);
-  border-bottom: 2px solid var(--border);
+  background: #EAEEF6;
+  border-bottom: 2px solid #C6D0C0;
   padding: 1.5rem 2rem;
   display: flex;
   align-items: center;
@@ -38,9 +37,9 @@ a:hover { text-decoration: underline; }
 }
 
 .badge {
-  background: var(--purple);
-  color: #000;
-  font-family: 'Lato', sans-serif;
+  background: #DFD7F4;
+  color: #000000;
+  font-family:'Newsreader', Georgia, 'Times New Roman', serif;
   font-weight: 700;
   font-size: 0.7rem;
   letter-spacing: 0.12em;
@@ -50,15 +49,15 @@ a:hover { text-decoration: underline; }
 }
 
 .site-header h1 {
-  font-family: 'Playfair Display', serif;
+  font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(1.4rem, 3vw, 2rem);
   font-weight: 900;
-  color: var(--purple);
+  color: #34178C;
   line-height: 1.2;
 }
 
 .site-header .subtitle {
-  color: var(--muted);
+  color: #4B5B6C;
   font-size: 0.9rem;
   margin-top: 0.2rem;
 }
@@ -72,28 +71,28 @@ a:hover { text-decoration: underline; }
 
 /* ── Section cards ── */
 .section {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: #EAEDF6;
+  border: 1px solid #C6D0C0;
   border-radius: 10px;
   padding: 2rem;
   margin-bottom: 2rem;
 }
 
 .section-label {
-  font-family: 'Lato', sans-serif;
+  font-family:'Newsreader', Georgia, 'Times New Roman', serif;
   font-weight: 700;
   font-size: 0.72rem;
   letter-spacing: 0.15em;
-  color: var(--muted);
+  color: #4B5B6C;
   text-transform: uppercase;
   margin-bottom: 0.4rem;
 }
 
 .section h2 {
-  font-family: 'Playfair Display', serif;
+  font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(--purple);
+  color: #34178C;
   margin-bottom: 1rem;
   line-height: 1.25;
 }
@@ -108,7 +107,7 @@ pre {
   border-radius: 6px;
   padding: 1.2rem 1.4rem;
   overflow-x: auto;
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 0.85rem;
   line-height: 1.6;
   margin: 1rem 0;
@@ -116,12 +115,12 @@ pre {
 }
 
 code {
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 0.88em;
-  background: var(--code-bg);
+  background: #E7EDF8;
   padding: 0.1em 0.35em;
   border-radius: 3px;
-  color: var(--orange);
+  color: #8C4C17;
 }
 
 pre code {
@@ -131,13 +130,13 @@ pre code {
   font-size: inherit;
 }
 
-.kw  { color: var(--purple); }
-.cm  { color: var(--muted);  font-style: italic; }
-.str { color: var(--green);  }
-.num { color: var(--orange); }
-.fn  { color: var(--cyan);   }
-.reg { color: var(--gold);   }
-.lbl { color: var(--teal);   }
+.kw  { color: #34178C; }
+.cm  { color: #4B5B6C;  font-style: italic; }
+.str { color: #198A42;  }
+.num { color: #8C4C17; }
+.fn  { color: #17688C;   }
+.reg { color: #8C6F17;   }
+.lbl { color: #178C82;   }
 
 /* ── Tables ── */
 table {
@@ -148,37 +147,37 @@ table {
 }
 
 th {
-  background: var(--bg3);
-  color: var(--purple);
-  font-family: 'Lato', sans-serif;
+  background: #EAEEF5;
+  color: #34178C;
+  font-family:'Newsreader', Georgia, 'Times New Roman', serif;
   font-weight: 700;
   text-align: left;
   padding: 0.65rem 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid #C6D0C0;
 }
 
 td {
   padding: 0.55rem 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid #C6D0C0;
   vertical-align: top;
 }
 
-tr:nth-child(even) td { background: var(--bg3); }
+tr:nth-child(even) td { background: #EAEEF5; }
 
 /* ── Call-out boxes ── */
 .callout {
-  border-left: 4px solid var(--gold);
-  background: var(--bg3);
+  border-left: 4px solid #B18E25;
+  background: #EAEEF5;
   border-radius: 0 6px 6px 0;
   padding: 1rem 1.2rem;
   margin: 1rem 0;
 }
 
-.callout.cyan   { border-color: var(--cyan);   }
-.callout.green  { border-color: var(--green);  }
-.callout.red    { border-color: var(--red);    }
-.callout.teal   { border-color: var(--teal);   }
-.callout.purple { border-color: var(--purple); }
+.callout.cyan   { border-color: #2586B1;   }
+.callout.green  { border-color: #25B158;  }
+.callout.red    { border-color: #B12525;    }
+.callout.teal   { border-color: #25B1A4;   }
+.callout.purple { border-color: #4925B1; }
 
 .callout-title {
   font-weight: 700;
@@ -188,12 +187,12 @@ tr:nth-child(even) td { background: var(--bg3); }
   margin-bottom: 0.4rem;
 }
 
-.callout         .callout-title { color: var(--gold);   }
-.callout.cyan    .callout-title { color: var(--cyan);   }
-.callout.green   .callout-title { color: var(--green);  }
-.callout.red     .callout-title { color: var(--red);    }
-.callout.teal    .callout-title { color: var(--teal);   }
-.callout.purple  .callout-title { color: var(--purple); }
+.callout         .callout-title { color: #8C6F17;   }
+.callout.cyan    .callout-title { color: #17688C;   }
+.callout.green   .callout-title { color: #198A42;  }
+.callout.red     .callout-title { color: #8C1717;    }
+.callout.teal    .callout-title { color: #178C82;   }
+.callout.purple  .callout-title { color: #34178C; }
 
 /* ── Interference graph (SVG diagram) ── */
 .graph-wrap {
@@ -222,8 +221,8 @@ tr:nth-child(even) td { background: var(--bg3); }
   flex-shrink: 0;
   width: 2rem;
   height: 2rem;
-  background: var(--purple);
-  color: #000;
+  background: #DFD7F4;
+  color: #000000;
   font-weight: 700;
   font-size: 0.85rem;
   border-radius: 50%;
@@ -235,30 +234,30 @@ tr:nth-child(even) td { background: var(--bg3); }
 
 /* ── Q&A ── */
 .qa-block {
-  border: 1px solid var(--border);
+  border: 1px solid #C6D0C0;
   border-radius: 8px;
   margin-bottom: 1rem;
   overflow: hidden;
 }
 
 .qa-q {
-  background: var(--bg3);
+  background: #EAEEF5;
   padding: 0.9rem 1.1rem;
   font-weight: 700;
-  color: var(--purple);
+  color: #34178C;
   cursor: default;
 }
 
 .qa-a {
   padding: 0.9rem 1.1rem;
-  color: var(--text);
-  background: var(--card);
+  color: #14201A;
+  background: #EAEDF6;
 }
 
 /* ── Brain exercise ── */
 .brain {
-  background: var(--bg3);
-  border: 1px solid var(--teal);
+  background: #EAEEF5;
+  border: 1px solid #25B1A4;
   border-radius: 8px;
   padding: 1.5rem;
 }
@@ -266,8 +265,8 @@ tr:nth-child(even) td { background: var(--bg3); }
 .brain-icon { font-size: 2rem; margin-bottom: 0.5rem; }
 
 .brain h3 {
-  font-family: 'Playfair Display', serif;
-  color: var(--teal);
+  font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  color: #178C82;
   font-size: 1.2rem;
   margin-bottom: 0.6rem;
 }
@@ -281,34 +280,34 @@ tr:nth-child(even) td { background: var(--bg3); }
 }
 
 .prereq-chip {
-  background: var(--bg3);
-  border: 1px solid var(--border);
+  background: #EAEEF5;
+  border: 1px solid #C6D0C0;
   border-radius: 20px;
   padding: 0.25rem 0.75rem;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: #4B5B6C;
 }
 
 /* ── Next box ── */
 .next-box {
-  background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%);
-  border: 1px solid var(--teal);
+  background: linear-gradient(135deg, #EAEEF5 0%, #EAEEF6 100%);
+  border: 1px solid #25B1A4;
   border-radius: 10px;
   padding: 1.5rem;
   text-align: center;
 }
 
 .next-box h3 {
-  font-family: 'Playfair Display', serif;
-  color: var(--teal);
+  font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  color: #178C82;
   font-size: 1.3rem;
   margin-bottom: 0.5rem;
 }
 
 /* ── Footer nav ── */
 .footer-nav {
-  background: var(--bg2);
-  border-top: 2px solid var(--border);
+  background: #EAEEF6;
+  border-top: 2px solid #C6D0C0;
   padding: 1.2rem 2rem;
   display: flex;
   justify-content: space-between;
@@ -318,25 +317,73 @@ tr:nth-child(even) td { background: var(--bg3); }
 }
 
 .footer-nav a {
-  background: var(--bg3);
-  border: 1px solid var(--border);
+  background: #EAEEF5;
+  border: 1px solid #C6D0C0;
   padding: 0.5rem 1.1rem;
   border-radius: 6px;
-  color: var(--cyan);
+  color: #17688C;
   transition: border-color 0.2s;
 }
 
-.footer-nav a:hover { border-color: var(--cyan); text-decoration: none; }
+.footer-nav a:hover { border-color: #2586B1; text-decoration: none; }
 
 ul { padding-left: 1.4rem; }
 ul li { margin-bottom: 0.4rem; }
 
-.highlight { color: var(--gold); font-weight: 700; }
-.tag-live   { color: var(--green); font-weight: 700; }
-.tag-dead   { color: var(--red);   font-weight: 700; }
-.tag-spill  { color: var(--red);   }
-.tag-reg    { color: var(--green); }
+.highlight { color: #8C6F17; font-weight: 700; }
+.tag-live   { color: #198A42; font-weight: 700; }
+.tag-dead   { color: #8C1717;   font-weight: 700; }
+.tag-spill  { color: #8C1717;   }
+.tag-reg    { color: #198A42; }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<style>
+/* original colours for highlighting inside code blocks */
+pre .kw, .terminal .kw, .win-box .kw { color: #A78BFA }
+pre .cm, .terminal .cm, .win-box .cm { color: #7A9BBF }
+pre .num, .terminal .num, .win-box .num { color: #FB923C }
+pre .fn, .terminal .fn, .win-box .fn { color: #38BDF8 }
+pre .reg, .terminal .reg, .win-box .reg { color: #F5C842 }
+pre .lbl, .terminal .lbl, .win-box .lbl { color: #3AEEDE }
+pre .callout.green, .terminal .callout.green, .win-box .callout.green { border-color: #4ade80 }
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 
@@ -466,25 +513,25 @@ ul li { margin-bottom: 0.4rem; }
   <div class="graph-wrap">
     <svg viewBox="0 0 420 240" width="420" height="240" xmlns="http://www.w3.org/2000/svg" style="max-width:100%">
       <!-- edges -->
-      <line x1="210" y1="40"  x2="90"  y2="190" stroke="#1e3a5f" stroke-width="2"/>
-      <line x1="210" y1="40"  x2="330" y2="190" stroke="#1e3a5f" stroke-width="2"/>
-      <line x1="90"  y1="190" x2="330" y2="190" stroke="#1e3a5f" stroke-width="2"/>
+      <line x1="210" y1="40"  x2="90"  y2="190" stroke="#C6D0C0" stroke-width="2"/>
+      <line x1="210" y1="40"  x2="330" y2="190" stroke="#C6D0C0" stroke-width="2"/>
+      <line x1="90"  y1="190" x2="330" y2="190" stroke="#C6D0C0" stroke-width="2"/>
       <!-- nodes -->
-      <circle cx="210" cy="40"  r="30" fill="#141c2e" stroke="#a78bfa" stroke-width="2"/>
-      <circle cx="90"  cy="190" r="30" fill="#141c2e" stroke="#38bdf8" stroke-width="2"/>
-      <circle cx="330" cy="190" r="30" fill="#141c2e" stroke="#4ade80" stroke-width="2"/>
+      <circle cx="210" cy="40"  r="30" fill="#EAEDF6" stroke="#4925B1" stroke-width="2"/>
+      <circle cx="90"  cy="190" r="30" fill="#EAEDF6" stroke="#2586B1" stroke-width="2"/>
+      <circle cx="330" cy="190" r="30" fill="#EAEDF6" stroke="#25B158" stroke-width="2"/>
       <!-- labels -->
-      <text x="210" y="46" text-anchor="middle" fill="#a78bfa" font-family="Source Code Pro,monospace" font-size="16" font-weight="600">t0</text>
-      <text x="90"  y="196" text-anchor="middle" fill="#38bdf8" font-family="Source Code Pro,monospace" font-size="16" font-weight="600">t1</text>
-      <text x="330" y="196" text-anchor="middle" fill="#4ade80" font-family="Source Code Pro,monospace" font-size="16" font-weight="600">t2</text>
+      <text x="210" y="46" text-anchor="middle" fill="#34178C" font-family="'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace" font-size="16" font-weight="600">t0</text>
+      <text x="90"  y="196" text-anchor="middle" fill="#17688C" font-family="'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace" font-size="16" font-weight="600">t1</text>
+      <text x="330" y="196" text-anchor="middle" fill="#198A42" font-family="'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace" font-size="16" font-weight="600">t2</text>
       <!-- edge labels -->
-      <text x="136" y="108" text-anchor="middle" fill="#7a9bbf" font-family="Lato,sans-serif" font-size="11">interfere</text>
-      <text x="284" y="108" text-anchor="middle" fill="#7a9bbf" font-family="Lato,sans-serif" font-size="11">interfere</text>
-      <text x="210" y="210" text-anchor="middle" fill="#7a9bbf" font-family="Lato,sans-serif" font-size="11">interfere</text>
+      <text x="136" y="108" text-anchor="middle" fill="#4B5B6C" font-family="'Newsreader', Georgia, 'Times New Roman', serif" font-size="11">interfere</text>
+      <text x="284" y="108" text-anchor="middle" fill="#4B5B6C" font-family="'Newsreader', Georgia, 'Times New Roman', serif" font-size="11">interfere</text>
+      <text x="210" y="210" text-anchor="middle" fill="#4B5B6C" font-family="'Newsreader', Georgia, 'Times New Roman', serif" font-size="11">interfere</text>
     </svg>
   </div>
 
-  <p style="text-align:center; color:var(--muted); font-size:0.85rem">Each node is a temporary. Each edge means "these two cannot share a register."</p>
+  <p style="text-align:center; color:#4B5B6C; font-size:0.85rem">Each node is a temporary. Each edge means "these two cannot share a register."</p>
 </section>
 
 <!-- ══════════════ §04 GREEDY GRAPH COLORING ══════════════ -->
@@ -629,8 +676,8 @@ echo "exit: $?"
     <p style="margin-top:0.7rem"><strong>Question:</strong> Do <code>t0</code> and <code>t1</code> interfere? Which one gets the register, and which one spills?</p>
 
     <details style="margin-top:1rem">
-      <summary style="cursor:pointer; color:var(--gold); font-weight:700">Reveal the Answer</summary>
-      <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid var(--border)">
+      <summary style="cursor:pointer; color:#8C6F17; font-weight:700">Reveal the Answer</summary>
+      <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid #C6D0C0">
         <p><strong>Do they interfere?</strong> Check overlap: <code>0 &le; 8</code> AND <code>3 &le; 5</code> — both true. Their ranges overlap during instructions 3–5. <span class="tag-live">Yes, they interfere.</span></p>
         <p style="margin-top:0.6rem"><strong>Who gets the register?</strong> Our greedy allocator processes temps in ascending order. <code>t0</code> is processed first (lower temp number = lower first_def). At that point no interfering neighbor has been colored yet, so <code>t0</code> picks up the only register — say <code>rbx</code>.</p>
         <p style="margin-top:0.6rem"><strong>Who spills?</strong> When <code>t1</code> is processed, <code>t0</code> is already colored and interferes with <code>t1</code>, so color 0 (<code>rbx</code>) is off-limits. With only 1 register available, all colors are taken. <code>t1</code> is <span class="tag-spill">spilled to [rbp-8]</span>. Every instruction that reads or writes <code>t1</code> will get an extra <code>mov</code> to/from the stack slot.</p>
@@ -673,7 +720,7 @@ echo "exit: $?"
   <div class="next-box">
     <h3>Module 14 — ELF Object File Emitter</h3>
     <p>So far we emit NASM assembly text and rely on <code>nasm</code> + <code>gcc</code> to produce an executable. Module 14 cuts out the middle-man: we write an <strong>ELF64 object file directly</strong> — filling in section headers, symbol tables, and relocation entries by hand. The result is a <code>.o</code> file that <code>ld</code> can link without ever touching NASM.</p>
-    <p style="margin-top:0.8rem; color:var(--muted)">Key concept coming up: <em>ELF section layout</em>, <em>Elf64_Sym</em>, <em>Elf64_Rela</em>, and <em>R_X86_64_PLT32 relocations</em>.</p>
+    <p style="margin-top:0.8rem; color:#4B5B6C">Key concept coming up: <em>ELF section layout</em>, <em>Elf64_Sym</em>, <em>Elf64_Rela</em>, and <em>R_X86_64_PLT32 relocations</em>.</p>
   </div>
 </section>
 
@@ -682,7 +729,7 @@ echo "exit: $?"
 <!-- ══════════════ FOOTER NAV ══════════════ -->
 <nav class="footer-nav">
   <a href="../module_12%20-%20Function%20Calls%20&amp;%20the%20System%20V%20AMD64%20Calling%20Convention/tutorial.html">← Module 12</a>
-  <span style="color:var(--muted); font-size:0.8rem">MODULE 13 / 16 — Register Allocator</span>
+  <span style="color:#4B5B6C; font-size:0.8rem">MODULE 13 / 16 — Register Allocator</span>
   <a href="../module_14%20-%20ELF%20Object%20File%20Emitter/tutorial.html">Module 14 →</a>
 </nav>
 

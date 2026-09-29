@@ -25,9 +25,9 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #E9EDF6;
+    color: #14201A;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 17px;
     line-height: 1.75;
     max-width: 900px;
@@ -41,21 +41,21 @@
     justify-content: space-between;
     align-items: center;
     padding: .75rem 1.25rem;
-    background: var(--bg2);
-    border: 1px solid var(--border);
+    background: #EAEDF5;
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius);
     margin-bottom: 2.5rem;
     font-size: .95rem;
   }
-  nav a { color: var(--cyan); text-decoration: none; font-weight: 600; }
+  nav a { color: #17688C; text-decoration: none; font-weight: 600; }
   nav a:hover { text-decoration: underline; }
-  nav span { color: var(--muted); }
+  nav span { color: #4B596C; }
 
   /* ---- Module badge ---- */
   .badge {
     display: inline-block;
-    background: var(--gold);
-    color: #0b0f1a;
+    background: #F4ECD7;
+    color: #0B0F1A;
     font-weight: 800;
     font-size: .8rem;
     letter-spacing: .12em;
@@ -68,39 +68,39 @@
     font-size: 2.6rem;
     font-weight: 800;
     line-height: 1.15;
-    color: var(--gold);
+    color: #8C6F17;
     margin-bottom: .5rem;
   }
   .subtitle {
     font-size: 1.15rem;
-    color: var(--muted);
+    color: #4B596C;
     margin-bottom: 3rem;
   }
 
   h2 {
     font-size: 1.65rem;
     font-weight: 700;
-    color: var(--cyan);
+    color: #17688C;
     margin: 3rem 0 1rem;
     padding-bottom: .4rem;
-    border-bottom: 2px solid var(--border);
+    border-bottom: 2px solid #C6D0C0;
   }
   h3 {
     font-size: 1.2rem;
     font-weight: 700;
-    color: var(--gold);
+    color: #8C6F17;
     margin: 2rem 0 .6rem;
   }
   h4 {
     font-size: 1rem;
     font-weight: 700;
-    color: var(--purple);
+    color: #52178C;
     margin: 1.5rem 0 .4rem;
   }
 
   p { margin-bottom: 1rem; }
 
-  a { color: var(--cyan); }
+  a { color: #17688C; }
 
   /* ---- Code ---- */
   pre {
@@ -114,33 +114,33 @@
     margin: 1.25rem 0;
   }
   code {
-    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-    color: var(--green);
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    color: #198A42;
   }
   pre code { color: var(--text); }
 
   /* Inline code */
   p code, li code, td code {
-    background: var(--bg3);
-    border: 1px solid var(--border);
+    background: #EAEDF6;
+    border: 1px solid #C6D0C0;
     border-radius: 4px;
     padding: .1em .4em;
     font-size: .87em;
-    color: var(--cyan);
+    color: #17688C;
   }
 
   /* ---- Callout boxes ---- */
   .box {
-    border-left: 4px solid var(--gold);
-    background: var(--bg2);
+    border-left: 4px solid #B18E25;
+    background: #EAEDF5;
     border-radius: 0 var(--radius) var(--radius) 0;
     padding: 1.1rem 1.4rem;
     margin: 1.5rem 0;
   }
-  .box.info  { border-color: var(--cyan); }
-  .box.warn  { border-color: var(--orange); }
-  .box.good  { border-color: var(--green); }
-  .box.brain { border-color: var(--purple); }
+  .box.info  { border-color: #2586B1; }
+  .box.warn  { border-color: #B16425; }
+  .box.good  { border-color: #25B158; }
+  .box.brain { border-color: #6B25B1; }
 
   .box-title {
     font-weight: 700;
@@ -149,11 +149,11 @@
     text-transform: uppercase;
     margin-bottom: .5rem;
   }
-  .box.info  .box-title { color: var(--cyan); }
-  .box.warn  .box-title { color: var(--orange); }
-  .box.good  .box-title { color: var(--green); }
-  .box       .box-title { color: var(--gold); }
-  .box.brain .box-title { color: var(--purple); }
+  .box.info  .box-title { color: #17688C; }
+  .box.warn  .box-title { color: #8C4C17; }
+  .box.good  .box-title { color: #198A42; }
+  .box       .box-title { color: #8C6F17; }
+  .box.brain .box-title { color: #52178C; }
 
   /* ---- Tables ---- */
   table {
@@ -163,22 +163,22 @@
     font-size: .92rem;
   }
   th {
-    background: var(--bg3);
-    color: var(--gold);
+    background: #EAEDF6;
+    color: #8C6F17;
     text-align: left;
     padding: .6rem 1rem;
-    border-bottom: 2px solid var(--border);
+    border-bottom: 2px solid #C6D0C0;
   }
   td {
     padding: .55rem 1rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #C6D0C0;
   }
-  tr:hover td { background: var(--bg2); }
+  tr:hover td { background: #EAEDF5; }
 
   /* ---- Q&A ---- */
   details {
-    background: var(--bg2);
-    border: 1px solid var(--border);
+    background: #EAEDF5;
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius);
     margin: .75rem 0;
   }
@@ -186,7 +186,7 @@
     padding: .9rem 1.2rem;
     cursor: pointer;
     font-weight: 600;
-    color: var(--cyan);
+    color: #17688C;
     list-style: none;
   }
   summary::-webkit-details-marker { display: none; }
@@ -194,34 +194,74 @@
   details[open] summary::before { content: "▼  "; }
   details .answer {
     padding: .1rem 1.2rem 1rem;
-    color: var(--text);
-    border-top: 1px solid var(--border);
+    color: #14201A;
+    border-top: 1px solid #C6D0C0;
   }
 
   /* ---- Tree diagram ---- */
   .tree {
-    background: var(--code-bg);
-    border: 1px solid var(--border);
+    background: #F5F7F3;
+    border: 1px solid #C6D0C0;
     border-radius: var(--radius);
     padding: 1.25rem 1.5rem;
-    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: .85rem;
     line-height: 1.7;
     overflow-x: auto;
     margin: 1.25rem 0;
     white-space: pre;
   }
-  .kw  { color: var(--purple); }
-  .num { color: var(--orange); }
-  .id  { color: var(--cyan); }
-  .op  { color: var(--gold); }
-  .nd  { color: var(--green); }
+  .kw  { color: #52178C; }
+  .num { color: #8C4C17; }
+  .id  { color: #17688C; }
+  .op  { color: #8C6F17; }
+  .nd  { color: #198A42; }
 
   ul, ol { padding-left: 1.6rem; margin-bottom: 1rem; }
   li { margin-bottom: .3rem; }
 
-  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+  hr { border: none; border-top: 1px solid #C6D0C0; margin: 2.5rem 0; }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 
@@ -289,7 +329,7 @@ a label: "DIALOGUE", "ACTION", "SCENE HEADING".  That is Module 02.</p>
 <p>Now meet the <strong>Story Analyst</strong>.  She takes those labelled
 pages and draws a map:</p>
 
-<blockquote style="border-left:3px solid var(--gold);padding-left:1rem;color:var(--muted);">
+<blockquote style="border-left:3px solid #B18E25;padding-left:1rem;color:#4B596C;">
   "Act 1 contains Scene 1 (which has three beats) and Scene 2 (which has
   two beats, plus a flashback).  Scene 1 Beat 2 is a conversation inside
   a car inside Act 1 Scene 1."

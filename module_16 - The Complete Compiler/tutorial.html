@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Module 16 — The Complete Compiler | mycc</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:          #0d1117;
@@ -28,9 +27,9 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Lato', sans-serif;
+    background: #F5F7F3;
+    color: #14201A;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 400;
     line-height: 1.75;
     font-size: 17px;
@@ -38,8 +37,8 @@
 
   /* ── hero ── */
   .hero {
-    background: linear-gradient(135deg, #0d1117 0%, #1a1060 40%, #0d2340 70%, #0d1117 100%);
-    border-bottom: 2px solid var(--gold);
+    background: linear-gradient(135deg, #F5F7F3 0%, #E9E7F8 40%, #E7EFF8 70%, #F5F7F3 100%);
+    border-bottom: 2px solid #B19B25;
     padding: 5rem 2rem 4rem;
     text-align: center;
     position: relative;
@@ -50,7 +49,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(240,192,64,0.08) 0%, transparent 70%);
+    background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(155, 123, 39, 0.08) 0%, transparent 70%);
     pointer-events: none;
   }
 
@@ -77,9 +76,9 @@
 
   .badge {
     display: inline-block;
-    background: var(--gold);
-    color: #0d1117;
-    font-family: 'Lato', sans-serif;
+    background: #F4EFD7;
+    color: #0D1117;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 700;
     font-size: 0.75rem;
     letter-spacing: 0.18em;
@@ -90,20 +89,20 @@
   }
 
   .hero h1 {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-weight: 900;
     font-size: clamp(2.6rem, 6vw, 4.4rem);
     line-height: 1.1;
-    color: var(--champagne);
-    text-shadow: 0 0 40px rgba(255,215,0,0.3);
+    color: #8C7717;
+    text-shadow: 0 0 40px rgba(140, 122, 23, 0.55);
     margin-bottom: 0.6rem;
   }
 
   .hero .subtitle {
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 300;
     font-size: 1.25rem;
-    color: var(--text-muted);
+    color: #545B64;
     max-width: 640px;
     margin: 0 auto 2rem;
   }
@@ -128,67 +127,67 @@
 
   /* ── nav ── */
   .nav-bar {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    background: #F5F7F4;
+    border-bottom: 1px solid #C6D0C0;
     padding: 0.9rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 0.9rem;
-    color: var(--text-muted);
+    color: #545B64;
     position: sticky;
     top: 0;
     z-index: 100;
   }
 
   .nav-bar a {
-    color: var(--accent2);
+    color: #174E8C;
     text-decoration: none;
   }
   .nav-bar a:hover { text-decoration: underline; }
 
   .nav-end {
     font-style: italic;
-    color: var(--gold);
+    color: #8C7A17;
     font-weight: 700;
   }
 
   /* ── sections ── */
   .section {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #C6D0C0;
     padding: 3.5rem 0;
   }
 
   .section-label {
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 700;
     font-size: 0.72rem;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: var(--accent);
+    color: #8C6C17;
     margin-bottom: 0.5rem;
   }
 
   h2 {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-weight: 700;
     font-size: 2rem;
-    color: var(--text);
+    color: #14201A;
     margin-bottom: 1.25rem;
     line-height: 1.2;
   }
 
   h3 {
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 700;
     font-size: 1.15rem;
-    color: var(--accent2);
+    color: #174E8C;
     margin: 1.8rem 0 0.6rem;
   }
 
   p { margin-bottom: 1rem; }
 
-  a { color: var(--accent2); }
+  a { color: #174E8C; }
 
   /* ── code ── */
   pre {
@@ -199,18 +198,18 @@
     padding: 1.25rem 1.5rem;
     overflow-x: auto;
     margin: 1.25rem 0;
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.88rem;
     line-height: 1.6;
   }
 
   code {
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.9em;
-    background: var(--highlight);
+    background: #F7F9F7;
     padding: 0.1em 0.35em;
     border-radius: 3px;
-    color: var(--accent5);
+    color: #50178C;
   }
 
   pre code {
@@ -221,31 +220,31 @@
 
   /* ── callout boxes ── */
   .callout {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--accent2);
+    background: #F6F8F5;
+    border: 1px solid #C6D0C0;
+    border-left: 4px solid #2567B1;
     border-radius: 6px;
     padding: 1.2rem 1.5rem;
     margin: 1.5rem 0;
   }
 
-  .callout.gold { border-left-color: var(--gold); }
-  .callout.green { border-left-color: var(--accent3); }
-  .callout.red   { border-left-color: var(--accent4); }
-  .callout.purple { border-left-color: var(--accent5); }
+  .callout.gold { border-left-color: #B19B25; }
+  .callout.green { border-left-color: #36A045; }
+  .callout.red   { border-left-color: #B12E25; }
+  .callout.purple { border-left-color: #6925B1; }
 
   .callout-title {
     font-weight: 700;
     font-size: 0.85rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--accent2);
+    color: #174E8C;
     margin-bottom: 0.4rem;
   }
-  .callout.gold .callout-title { color: var(--gold); }
-  .callout.green .callout-title { color: var(--accent3); }
-  .callout.red   .callout-title { color: var(--accent4); }
-  .callout.purple .callout-title { color: var(--accent5); }
+  .callout.gold .callout-title { color: #8C7A17; }
+  .callout.green .callout-title { color: #4B6C50; }
+  .callout.red   .callout-title { color: #8C1E17; }
+  .callout.purple .callout-title { color: #50178C; }
 
   /* ── pipeline diagram ── */
   .pipeline {
@@ -264,13 +263,13 @@
     border-radius: 6px;
     transition: background 0.15s;
   }
-  .pipe-row:hover { background: var(--surface2); }
+  .pipe-row:hover { background: #F6F8F5; }
 
   .pipe-num {
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-muted);
+    color: #545B64;
     text-align: right;
   }
 
@@ -283,21 +282,21 @@
   .pipe-icon { font-size: 1.2rem; }
 
   .pipe-name {
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.9rem;
-    color: var(--accent);
+    color: #8C6C17;
     font-weight: 600;
   }
 
   .pipe-analogy {
     font-size: 0.85rem;
-    color: var(--text-muted);
+    color: #545B64;
     font-style: italic;
   }
 
   .pipe-arrow {
     text-align: center;
-    color: var(--border);
+    color: #30363D;
     font-size: 1.2rem;
     line-height: 1;
     padding: 0.15rem 0;
@@ -308,18 +307,18 @@
     width: 100%;
     border-collapse: collapse;
     margin: 1.25rem 0;
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.87rem;
   }
 
   .timing-table th {
-    background: var(--surface2);
-    color: var(--text-muted);
+    background: #F6F8F5;
+    color: #545B64;
     font-weight: 600;
     text-align: left;
     padding: 0.5rem 1rem;
-    border-bottom: 1px solid var(--border);
-    font-family: 'Lato', sans-serif;
+    border-bottom: 1px solid #C6D0C0;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 0.8rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -327,18 +326,18 @@
 
   .timing-table td {
     padding: 0.45rem 1rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #C6D0C0;
   }
 
   .timing-table tr:last-child td {
     border-bottom: none;
     font-weight: 600;
-    color: var(--accent);
+    color: #8C6C17;
   }
 
   .timing-table td:last-child {
     text-align: right;
-    color: var(--accent3);
+    color: #4B6C50;
   }
 
   /* ── extension cards ── */
@@ -352,29 +351,29 @@
   @media (max-width: 600px) { .ext-grid { grid-template-columns: 1fr; } }
 
   .ext-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: #F5F7F4;
+    border: 1px solid #C6D0C0;
     border-radius: 8px;
     padding: 1.25rem;
     transition: border-color 0.15s, transform 0.15s;
   }
 
   .ext-card:hover {
-    border-color: var(--accent2);
+    border-color: #2567B1;
     transform: translateY(-2px);
   }
 
   .ext-card h4 {
-    font-family: 'Lato', sans-serif;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 700;
     font-size: 1rem;
-    color: var(--accent2);
+    color: #174E8C;
     margin-bottom: 0.5rem;
   }
 
   .ext-card p {
     font-size: 0.9rem;
-    color: var(--text-muted);
+    color: #545B64;
     margin: 0;
   }
 
@@ -384,47 +383,47 @@
     display: flex;
     gap: 0.75rem;
     padding: 0.45rem 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #C6D0C0;
     font-size: 0.92rem;
     align-items: baseline;
   }
   .limits li:last-child { border-bottom: none; }
   .limits .lim-feature {
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.85rem;
-    color: var(--accent4);
+    color: #8C1E17;
     min-width: 180px;
   }
-  .limits .lim-why { color: var(--text-muted); }
+  .limits .lim-why { color: #545B64; }
 
   /* ── brain exercise ── */
   .brain {
-    background: linear-gradient(135deg, #1a1060 0%, #0d2340 100%);
-    border: 1px solid var(--gold);
+    background: linear-gradient(135deg, #E9E7F8 0%, #E7EFF8 100%);
+    border: 1px solid #B19B25;
     border-radius: 10px;
     padding: 2rem;
     margin: 2rem 0;
   }
 
   .brain h3 {
-    color: var(--gold);
-    font-family: 'Playfair Display', serif;
+    color: #8C7A17;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: 1.3rem;
     margin-top: 0;
   }
 
   details summary {
     cursor: pointer;
-    color: var(--accent2);
+    color: #174E8C;
     font-weight: 700;
     padding: 0.4rem 0;
     user-select: none;
   }
-  details summary:hover { color: var(--accent); }
-  details[open] summary { color: var(--accent3); }
+  details summary:hover { color: #8C6C17; }
+  details[open] summary { color: #4B6C50; }
   .answer {
-    background: var(--surface2);
-    border-left: 3px solid var(--accent3);
+    background: #F6F8F5;
+    border-left: 3px solid #36A045;
     padding: 1rem 1.25rem;
     margin-top: 0.75rem;
     border-radius: 0 6px 6px 0;
@@ -433,17 +432,17 @@
 
   /* ── finale ── */
   .finale {
-    background: linear-gradient(135deg, #0d1117 0%, #1a1060 40%, #0a2a0a 80%, #0d1117 100%);
-    border-top: 2px solid var(--gold);
+    background: linear-gradient(135deg, #F5F7F3 0%, #E9E7F8 40%, #E7F8E7 80%, #F5F7F3 100%);
+    border-top: 2px solid #B19B25;
     text-align: center;
     padding: 4rem 2rem;
   }
 
   .finale h2 {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(2rem, 5vw, 3.2rem);
-    color: var(--champagne);
-    text-shadow: 0 0 30px rgba(255,215,0,0.25);
+    color: #8C7717;
+    text-shadow: 0 0 30px rgba(140, 122, 23, 0.55);
     margin-bottom: 1.25rem;
   }
 
@@ -451,13 +450,13 @@
     max-width: 640px;
     margin: 0 auto 1rem;
     font-size: 1.1rem;
-    color: var(--text-muted);
+    color: #545B64;
   }
 
   .finale .quote {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: 1.3rem;
-    color: var(--champagne);
+    color: #8C7717;
     font-style: italic;
     max-width: 640px;
     margin: 2rem auto 0;
@@ -482,25 +481,63 @@
     padding: 0.25rem 0;
   }
   .journey-list .jnum {
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--accent);
+    color: #8C6C17;
     min-width: 2rem;
   }
-  .journey-list .jtitle { color: var(--text); font-weight: 700; }
-  .journey-list .jdesc  { color: var(--text-muted); font-size: 0.85rem; }
+  .journey-list .jtitle { color: #14201A; font-weight: 700; }
+  .journey-list .jdesc  { color: #545B64; font-size: 0.85rem; }
 
   /* ── footer ── */
   footer {
-    background: var(--surface);
-    border-top: 1px solid var(--border);
+    background: #F5F7F4;
+    border-top: 1px solid #C6D0C0;
     text-align: center;
     padding: 1.5rem;
     font-size: 0.85rem;
-    color: var(--text-muted);
+    color: #545B64;
   }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 
@@ -652,10 +689,10 @@
     </div>
     <div class="pipe-arrow">↓</div>
 
-    <div class="pipe-row" style="background:var(--surface2); border:1px solid var(--gold); border-radius:8px;">
-      <div class="pipe-num" style="color:var(--gold)">▶</div>
-      <div class="pipe-phase"><span class="pipe-icon">🎬</span><span class="pipe-name" style="color:var(--gold)">./output</span></div>
-      <div class="pipe-analogy" style="color:var(--text)">The Premiere — the film runs</div>
+    <div class="pipe-row" style="background:#F6F8F5; border:1px solid #B19B25; border-radius:8px;">
+      <div class="pipe-num" style="color:#8C7A17">▶</div>
+      <div class="pipe-phase"><span class="pipe-icon">🎬</span><span class="pipe-name" style="color:#8C7A17">./output</span></div>
+      <div class="pipe-analogy" style="color:#14201A">The Premiere — the film runs</div>
     </div>
 
   </div>
@@ -1072,7 +1109,7 @@ Results: 5 passed, 0 failed</code></pre>
     <p class="quote">
       "That's beginner to compiler author."
     </p>
-    <p style="margin-top:2rem; color:var(--text-muted);">
+    <p style="margin-top:2rem; color:#545B64;">
       The curtains close. The credits roll. You wrote every name on them.
     </p>
     <div style="margin-top:3rem; font-size:2.5rem; letter-spacing:0.5rem">
@@ -1088,7 +1125,7 @@ Results: 5 passed, 0 failed</code></pre>
     <p style="margin-top:0.5rem;">
       <a href="../module_15%20-%20Standard%20Library%20Shim/tutorial.html">← Module 15</a>
       &nbsp;&nbsp;|&nbsp;&nbsp;
-      <span style="color:var(--gold); font-weight:700;">You made it. 🏆</span>
+      <span style="color:#8C7A17; font-weight:700;">You made it. 🏆</span>
     </p>
   </div>
 </footer>

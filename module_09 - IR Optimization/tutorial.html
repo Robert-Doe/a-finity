@@ -9,9 +9,9 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: #1a1a2e;
-    color: #e0e0f0;
-    font-family: Georgia, 'Times New Roman', serif;
+    background: #F6F8F5;
+    color: #14201A;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-size: 18px;
     line-height: 1.7;
     padding: 0 0 60px;
@@ -19,8 +19,8 @@
 
   /* ── Header ── */
   header {
-    background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
-    border-bottom: 4px solid #e94560;
+    background: linear-gradient(135deg, #E8ECF7 0%, #E7EFF8 100%);
+    border-bottom: 4px solid #B1253C;
     padding: 32px 40px 24px;
     text-align: center;
     position: relative;
@@ -28,9 +28,9 @@
 
   .module-badge {
     display: inline-block;
-    background: #e94560;
-    color: #fff;
-    font-family: 'Courier New', monospace;
+    background: #F4D7DC;
+    color: #14201A;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 13px;
     font-weight: bold;
     letter-spacing: 2px;
@@ -42,12 +42,12 @@
   header h1 {
     font-size: 2.4rem;
     font-weight: bold;
-    color: #fff;
-    text-shadow: 0 2px 8px rgba(233,69,96,0.4);
+    color: #14201A;
+    text-shadow: 0 2px 8px rgba(140, 23, 42, 0.55);
   }
 
   header p.subtitle {
-    color: #a0b4d0;
+    color: #14201A;
     font-size: 1.1rem;
     margin-top: 8px;
   }
@@ -58,24 +58,24 @@
     justify-content: space-between;
     align-items: center;
     padding: 14px 40px;
-    background: #0f3460;
-    font-family: 'Courier New', monospace;
+    background: #E7EFF8;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.9rem;
   }
 
   nav a {
-    color: #53d8fb;
+    color: #17748C;
     text-decoration: none;
     padding: 6px 14px;
-    border: 1px solid #53d8fb44;
+    border: 1px solid rgba(37, 148, 177, 0.27);
     border-radius: 6px;
     transition: background 0.2s;
   }
 
-  nav a:hover { background: #53d8fb22; }
+  nav a:hover { background: rgba(39, 131, 155, 0.13); }
 
   nav .current-module {
-    color: #e94560;
+    color: #8C172A;
     font-weight: bold;
     font-size: 1rem;
   }
@@ -90,15 +90,15 @@
   /* ── Section headings ── */
   h2 {
     font-size: 1.7rem;
-    color: #53d8fb;
-    border-left: 5px solid #e94560;
+    color: #17748C;
+    border-left: 5px solid #B1253C;
     padding-left: 16px;
     margin: 50px 0 20px;
   }
 
   h3 {
     font-size: 1.25rem;
-    color: #f0c040;
+    color: #8C6C17;
     margin: 28px 0 12px;
   }
 
@@ -106,8 +106,8 @@
 
   /* ── Analogy box ── */
   .analogy {
-    background: #16213e;
-    border: 2px solid #f0c040;
+    background: #E8ECF7;
+    border: 2px solid #B18B25;
     border-radius: 10px;
     padding: 24px 28px;
     margin: 32px 0;
@@ -119,9 +119,9 @@
     position: absolute;
     top: -13px;
     left: 20px;
-    background: #f0c040;
-    color: #1a1a2e;
-    font-family: 'Courier New', monospace;
+    background: #F4ECD7;
+    color: #1A1A2E;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 11px;
     font-weight: bold;
     letter-spacing: 2px;
@@ -131,8 +131,8 @@
 
   /* ── Brain Exercise ── */
   .brain {
-    background: #1e1040;
-    border: 2px solid #a060ff;
+    background: #ECE7F8;
+    border: 2px solid #5E25B1;
     border-radius: 10px;
     padding: 24px 28px;
     margin: 36px 0;
@@ -144,9 +144,9 @@
     position: absolute;
     top: -13px;
     left: 20px;
-    background: #a060ff;
-    color: #fff;
-    font-family: 'Courier New', monospace;
+    background: #E3D7F4;
+    color: #14201A;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 11px;
     font-weight: bold;
     letter-spacing: 2px;
@@ -155,55 +155,55 @@
   }
 
   .brain .question {
-    color: #d0b0ff;
+    color: #46178C;
     font-style: italic;
     margin-bottom: 12px;
   }
 
   details summary {
     cursor: pointer;
-    color: #a060ff;
-    font-family: 'Courier New', monospace;
+    color: #46178C;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.9rem;
     user-select: none;
     margin-top: 10px;
   }
 
-  details[open] summary { color: #c090ff; }
+  details[open] summary { color: #4A178C; }
 
   .answer {
-    background: #28205a;
-    border-left: 3px solid #a060ff;
+    background: #EAE8F7;
+    border-left: 3px solid #5E25B1;
     padding: 12px 16px;
     margin-top: 12px;
     border-radius: 0 6px 6px 0;
     font-size: 0.95rem;
-    color: #d0c0f0;
+    color: #411F84;
   }
 
   /* ── Code blocks ── */
   pre {
-    background: #0d1117;
+    background: #14201A;
     border: 1px solid #30404060;
     border-radius: 8px;
     padding: 20px 22px;
     overflow-x: auto;
-    font-family: 'Courier New', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.88rem;
     line-height: 1.5;
     margin: 18px 0;
-    color: #c9d1d9;
+    color: #C9D1D9;
   }
 
-  code { font-family: 'Courier New', monospace; color: #79c0ff; }
+  code { font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; color: #17558C; }
 
   /* ── Inline IR coloring ── */
-  .ir-before { color: #ff9f7e; }
-  .ir-after  { color: #7effa0; }
-  .ir-label  { color: #f0c040; }
-  .ir-op     { color: #79c0ff; }
-  .ir-temp   { color: #e0a0ff; }
-  .ir-const  { color: #79d6ff; }
+  .ir-before { color: #8C3517; }
+  .ir-after  { color: #178C36; }
+  .ir-label  { color: #8C6C17; }
+  .ir-op     { color: #17558C; }
+  .ir-temp   { color: #66178C; }
+  .ir-const  { color: #17688C; }
 
   /* ── Before/After panel ── */
   .before-after {
@@ -218,28 +218,28 @@
   }
 
   .panel {
-    background: #0d1117;
+    background: #F5F7F3;
     border-radius: 8px;
     overflow: hidden;
   }
 
   .panel-header {
     padding: 8px 16px;
-    font-family: 'Courier New', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.82rem;
     font-weight: bold;
     letter-spacing: 1px;
   }
 
-  .panel-header.before { background: #3a1a0a; color: #ff9f7e; }
-  .panel-header.after  { background: #0a2a14; color: #7effa0; }
+  .panel-header.before { background: #F8EDE7; color: #8C3517; }
+  .panel-header.after  { background: #E7F8ED; color: #178C36; }
 
   .panel pre { border: none; border-radius: 0; margin: 0; }
 
   /* ── Key point box ── */
   .keypoint {
-    background: #0a2a3a;
-    border-left: 4px solid #53d8fb;
+    background: #E7F3F8;
+    border-left: 4px solid #2594B1;
     padding: 14px 18px;
     border-radius: 0 8px 8px 0;
     margin: 20px 0;
@@ -248,13 +248,13 @@
 
   /* ── Warning box ── */
   .warning {
-    background: #2a1a0a;
-    border-left: 4px solid #f0a040;
+    background: #F8F0E7;
+    border-left: 4px solid #B17125;
     padding: 14px 18px;
     border-radius: 0 8px 8px 0;
     margin: 20px 0;
     font-size: 0.95rem;
-    color: #f0c080;
+    color: #8C5A17;
   }
 
   /* ── Pass summary table ── */
@@ -266,21 +266,21 @@
   }
 
   th {
-    background: #0f3460;
-    color: #53d8fb;
+    background: #E7EFF8;
+    color: #17748C;
     padding: 10px 14px;
     text-align: left;
-    font-family: 'Courier New', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     letter-spacing: 0.5px;
   }
 
   td {
     padding: 9px 14px;
-    border-bottom: 1px solid #ffffff10;
+    border-bottom: 1px solid rgba(107, 107, 107, 0.06);
     vertical-align: top;
   }
 
-  tr:nth-child(even) td { background: #ffffff06; }
+  tr:nth-child(even) td { background: rgba(97, 97, 97, 0.02); }
 
   /* ── Footer nav ── */
   footer {
@@ -293,18 +293,65 @@
     display: flex;
     justify-content: space-between;
     padding: 20px 0;
-    border-top: 1px solid #ffffff20;
-    font-family: 'Courier New', monospace;
+    border-top: 1px solid rgba(107, 107, 107, 0.13);
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.9rem;
   }
 
   .footer-nav a {
-    color: #53d8fb;
+    color: #17748C;
     text-decoration: none;
   }
 
   .footer-nav a:hover { text-decoration: underline; }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<style>
+/* original colours for highlighting inside code blocks */
+pre .ir-label, .terminal .ir-label, .win-box .ir-label { color: #F0C040 }
+pre .ir-op, .terminal .ir-op, .win-box .ir-op { color: #79C0FF }
+pre .ir-temp, .terminal .ir-temp, .win-box .ir-temp { color: #E0A0FF }
+pre .ir-const, .terminal .ir-const, .win-box .ir-const { color: #79D6FF }
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 
@@ -446,7 +493,7 @@ long const_val[MAX_TEMPS];  /* the value, when is_const is 1 */</pre>
     <div class="panel-header after">AFTER FOLDING</div>
     <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">ICONST</span> <span class="ir-const">3</span>
   <span class="ir-temp">t1</span> = <span class="ir-op">ICONST</span> <span class="ir-const">4</span>
-  <span class="ir-temp">t2</span> = <span class="ir-op">ICONST</span> <span class="ir-const">7</span>  <span style="color:#555">← folded!</span>
+  <span class="ir-temp">t2</span> = <span class="ir-op">ICONST</span> <span class="ir-const">7</span>  <span style="color:#949494">← folded!</span>
   <span class="ir-op">STORE</span> a = <span class="ir-temp">t2</span></pre>
   </div>
 </div>
@@ -512,8 +559,8 @@ for each instruction in (with pointer to previous):
   <div class="panel">
     <div class="panel-header before">BEFORE DEAD-CODE</div>
     <pre>  <span class="ir-op">JUMP</span> <span class="ir-label">L2</span>
-  <span class="ir-temp">t9</span> = <span class="ir-op">ICONST</span> 0  <span style="color:#555">← dead</span>
-  <span class="ir-temp">t10</span> = <span class="ir-op">ADD</span> <span class="ir-temp">t9</span> <span class="ir-temp">t9</span>  <span style="color:#555">← dead</span>
+  <span class="ir-temp">t9</span> = <span class="ir-op">ICONST</span> 0  <span style="color:#949494">← dead</span>
+  <span class="ir-temp">t10</span> = <span class="ir-op">ADD</span> <span class="ir-temp">t9</span> <span class="ir-temp">t9</span>  <span style="color:#949494">← dead</span>
   <span class="ir-label">LABEL L2</span></pre>
   </div>
   <div class="panel">
@@ -570,8 +617,8 @@ for each instruction in:
   <div class="panel">
     <div class="panel-header after">AFTER COPY PROP</div>
     <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">ICONST</span> 7
-  <span class="ir-temp">t1</span> = <span class="ir-op">COPY</span> <span class="ir-temp">t0</span>  <span style="color:#555">(src stays t0)</span>
-  <span class="ir-op">STORE</span> a = <span class="ir-temp">t0</span>  <span style="color:#555">← t1 replaced</span></pre>
+  <span class="ir-temp">t1</span> = <span class="ir-op">COPY</span> <span class="ir-temp">t0</span>  <span style="color:#949494">(src stays t0)</span>
+  <span class="ir-op">STORE</span> a = <span class="ir-temp">t0</span>  <span style="color:#949494">← t1 replaced</span></pre>
   </div>
 </div>
 
@@ -640,11 +687,11 @@ is a runtime value, not a constant).</p>
     <div class="panel-header after">AFTER</div>
     <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">ICONST</span> 3
   <span class="ir-temp">t1</span> = <span class="ir-op">ICONST</span> 4
-  <span class="ir-temp">t2</span> = <span class="ir-op">ICONST</span> <span class="ir-const">7</span>   <span style="color:#7effa0">← folded</span>
+  <span class="ir-temp">t2</span> = <span class="ir-op">ICONST</span> <span class="ir-const">7</span>   <span style="color:#7EFFA0">← folded</span>
   <span class="ir-op">STORE</span> a = <span class="ir-temp">t2</span>
   <span class="ir-temp">t3</span> = <span class="ir-op">ICONST</span> 2
   <span class="ir-temp">t4</span> = <span class="ir-op">ICONST</span> 5
-  <span class="ir-temp">t5</span> = <span class="ir-op">ICONST</span> <span class="ir-const">10</span>  <span style="color:#7effa0">← folded</span>
+  <span class="ir-temp">t5</span> = <span class="ir-op">ICONST</span> <span class="ir-const">10</span>  <span style="color:#7EFFA0">← folded</span>
   <span class="ir-op">STORE</span> b = <span class="ir-temp">t5</span>
   <span class="ir-temp">t6</span> = <span class="ir-op">LOAD</span> a
   <span class="ir-op">PARAM</span> <span class="ir-temp">t6</span>
@@ -791,7 +838,7 @@ we have the data structures to support them.</p>
 <footer>
   <div class="footer-nav">
     <a href="../module_08%20-%20IR%20Generation/tutorial.html">&larr; Module 08: IR Generation</a>
-    <span style="color:#ffffff40; font-family: 'Courier New', monospace; font-size:0.85rem;">
+    <span style="color:rgba(20, 32, 26, 0.55); font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size:0.85rem;">
       MODULE 09 / 16
     </span>
     <a href="../module_10%20-%20x86-64%20Code%20Generation/tutorial.html">Module 10: Code Generation &rarr;</a>

@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Module 08 — IR Generation | my_compiler</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:      #0b0f1a;
@@ -28,9 +27,9 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Lato', sans-serif;
+  background: #E9EDF6;
+  color: #14201A;
+  font-family:'Newsreader', Georgia, 'Times New Roman', serif;
   font-size: 17px;
   line-height: 1.75;
 }
@@ -48,20 +47,20 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 18px 24px;
-  background: var(--bg2);
-  border-bottom: 1px solid var(--border);
+  background: #EAEEF6;
+  border-bottom: 1px solid #C6D0C0;
   position: sticky;
   top: 0;
   z-index: 100;
 }
 .badge {
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.12em;
-  color: var(--gold);
-  background: rgba(245,200,66,.10);
-  border: 1px solid var(--gold);
+  color: #8C6F17;
+  background: rgba(155, 126, 39, .10);
+  border: 1px solid #B18E25;
   padding: 4px 10px;
   border-radius: 4px;
 }
@@ -70,39 +69,39 @@ body {
   gap: 20px;
 }
 .nav-links a {
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 13px;
-  color: var(--cyan);
+  color: #17688C;
   text-decoration: none;
   transition: color .15s;
 }
-.nav-links a:hover { color: var(--gold); }
+.nav-links a:hover { color: #8C6F17; }
 
 /* ── Hero ── */
 .hero {
   padding: 64px 0 48px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #C6D0C0;
   margin-bottom: 56px;
 }
 .hero-label {
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
   letter-spacing: .18em;
-  color: var(--teal);
+  color: #178C82;
   text-transform: uppercase;
   margin-bottom: 16px;
 }
 .hero h1 {
-  font-family: 'Playfair Display', serif;
+  font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(2rem, 5vw, 3.2rem);
   font-weight: 900;
-  color: var(--gold);
+  color: #8C6F17;
   line-height: 1.15;
   margin-bottom: 20px;
 }
 .hero-sub {
   font-size: 18px;
-  color: var(--muted);
+  color: #4B5B6C;
   max-width: 620px;
 }
 
@@ -111,23 +110,23 @@ body {
   margin-bottom: 72px;
 }
 .section-num {
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 11px;
   letter-spacing: .18em;
-  color: var(--teal);
+  color: #178C82;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
 .section h2 {
-  font-family: 'Playfair Display', serif;
+  font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-size: 1.9rem;
   font-weight: 700;
-  color: var(--cyan);
+  color: #17688C;
   margin-bottom: 24px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #C6D0C0;
 }
-.section p { margin-bottom: 16px; color: var(--text); }
+.section p { margin-bottom: 16px; color: #14201A; }
 .section p:last-child { margin-bottom: 0; }
 
 /* ── Code blocks ── */
@@ -141,54 +140,54 @@ pre {
   line-height: 1.6;
 }
 pre code, code {
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 13.5px;
 }
-code { color: var(--cyan); }
+code { color: #17688C; }
 
 /* colour tokens inside <pre> */
-.kw  { color: var(--purple); }
-.ty  { color: var(--teal); }
-.num { color: var(--orange); }
-.cm  { color: var(--muted); font-style: italic; }
-.fn  { color: var(--gold); }
-.str { color: var(--green); }
-.op  { color: var(--red); }
-.lbl { color: var(--orange); }
-.tmp { color: var(--cyan); }
+.kw  { color: #34178C; }
+.ty  { color: #178C82; }
+.num { color: #8C4C17; }
+.cm  { color: #4B5B6C; font-style: italic; }
+.fn  { color: #8C6F17; }
+.str { color: #198A42; }
+.op  { color: #8C1717; }
+.lbl { color: #8C4C17; }
+.tmp { color: #17688C; }
 
 /* ── Cards / callouts ── */
 .card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: #EAEDF6;
+  border: 1px solid #C6D0C0;
   border-radius: 10px;
   padding: 24px 28px;
   margin: 24px 0;
 }
 .card-title {
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 11px;
   letter-spacing: .15em;
   text-transform: uppercase;
   margin-bottom: 12px;
 }
-.card-title.gold  { color: var(--gold); }
-.card-title.green { color: var(--green); }
-.card-title.red   { color: var(--red); }
-.card-title.purple{ color: var(--purple); }
-.card-title.orange{ color: var(--orange); }
+.card-title.gold  { color: #8C6F17; }
+.card-title.green { color: #198A42; }
+.card-title.red   { color: #8C1717; }
+.card-title.purple{ color: #34178C; }
+.card-title.orange{ color: #8C4C17; }
 
 .analogy-box {
-  background: var(--bg3);
-  border-left: 4px solid var(--gold);
+  background: #EAEEF5;
+  border-left: 4px solid #B18E25;
   border-radius: 0 8px 8px 0;
   padding: 20px 24px;
   margin: 24px 0;
   font-size: 16px;
   font-style: italic;
-  color: var(--text);
+  color: #14201A;
 }
-.analogy-box strong { color: var(--gold); font-style: normal; }
+.analogy-box strong { color: #8C6F17; font-style: normal; }
 
 /* ── Op table ── */
 table {
@@ -200,54 +199,54 @@ table {
 th {
   text-align: left;
   padding: 10px 14px;
-  background: var(--bg3);
-  color: var(--gold);
-  font-family: 'Source Code Pro', monospace;
+  background: #EAEEF5;
+  color: #8C6F17;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
   letter-spacing: .08em;
-  border-bottom: 2px solid var(--border);
+  border-bottom: 2px solid #C6D0C0;
 }
 td {
   padding: 9px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #C6D0C0;
   vertical-align: top;
 }
-tr:hover td { background: rgba(30,58,95,.25); }
+tr:hover td { background: rgba(47, 90, 147, .25); }
 td:first-child {
-  font-family: 'Source Code Pro', monospace;
-  color: var(--orange);
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color: #8C4C17;
   white-space: nowrap;
 }
 td:nth-child(2) {
-  font-family: 'Source Code Pro', monospace;
-  color: var(--cyan);
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color: #17688C;
   font-size: 12.5px;
 }
-td:nth-child(3) { color: var(--muted); }
+td:nth-child(3) { color: #4B5B6C; }
 
 /* ── Q&A ── */
 .qa-item { margin-bottom: 28px; }
 .qa-q {
   font-weight: 700;
-  color: var(--gold);
+  color: #8C6F17;
   margin-bottom: 8px;
 }
-.qa-q::before { content: "Q: "; color: var(--orange); }
-.qa-a { color: var(--text); padding-left: 20px; border-left: 2px solid var(--teal); }
+.qa-q::before { content: "Q: "; color: #8C4C17; }
+.qa-a { color: #14201A; padding-left: 20px; border-left: 2px solid #25B1A4; }
 
 /* ── Brain exercise ── */
 .brain {
-  background: var(--bg3);
-  border: 1px solid var(--purple);
+  background: #EAEEF5;
+  border: 1px solid #4925B1;
   border-radius: 10px;
   padding: 26px 30px;
   margin: 24px 0;
 }
 .brain-label {
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 11px;
   letter-spacing: .15em;
-  color: var(--purple);
+  color: #34178C;
   text-transform: uppercase;
   margin-bottom: 12px;
 }
@@ -255,31 +254,31 @@ td:nth-child(3) { color: var(--muted); }
 details { margin-top: 14px; }
 summary {
   cursor: pointer;
-  color: var(--cyan);
-  font-family: 'Source Code Pro', monospace;
+  color: #17688C;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 13px;
   user-select: none;
 }
-summary:hover { color: var(--gold); }
+summary:hover { color: #8C6F17; }
 .answer {
   margin-top: 14px;
   padding: 16px 20px;
-  background: var(--code-bg);
+  background: #E7EDF8;
   border-radius: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid #C6D0C0;
 }
 
 /* ── What's next ── */
 .next-box {
-  background: linear-gradient(135deg, #111827 0%, #0f1f38 100%);
-  border: 1px solid var(--teal);
+  background: linear-gradient(135deg, #EAEEF6 0%, #E7EEF8 100%);
+  border: 1px solid #25B1A4;
   border-radius: 12px;
   padding: 32px 36px;
 }
 .next-box h3 {
-  font-family: 'Playfair Display', serif;
+  font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-size: 1.4rem;
-  color: var(--teal);
+  color: #178C82;
   margin-bottom: 12px;
 }
 
@@ -290,29 +289,98 @@ summary:hover { color: var(--gold); }
   align-items: center;
   margin-top: 64px;
   padding-top: 24px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid #C6D0C0;
 }
 .footer-nav a {
-  font-family: 'Source Code Pro', monospace;
+  font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 13px;
-  color: var(--cyan);
+  color: #17688C;
   text-decoration: none;
   padding: 8px 16px;
-  border: 1px solid var(--border);
+  border: 1px solid #C6D0C0;
   border-radius: 6px;
   transition: border-color .15s, color .15s;
 }
-.footer-nav a:hover { border-color: var(--gold); color: var(--gold); }
+.footer-nav a:hover { border-color: #B18E25; color: #8C6F17; }
 
 ul, ol { padding-left: 24px; margin-bottom: 16px; }
-li { margin-bottom: 6px; color: var(--text); }
+li { margin-bottom: 6px; color: #14201A; }
 
-strong { color: var(--text); font-weight: 700; }
-em { color: var(--muted); }
+strong { color: #14201A; font-weight: 700; }
+em { color: #4B5B6C; }
 
-.highlight { color: var(--gold); font-weight: 700; }
-.mono { font-family: 'Source Code Pro', monospace; font-size: 13.5px; color: var(--cyan); }
+.highlight { color: #8C6F17; font-weight: 700; }
+.mono { font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13.5px; color: #17688C; }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<style>
+/* original colours for highlighting inside code blocks */
+pre .topbar, .terminal .topbar, .win-box .topbar { background: #14201A }
+pre .badge, .terminal .badge, .win-box .badge { color: #F5C842; background: rgba(245, 200, 66, .10) }
+pre .hero-label, .terminal .hero-label, .win-box .hero-label { color: #3AEEDE }
+pre .hero-sub, .terminal .hero-sub, .win-box .hero-sub { color: #7A9BBF }
+pre .section-num, .terminal .section-num, .win-box .section-num { color: #3AEEDE }
+pre .kw, .terminal .kw, .win-box .kw { color: #A78BFA }
+pre .ty, .terminal .ty, .win-box .ty { color: #3AEEDE }
+pre .num, .terminal .num, .win-box .num { color: #FB923C }
+pre .cm, .terminal .cm, .win-box .cm { color: #7A9BBF }
+pre .fn, .terminal .fn, .win-box .fn { color: #F5C842 }
+pre .op, .terminal .op, .win-box .op { color: #F87171 }
+pre .lbl, .terminal .lbl, .win-box .lbl { color: #FB923C }
+pre .tmp, .terminal .tmp, .win-box .tmp { color: #38BDF8 }
+pre .card, .terminal .card, .win-box .card { background: #14201A }
+pre .card-title.gold, .terminal .card-title.gold, .win-box .card-title.gold { color: #F5C842 }
+pre .card-title.green, .terminal .card-title.green, .win-box .card-title.green { color: #4ADE80 }
+pre .card-title.red, .terminal .card-title.red, .win-box .card-title.red { color: #F87171 }
+pre .card-title.purple, .terminal .card-title.purple, .win-box .card-title.purple { color: #A78BFA }
+pre .card-title.orange, .terminal .card-title.orange, .win-box .card-title.orange { color: #FB923C }
+pre .analogy-box, .terminal .analogy-box, .win-box .analogy-box { background: #1A2235; color: #E2E8F0 }
+pre .qa-q, .terminal .qa-q, .win-box .qa-q { color: #F5C842 }
+pre .qa-q::before, .terminal .qa-q::before, .win-box .qa-q::before { color: #FB923C }
+pre .qa-a, .terminal .qa-a, .win-box .qa-a { color: #E2E8F0 }
+pre .brain, .terminal .brain, .win-box .brain { background: #1A2235 }
+pre .brain-label, .terminal .brain-label, .win-box .brain-label { color: #A78BFA }
+pre .answer, .terminal .answer, .win-box .answer { background: #14201A }
+pre .next-box, .terminal .next-box, .win-box .next-box { background: linear-gradient(135deg, #14201A 0%, #14201A 100%) }
+pre .mono, .terminal .mono, .win-box .mono { color: #38BDF8 }
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 
@@ -901,7 +969,7 @@ STORE x = <span class="tmp">t2</span>        <span class="cm">/* write result to
 <!-- ═══════════════════════════════════════════ FOOTER NAV -->
 <nav class="footer-nav">
   <a href="#">← Module 07</a>
-  <span style="font-family:'Source Code Pro',monospace;font-size:12px;color:var(--muted);">MODULE 08 / 16</span>
+  <span style="font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;font-size:12px;color:#4B5B6C;">MODULE 08 / 16</span>
   <a href="#">Module 09 →</a>
 </nav>
 

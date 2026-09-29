@@ -6,7 +6,6 @@
 <title>Module 03 — Symbol Table</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Code+Pro:wght@400;500&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:      #0b0f1a;
@@ -29,9 +28,9 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Lato', sans-serif;
+    background: #E9EDF6;
+    color: #14201A;
+    font-family:'Newsreader', Georgia, 'Times New Roman', serif;
     font-weight: 400;
     line-height: 1.75;
     font-size: 1rem;
@@ -40,30 +39,30 @@
   .page { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
 
   h1, h2, h3 {
-    font-family: 'Playfair Display', serif;
-    color: var(--gold);
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    color: #8C6F17;
     line-height: 1.25;
   }
   h1 { font-size: 2.4rem; margin-bottom: .5rem; }
-  h2 { font-size: 1.65rem; margin: 2.8rem 0 .8rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
-  h3 { font-size: 1.2rem; color: var(--cyan); margin: 1.6rem 0 .5rem; }
+  h2 { font-size: 1.65rem; margin: 2.8rem 0 .8rem; border-bottom: 1px solid #C6D0C0; padding-bottom: .4rem; }
+  h3 { font-size: 1.2rem; color: #17688C; margin: 1.6rem 0 .5rem; }
   p  { margin-bottom: 1rem; }
   ul, ol { margin: .5rem 0 1rem 1.4rem; }
   li { margin-bottom: .3rem; }
-  a  { color: var(--cyan); text-decoration: none; }
+  a  { color: #17688C; text-decoration: none; }
   a:hover { text-decoration: underline; }
-  strong { color: var(--text); font-weight: 700; }
+  strong { color: #14201A; font-weight: 700; }
 
   .prereq-bar {
-    background: var(--bg3);
-    border: 1px solid var(--border);
+    background: #EAEEF5;
+    border: 1px solid #C6D0C0;
     border-radius: 8px;
     padding: .75rem 1.2rem;
     font-size: .9rem;
-    color: var(--muted);
+    color: #4B5B6C;
     margin-bottom: 2rem;
   }
-  .prereq-bar a { color: var(--cyan); }
+  .prereq-bar a { color: #17688C; }
 
   .callout {
     border-radius: 8px;
@@ -71,22 +70,22 @@
     margin: 1.4rem 0;
     border-left: 4px solid;
   }
-  .callout-gold   { background: #1c1700; border-color: var(--gold); }
-  .callout-teal   { background: #021a18; border-color: var(--teal); }
-  .callout-purple { background: #150f2a; border-color: var(--purple); }
-  .callout-red    { background: #1f0808; border-color: var(--red); }
-  .callout-orange { background: #1f0e00; border-color: var(--orange); }
+  .callout-gold   { background: #F8F5E7; border-color: #B18E25; }
+  .callout-teal   { background: #E7F8F7; border-color: #25B1A4; }
+  .callout-purple { background: #ECE8F7; border-color: #4925B1; }
+  .callout-red    { background: #F8E7E7; border-color: #B12525; }
+  .callout-orange { background: #F8EFE7; border-color: #B16425; }
   .callout-title {
-    font-family: 'Playfair Display', serif;
+    font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-size: 1rem;
     font-weight: 700;
     margin-bottom: .4rem;
   }
-  .callout-gold   .callout-title { color: var(--gold); }
-  .callout-teal   .callout-title { color: var(--teal); }
-  .callout-purple .callout-title { color: var(--purple); }
-  .callout-red    .callout-title { color: var(--red); }
-  .callout-orange .callout-title { color: var(--orange); }
+  .callout-gold   .callout-title { color: #8C6F17; }
+  .callout-teal   .callout-title { color: #178C82; }
+  .callout-purple .callout-title { color: #34178C; }
+  .callout-red    .callout-title { color: #8C1717; }
+  .callout-orange .callout-title { color: #8C4C17; }
 
   pre {
     background: var(--code-bg);
@@ -97,22 +96,22 @@
     margin: 1rem 0 1.4rem;
   }
   pre code, code {
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: .88rem;
     color: var(--cyan);
     background: none;
     padding: 0;
   }
   code {
-    background: var(--code-bg);
-    color: var(--cyan);
+    background: #E7EDF8;
+    color: #17688C;
     padding: .1em .35em;
     border-radius: 4px;
     font-size: .88em;
   }
 
   .win-box {
-    background: #040a10;
+    background: #14201A;
     border: 1px solid var(--border);
     border-radius: 8px;
     margin: 1rem 0 1.4rem;
@@ -123,7 +122,7 @@
     padding: .35rem 1rem;
     font-size: .78rem;
     color: var(--muted);
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     border-bottom: 1px solid var(--border);
   }
   .win-box pre {
@@ -142,59 +141,59 @@
     font-size: .91rem;
   }
   .binder-table th {
-    background: var(--bg3);
-    color: var(--cyan);
+    background: #EAEEF5;
+    color: #17688C;
     padding: .6rem 1rem;
     text-align: left;
-    font-family: 'Source Code Pro', monospace;
-    border-bottom: 2px solid var(--border);
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    border-bottom: 2px solid #C6D0C0;
   }
   .binder-table td {
     padding: .55rem 1rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #C6D0C0;
     vertical-align: top;
   }
   .binder-table tr:last-child td { border-bottom: none; }
-  .binder-table td:first-child { font-family: 'Source Code Pro', monospace; color: var(--purple); font-weight: 500; }
-  .binder-table td:nth-child(2) { color: var(--orange); }
-  .binder-table td:nth-child(3) { color: var(--muted); }
+  .binder-table td:first-child { font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; color: #34178C; font-weight: 500; }
+  .binder-table td:nth-child(2) { color: #8C4C17; }
+  .binder-table td:nth-child(3) { color: #4B5B6C; }
 
   /* field reference table */
   table.field-ref { width: 100%; border-collapse: collapse; margin: 1rem 0 1.4rem; font-size: .92rem; }
   table.field-ref th {
-    background: var(--bg3); color: var(--cyan);
+    background: #EAEEF5; color: #17688C;
     padding: .55rem .9rem; text-align: left;
-    font-family: 'Source Code Pro', monospace; font-weight: 500;
-    border-bottom: 2px solid var(--border);
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-weight: 500;
+    border-bottom: 2px solid #C6D0C0;
   }
-  table.field-ref td { padding: .5rem .9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.field-ref td { padding: .5rem .9rem; border-bottom: 1px solid #C6D0C0; vertical-align: top; }
   table.field-ref tr:last-child td { border-bottom: none; }
-  table.field-ref td:first-child { font-family: 'Source Code Pro', monospace; color: var(--purple); }
-  table.field-ref td:nth-child(2) { color: var(--muted); font-size: .87rem; }
+  table.field-ref td:first-child { font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; color: #34178C; }
+  table.field-ref td:nth-child(2) { color: #4B5B6C; font-size: .87rem; }
 
   .qa-block { margin: 1.2rem 0; }
-  .qa-q { color: var(--gold); font-weight: 700; margin-bottom: .3rem; }
-  .qa-a { color: var(--text); padding-left: 1rem; border-left: 3px solid var(--border); }
+  .qa-q { color: #8C6F17; font-weight: 700; margin-bottom: .3rem; }
+  .qa-a { color: #14201A; padding-left: 1rem; border-left: 3px solid #C6D0C0; }
 
   .footer {
     margin-top: 3.5rem;
     padding-top: 1.2rem;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid #C6D0C0;
     display: flex;
     justify-content: space-between;
     font-size: .9rem;
-    color: var(--muted);
+    color: #4B5B6C;
   }
-  .footer a { color: var(--cyan); }
+  .footer a { color: #17688C; }
 
   .section-num {
     display: inline-block;
-    background: var(--bg3);
-    color: var(--gold);
-    border: 1px solid var(--border);
+    background: #EAEEF5;
+    color: #8C6F17;
+    border: 1px solid #C6D0C0;
     border-radius: 4px;
     padding: .05rem .5rem;
-    font-family: 'Source Code Pro', monospace;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: .8rem;
     vertical-align: middle;
     margin-right: .5rem;
@@ -210,19 +209,57 @@
   .scope-split pre { margin: 0; }
   .scope-label {
     font-size: .8rem;
-    color: var(--muted);
-    font-family: 'Source Code Pro', monospace;
+    color: #4B5B6C;
+    font-family:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     margin-bottom: .3rem;
   }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* a-finity course theme: shared look with everything_parsing/assets/course.css */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: #E7EBE3;
+  background-image:
+    linear-gradient(#C6D0C0 .5px, transparent .5px),
+    linear-gradient(90deg, #C6D0C0 .5px, transparent .5px);
+  background-size: 26px 26px;
+  color: #14201A;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+h1, h2, h3, h4 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h1 { color: #14201A !important; font-weight: 700; line-height: 1.02; }
+h2, h3 { color: #14201A !important; }
+h2 { font-weight: 700; }
+pre, code, kbd, samp { font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+pre { background-color: #14201A; color: #E4EDE6; border-radius: 2px; }
+pre code { color: #E4EDE6; background: none; border: 0; padding: 0; }
+a { color: #2A3E9B; }
+::selection { background: #EFEA5A; color: #14201A; }
+@media (max-width: 640px) {
+  body { padding-left: 16px; padding-right: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+  pre { max-width: 100%; overflow-x: auto; }
+  :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+  nav, [class*="nav"] { flex-wrap: wrap; }
+  img, svg { max-width: 100%; height: auto; }
+  [class*="grid"], [class*="row"], [class*="col"] { min-width: 0; }
+  [class*="split"], [class*="grammar-row"], [class*="two-col"], [class*="before-after"] { grid-template-columns: 1fr !important; }
+  header, [class*="topbar"], [class*="header"] { flex-wrap: wrap; }
+}
+</style>
+<!-- a-finity course theme -->
 </head>
 <body>
 <div class="page">
 
   <!-- ── header ── -->
-  <p style="color:var(--muted);font-size:.85rem;margin-bottom:.4rem;">Bob's Compiler Course</p>
+  <p style="color:#4B5B6C;font-size:.85rem;margin-bottom:.4rem;">Bob's Compiler Course</p>
   <h1>Module 03 — Symbol Table</h1>
-  <p style="color:var(--muted);margin-bottom:2rem;">Remembering what names mean — variables, functions, and where they live.</p>
+  <p style="color:#4B5B6C;margin-bottom:2rem;">Remembering what names mean — variables, functions, and where they live.</p>
 
   <!-- ── 00: Before You Start ── -->
   <h2><span class="section-num">00</span> Before You Start</h2>
@@ -455,8 +492,8 @@ Total: 5 symbols</code></pre>
   </div>
 
   <details style="margin:1rem 0;">
-    <summary style="cursor:pointer;color:var(--cyan);font-weight:700;">Show answer</summary>
-    <div style="margin-top:1rem;padding:1rem;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+    <summary style="cursor:pointer;color:#17688C;font-weight:700;">Show answer</summary>
+    <div style="margin-top:1rem;padding:1rem;background:#EAEDF6;border-radius:8px;border:1px solid #C6D0C0;">
       <p>The second call to <code>symtab_add</code> returns <code>-1</code>. The linear scan finds an existing entry with <code>name == "i"</code> and rejects the insert as a duplicate.</p>
       <p>This is the fundamental limitation of the flat table: it cannot represent two different variables that happen to share the same name in different scopes. The flat table was correct for single-function programs, but as soon as two functions are involved, name collisions are inevitable.</p>
       <p>This is precisely the motivation for Module 07's scope stack. With a scope stack, you <em>push</em> a fresh <code>SymTab</code> when entering a function body and <em>pop</em> it when leaving. Each function's <code>i</code> lives in its own frame, so there is never a collision.</p>
