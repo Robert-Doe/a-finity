@@ -1,0 +1,6 @@
+# One probe per line. Each is scanned on its own.
+iffy while1 truest _if
+a<=b>=c==d!=e
+x->y&&z||!w
+3.14 42 7.
+let r: f64 = 2.5 @ 3;

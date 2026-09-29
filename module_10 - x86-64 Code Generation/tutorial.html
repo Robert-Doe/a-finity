@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 10 — x86-64 Code Generation | my_compiler</title>
+<style>
+  /* ---- Base ---- */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  /* ---- Layout ---- */
+  .page-wrap { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  /* ---- Module badge ---- */
+  .badge {
+    display: inline-block;
+    background: #e94560;
+    color: #fff;
+    font-weight: 900;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }
+
+  /* ---- Headings ---- */
+  h1 { font-size: 2.2rem; color: #ffffff; margin-bottom: 0.4rem; line-height: 1.2; }
+  h2 { font-size: 1.45rem; color: #e94560; margin: 2.5rem 0 0.75rem;
+       border-left: 4px solid #e94560; padding-left: 0.75rem; }
+  h3 { font-size: 1.1rem; color: #f0a500; margin: 1.5rem 0 0.5rem; }
+
+  /* ---- Subtitle / intro ---- */
+  .subtitle { color: #a0a0c0; font-size: 1.05rem; margin-bottom: 2rem; }
+
+  /* ---- Section cards ---- */
+  section { background: #16213e; border-radius: 10px; padding: 1.6rem 1.8rem;
+            margin-bottom: 2rem; border: 1px solid #0f3460; }
+
+  /* ---- Inline code ---- */
+  code { background: #0f3460; color: #f0a500; padding: 0.1em 0.4em;
+         border-radius: 3px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+
+  /* ---- Code blocks ---- */
+  pre {
+    background: #0d0d1a;
+    border: 1px solid #0f3460;
+    border-left: 4px solid #e94560;
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: #c9d1d9;
+    margin: 1rem 0;
+  }
+  pre .kw   { color: #e94560; font-weight: bold; }
+  pre .cmt  { color: #8b949e; font-style: italic; }
+  pre .str  { color: #7ee787; }
+  pre .reg  { color: #79c0ff; }
+  pre .lbl  { color: #f0a500; }
+  pre .num  { color: #ff9f43; }
+
+  /* ---- Callout boxes ---- */
+  .analogy {
+    background: #1a1a2e;
+    border: 1px solid #f0a500;
+    border-left: 5px solid #f0a500;
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+  }
+  .analogy strong { color: #f0a500; }
+
+  .brain-box {
+    background: #1a1a2e;
+    border: 2px solid #e94560;
+    border-radius: 8px;
+    padding: 1.2rem 1.4rem;
+    margin: 1.5rem 0;
+  }
+  .brain-box .brain-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #e94560;
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.05em;
+  }
+  .brain-box .answer {
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px dashed #e94560;
+    color: #a0c4ff;
+  }
+
+  /* ---- Tables ---- */
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th { background: #0f3460; color: #e0e0e0; padding: 0.5rem 0.8rem;
+       text-align: left; font-size: 0.85rem; letter-spacing: 0.05em; }
+  td { padding: 0.45rem 0.8rem; border-bottom: 1px solid #0f3460;
+       font-size: 0.9rem; }
+  tr:hover td { background: #0f3460; }
+
+  /* ---- Navigation ---- */
+  .nav-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    padding: 0.75rem 1.2rem;
+    margin-bottom: 2.5rem;
+    font-size: 0.9rem;
+  }
+  .nav-bar a { color: #a0c4ff; text-decoration: none; font-weight: 600; }
+  .nav-bar a:hover { color: #e94560; }
+  .nav-center { color: #a0a0c0; font-size: 0.8rem; }
+
+  /* ---- Stack diagram ---- */
+  .stack-diagram {
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    line-height: 1.8;
+    background: #0d0d1a;
+    border: 1px solid #0f3460;
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    color: #c9d1d9;
+  }
+  .stack-diagram .addr  { color: #79c0ff; }
+  .stack-diagram .label { color: #f0a500; }
+  .stack-diagram .val   { color: #7ee787; }
+
+  /* ---- Pipeline diagram ---- */
+  .pipeline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    align-items: center;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+  }
+  .pipe-step {
+    background: #0f3460;
+    color: #e0e0e0;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .pipe-arrow { color: #e94560; padding: 0 0.3rem; font-weight: bold; }
+  .pipe-step.highlight { background: #e94560; color: #fff; font-weight: bold; }
+
+  /* ---- Tip ---- */
+  .tip {
+    background: #0f2027;
+    border-left: 4px solid #79c0ff;
+    border-radius: 0 6px 6px 0;
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.93rem;
+  }
+  .tip strong { color: #79c0ff; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- Navigation -->
+  <nav class="nav-bar">
+    <a href="../module_09%20-%20IR%20Optimization/tutorial.html">← Module 09</a>
+    <span class="nav-center">my_compiler course</span>
+    <a href="../module_11%20-%20Code%20Generation%20-%20Control%20Flow/tutorial.html">Module 11 →</a>
+  </nav>
+
+  <!-- Header -->
+  <div class="badge">MODULE 10 / 16</div>
+  <h1>x86-64 Code Generation</h1>
+  <p class="subtitle">Turning your optimized IR into real NASM assembly that a CPU can execute.</p>
+
+  <!-- ================================================================
+       SECTION 1: The Camera Crew Analogy
+       ================================================================ -->
+  <section>
+    <h2>1. Meet the Camera Crew</h2>
+
+    <div class="analogy">
+      <strong>The Analogy:</strong> Think of your IR as a <em>shot list</em> — a
+      director's precise plan for every scene: "close-up on the actor's face,"
+      "pan left," "cut to the window." The shot list is abstract. Now a
+      <strong>camera crew</strong> arrives and actually <em>films</em> each shot.
+      They translate each abstract instruction into physical actions: which
+      camera, which lens, which angle, which reel.<br><br>
+      The <strong>code generator</strong> is the camera crew. The IR instructions
+      are the shot list. The <strong>CPU</strong> is the camera — it only
+      understands very specific commands. A real film camera doesn't know what
+      "dramatic scene" means; it just records light. A real CPU doesn't know what
+      "add two numbers" means in the abstract — it knows
+      <code>add rax, [rbp - 8]</code>.
+    </div>
+
+    <p>
+      In this module we write <strong>codegen.c</strong>: it walks every
+      <code>IRInstr</code> in every <code>IRFunc</code> and emits the
+      corresponding NASM x86-64 assembly instructions to a text file.
+    </p>
+
+    <div class="pipeline">
+      <span class="pipe-step">Source</span>
+      <span class="pipe-arrow">→</span>
+      <span class="pipe-step">Lexer</span>
+      <span class="pipe-arrow">→</span>
+      <span class="pipe-step">Parser</span>
+      <span class="pipe-arrow">→</span>
+      <span class="pipe-step">Sema</span>
+      <span class="pipe-arrow">→</span>
+      <span class="pipe-step">IR</span>
+      <span class="pipe-arrow">→</span>
+      <span class="pipe-step">Opt</span>
+      <span class="pipe-arrow">→</span>
+      <span class="pipe-step highlight">CodeGen</span>
+      <span class="pipe-arrow">→</span>
+      <span class="pipe-step">NASM .asm</span>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       SECTION 2: What is NASM?
+       ================================================================ -->
+  <section>
+    <h2>2. What is NASM?</h2>
+
+    <p>
+      <strong>NASM</strong> (Netwide Assembler) is a free, portable assembler
+      for x86 and x86-64. It takes a text <code>.asm</code> file — which is
+      almost 1:1 with raw machine instructions — and produces an
+      <strong>ELF object file</strong> (<code>.o</code>) that the linker
+      (<code>ld</code> or <code>gcc</code>) can turn into an executable.
+    </p>
+
+    <p>The two-step process after our compiler runs:</p>
+    <pre>
+<span class="cmt"># Step 1: Assemble (NASM text → ELF object)</span>
+nasm -f elf64 sample.asm -o sample.o
+
+<span class="cmt"># Step 2: Link (ELF object → executable)</span>
+gcc -no-pie sample.o -o sample_bin
+
+<span class="cmt"># Run it!</span>
+./sample_bin
+echo "exit: $?"</pre>
+
+    <div class="tip">
+      <strong>Tip:</strong> On Windows, install NASM inside WSL (Windows Subsystem
+      for Linux): <code>sudo apt install nasm gcc</code>.
+      Then run <code>make assemble</code> from the WSL terminal inside
+      <code>module_10/</code>.
+    </div>
+  </section>
+
+  <!-- ================================================================
+       SECTION 3: The Stack Frame
+       ================================================================ -->
+  <section>
+    <h2>3. The Stack Frame</h2>
+
+    <p>
+      Our code generator uses the simplest possible strategy for storing
+      values: <strong>everything goes on the stack</strong>. Each IR
+      temporary <code>t<sub>i</sub></code> and each named local variable gets
+      its own 8-byte slot.
+    </p>
+
+    <p>
+      For the <code>add</code> function in <code>sample.c</code>, the frame
+      looks like this after the prologue:
+    </p>
+
+    <div class="stack-diagram">
+<span class="addr">Higher addresses</span>
+      ┌─────────────────────────────────┐
+      │    return address               │  ← pushed by `call add`
+      ├─────────────────────────────────┤
+<span class="addr">rbp →</span> │    saved rbp                    │  ← pushed by `push rbp`
+      ├─────────────────────────────────┤
+<span class="addr">rbp - 8</span>  │ <span class="label">t0 (temp 0)</span>          <span class="val">= 3</span>       │
+<span class="addr">rbp - 16</span> │ <span class="label">t1 (temp 1)</span>          <span class="val">= 4</span>       │
+<span class="addr">rbp - 24</span> │ <span class="label">t2 (t0 + t1)</span>         <span class="val">= 7</span>       │
+      │      ... more temp slots ...    │
+      ├─────────────────────────────────┤
+      │ <span class="label">local 'a'</span> (param)    <span class="val">= 3</span>       │  ← named var slots
+      │ <span class="label">local 'b'</span> (param)    <span class="val">= 4</span>       │     start at rbp - 2056
+      └─────────────────────────────────┘
+<span class="addr">rsp →</span> (bottom of frame)
+<span class="addr">Lower addresses</span></div>
+
+    <p>
+      The formula is simple:
+    </p>
+    <ul style="margin: 0.5rem 0 0 1.5rem;">
+      <li>Temporary <code>t_i</code> lives at <code>[rbp - (i+1)*8]</code></li>
+      <li>Named local slot <code>j</code> lives at
+          <code>[rbp - (256 + j + 1)*8]</code></li>
+    </ul>
+
+    <p style="margin-top:0.8rem">
+      Yes, we reserve 256 temp slots even if we only use 3. That wastes stack
+      space, but it keeps the logic dead simple. Real compilers compute the
+      <em>exact</em> live range of each temp and pack slots tightly —
+      that's register allocation, a topic for a later module.
+    </p>
+  </section>
+
+  <!-- ================================================================
+       SECTION 4: Function Prologue and Epilogue
+       ================================================================ -->
+  <section>
+    <h2>4. Function Prologue &amp; Epilogue</h2>
+
+    <p>
+      Every function generated by our compiler starts with a
+      <strong>prologue</strong> that sets up the stack frame, and ends with
+      an <strong>epilogue</strong> that tears it down.
+    </p>
+
+    <table>
+      <tr><th>Phase</th><th>Assembly</th><th>Purpose</th></tr>
+      <tr><td>Prologue</td><td><code>push rbp</code></td><td>Save caller's frame pointer</td></tr>
+      <tr><td></td><td><code>mov rbp, rsp</code></td><td>Our frame pointer = current stack top</td></tr>
+      <tr><td></td><td><code>sub rsp, N</code></td><td>Reserve N bytes for locals &amp; temps</td></tr>
+      <tr><td>Epilogue</td><td><code>mov rsp, rbp</code></td><td>Discard our locals (restore rsp)</td></tr>
+      <tr><td></td><td><code>pop rbp</code></td><td>Restore caller's frame pointer</td></tr>
+      <tr><td></td><td><code>ret</code></td><td>Jump back to caller</td></tr>
+    </table>
+
+    <p>
+      We emit these at the start and end of every function. The <code>N</code>
+      in <code>sub rsp, N</code> is rounded up to a multiple of 16 bytes to
+      keep the stack 16-byte aligned, as required by the System V AMD64 ABI.
+    </p>
+  </section>
+
+  <!-- ================================================================
+       SECTION 5: IR → Assembly Translation Table
+       ================================================================ -->
+  <section>
+    <h2>5. IR → Assembly Translation Table</h2>
+
+    <p>
+      Each IR instruction maps to a small sequence of assembly instructions.
+      Here are the most important ones:
+    </p>
+
+    <table>
+      <tr><th>IR Instruction</th><th>Assembly Emitted</th></tr>
+      <tr>
+        <td><code>ICONST t0 42</code></td>
+        <td><code>mov rax, 42</code><br><code>mov [rbp-8], rax</code></td>
+      </tr>
+      <tr>
+        <td><code>ADD t2 t0 t1</code></td>
+        <td><code>mov rax, [rbp-8]</code><br><code>add rax, [rbp-16]</code><br><code>mov [rbp-24], rax</code></td>
+      </tr>
+      <tr>
+        <td><code>DIV t2 t0 t1</code></td>
+        <td><code>mov rax, [rbp-8]</code><br><code>mov rcx, [rbp-16]</code><br><code>cqo</code><br><code>idiv rcx</code><br><code>mov [rbp-24], rax</code></td>
+      </tr>
+      <tr>
+        <td><code>LT t2 t0 t1</code></td>
+        <td><code>mov rax, [rbp-8]</code><br><code>cmp rax, [rbp-16]</code><br><code>setl al</code><br><code>movzx rax, al</code><br><code>mov [rbp-24], rax</code></td>
+      </tr>
+      <tr>
+        <td><code>LABEL .L0</code></td>
+        <td><code>.L0:</code></td>
+      </tr>
+      <tr>
+        <td><code>JUMPZ t0 .L1</code></td>
+        <td><code>mov rax, [rbp-8]</code><br><code>test rax, rax</code><br><code>jz .L1</code></td>
+      </tr>
+      <tr>
+        <td><code>PARAM t0</code></td>
+        <td><code>mov rax, [rbp-8]</code><br><code>mov rdi, rax</code> (1st arg)</td>
+      </tr>
+      <tr>
+        <td><code>CALL add 2 → t2</code></td>
+        <td><code>call add</code><br><code>mov [rbp-24], rax</code></td>
+      </tr>
+      <tr>
+        <td><code>RETURN t0</code></td>
+        <td><code>mov rax, [rbp-8]</code><br><code>mov rsp, rbp</code><br><code>pop rbp</code><br><code>ret</code></td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- ================================================================
+       SECTION 6: The SysV AMD64 ABI
+       ================================================================ -->
+  <section>
+    <h2>6. The System V AMD64 ABI — How Functions Talk to Each Other</h2>
+
+    <p>
+      When two functions call each other they need to agree on:
+      how to pass arguments, where to find the return value, and which
+      registers each side is allowed to clobber. This agreement is the
+      <strong>Application Binary Interface (ABI)</strong>.
+    </p>
+
+    <p>
+      On Linux x86-64, the <strong>System V AMD64 ABI</strong> says:
+    </p>
+
+    <table>
+      <tr><th>Purpose</th><th>Registers</th></tr>
+      <tr><td>First 6 integer/pointer arguments</td><td><code>rdi, rsi, rdx, rcx, r8, r9</code></td></tr>
+      <tr><td>Return value</td><td><code>rax</code></td></tr>
+      <tr><td>Caller-saved (caller must preserve if needed)</td><td><code>rax, rcx, rdx, rsi, rdi, r8–r11</code></td></tr>
+      <tr><td>Callee-saved (callee must restore)</td><td><code>rbx, rbp, r12–r15</code></td></tr>
+      <tr><td>Stack alignment at <code>call</code></td><td>16-byte aligned</td></tr>
+    </table>
+
+    <p>
+      Our code generator handles the first 6 arguments only (enough for
+      educational programs). For <code>add(3, 4)</code>:
+    </p>
+
+    <pre>
+<span class="cmt">; Before calling add(3, 4):</span>
+<span class="reg">mov rax</span>, <span class="num">3</span>          <span class="cmt">; load arg 1</span>
+<span class="reg">mov rdi</span>, <span class="reg">rax</span>        <span class="cmt">; put in first arg register</span>
+<span class="reg">mov rax</span>, <span class="num">4</span>          <span class="cmt">; load arg 2</span>
+<span class="reg">mov rsi</span>, <span class="reg">rax</span>        <span class="cmt">; put in second arg register</span>
+<span class="kw">call</span> add            <span class="cmt">; call the function</span>
+<span class="cmt">; After the call, rax holds the return value (7)</span>
+<span class="reg">mov</span> [<span class="reg">rbp</span> - <span class="num">24</span>], <span class="reg">rax</span> <span class="cmt">; spill return value to temp slot</span></pre>
+  </section>
+
+  <!-- ================================================================
+       SECTION 7: The Sample Assembly Output
+       ================================================================ -->
+  <section>
+    <h2>7. What Does sample.c Compile To?</h2>
+
+    <p>Here is the input:</p>
+
+    <pre>
+<span class="kw">int</span> add(<span class="kw">int</span> a, <span class="kw">int</span> b) {
+    <span class="kw">return</span> a + b;
+}
+
+<span class="kw">int</span> main(<span class="kw">void</span>) {
+    <span class="kw">int</span> x;
+    x = add(<span class="num">3</span>, <span class="num">4</span>);
+    <span class="kw">return</span> x;
+}</pre>
+
+    <p>And here is the assembly our compiler emits (slightly trimmed for clarity):</p>
+
+    <pre>
+<span class="cmt">; Generated by my_compiler Module 10 code generator</span>
+bits 64
+section .text
+
+<span class="kw">global</span> add
+<span class="lbl">add:</span>
+    push rbp
+    mov rbp, rsp
+    sub rsp, 2064           <span class="cmt">; frame for temps + locals</span>
+
+    <span class="cmt">; Spill parameters from registers to stack</span>
+    mov [rbp - 2064], rdi   <span class="cmt">; param 'a'</span>
+    mov [rbp - 2072], rsi   <span class="cmt">; param 'b'</span>
+
+    <span class="cmt">; LOAD a → t0</span>
+    mov rax, [rbp - 2064]
+    mov [rbp - 8], rax
+
+    <span class="cmt">; LOAD b → t1</span>
+    mov rax, [rbp - 2072]
+    mov [rbp - 16], rax
+
+    <span class="cmt">; ADD t2 = t0 + t1</span>
+    mov rax, [rbp - 8]
+    add rax, [rbp - 16]
+    mov [rbp - 24], rax
+
+    <span class="cmt">; RETURN t2</span>
+    mov rax, [rbp - 24]
+    mov rsp, rbp
+    pop rbp
+    ret
+
+<span class="kw">global</span> main
+<span class="lbl">main:</span>
+    push rbp
+    mov rbp, rsp
+    sub rsp, 2064
+
+    <span class="cmt">; ICONST t0 = 3</span>
+    mov rax, 3
+    mov [rbp - 8], rax
+
+    <span class="cmt">; ICONST t1 = 4</span>
+    mov rax, 4
+    mov [rbp - 16], rax
+
+    <span class="cmt">; PARAM t0 → rdi</span>
+    mov rax, [rbp - 8]
+    mov rdi, rax
+
+    <span class="cmt">; PARAM t1 → rsi</span>
+    mov rax, [rbp - 16]
+    mov rsi, rax
+
+    <span class="cmt">; CALL add → t2</span>
+    call add
+    mov [rbp - 24], rax
+
+    <span class="cmt">; STORE t2 → local 'x'</span>
+    mov rax, [rbp - 24]
+    mov [rbp - 2064], rax
+
+    <span class="cmt">; LOAD x → t3</span>
+    mov rax, [rbp - 2064]
+    mov [rbp - 32], rax
+
+    <span class="cmt">; RETURN t3</span>
+    mov rax, [rbp - 32]
+    mov rsp, rbp
+    pop rbp
+    ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits</pre>
+
+    <div class="tip">
+      <strong>Note:</strong> The constant folding pass in Module 09 can fold
+      <code>add(3, 4)</code> calls only when the entire expression is
+      constant — function calls are not folded since they may have side effects.
+      The IR still contains the call. The optimizer does fold simple arithmetic
+      like <code>3 + 4</code> when both operands are constants in the same
+      function.
+    </div>
+  </section>
+
+  <!-- ================================================================
+       SECTION 8: Brain Exercise
+       ================================================================ -->
+  <section>
+    <h2>8. Brain Exercise</h2>
+
+    <div class="brain-box">
+      <div class="brain-title">🧠 Think About It</div>
+      <p>
+        When <code>main</code> calls <code>add(3, 4)</code>, the arguments
+        <code>3</code> and <code>4</code> are passed in registers
+        <code>rdi</code> and <code>rsi</code> respectively.
+      </p>
+      <p style="margin-top:0.6rem">
+        <strong>Question:</strong> What register holds the <em>return value</em>
+        of <code>add</code> when it returns to <code>main</code>? And what
+        is the <em>very next assembly instruction</em> that our code generator
+        emits to preserve that value?
+      </p>
+
+      <div class="answer">
+        <strong>Answer:</strong><br>
+        The return value lives in <code>rax</code> — this is the System V AMD64
+        ABI rule: integer return values go in <code>rax</code>.<br><br>
+        The very next instruction emitted after <code>call add</code> is:<br>
+        <code>mov [rbp - 24], rax</code><br><br>
+        This <em>spills</em> the return value from <code>rax</code> into the
+        destination temporary's stack slot (<code>t2</code> at
+        <code>rbp - 24</code>). Why do we spill it immediately? Because
+        <code>rax</code> is a <em>caller-saved</em> register — the next
+        instruction or function call could overwrite it. Once it's on the stack,
+        it's safe until we explicitly load it.
+      </div>
+    </div>
+
+    <div class="brain-box" style="margin-top:1.5rem">
+      <div class="brain-title">🧠 Think About It</div>
+      <p>
+        We emit <code>cqo</code> before every <code>idiv</code>.
+      </p>
+      <p style="margin-top:0.6rem">
+        <strong>Question:</strong> What does <code>cqo</code> do, and what would
+        happen if we forgot it?
+      </p>
+      <div class="answer">
+        <strong>Answer:</strong><br>
+        <code>cqo</code> (Convert Quadword to Octaword) sign-extends
+        <code>rax</code> into <code>rdx:rax</code>, forming a 128-bit
+        signed dividend for <code>idiv</code>.<br><br>
+        If you forget it, <code>rdx</code> contains whatever garbage was left
+        from the previous instruction. For small positive values this may still
+        give the right answer (if <code>rdx</code> happens to be zero), but for
+        negative numbers or after certain operations <code>rdx</code> will be
+        nonzero, making the 128-bit dividend completely wrong.
+        Worse: if <code>rdx</code> is sufficiently large, <code>idiv</code>
+        can trigger a <strong>divide exception</strong> (signal SIGFPE),
+        crashing your program.
+      </div>
+    </div>
+  </section>
+
+  <!-- Navigation footer -->
+  <nav class="nav-bar" style="margin-top:3rem; margin-bottom:0">
+    <a href="../module_09%20-%20IR%20Optimization/tutorial.html">← Module 09: Optimization</a>
+    <span class="nav-center">MODULE 10 / 16</span>
+    <a href="../module_11%20-%20Code%20Generation%20-%20Control%20Flow/tutorial.html">Module 11: Linking & ELF →</a>
+  </nav>
+
+</div>
+</body>
+</html>

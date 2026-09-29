@@ -1,0 +1,13 @@
+# A NONDETERMINISTIC automaton for (a|b)*abb.
+# State S loops on a,b (the "(a|b)*" part) AND *also* takes an 'a' to S1 --
+# it "guesses" that the final abb starts here. If the guess is wrong the branch
+# just dies; if some branch reaches S3 at end-of-input, the string is accepted.
+states: S S1 S2 S3
+alphabet: a b
+start: S
+accept: S3
+S  a S
+S  b S
+S  a S1
+S1 b S2
+S2 b S3

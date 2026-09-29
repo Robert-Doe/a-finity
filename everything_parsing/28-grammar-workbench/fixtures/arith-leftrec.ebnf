@@ -1,0 +1,4 @@
+# Arithmetic written the "natural" left-recursive way.
+Expr   ::= Expr "+" Term | Expr "-" Term | Term
+Term   ::= Term "*" Atom | Atom
+Atom   ::= "(" Expr ")" | INT_LIT

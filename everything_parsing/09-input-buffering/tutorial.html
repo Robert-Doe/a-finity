@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 09 — Input Buffering: Two-Buffer Scheme &amp; Sentinels | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#9C5B34;--accent-wash:#F2E6DE;--accent-line:#E0BFA6}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 09 · Part II — Lexical Analysis</p>
+  <h1>Input Buffering &amp;<em>Sentinels</em></h1>
+  <p class="thesis">Before any automaton, the layer that feeds it characters. A
+  scanner reads ahead, then sometimes <b>backs up one</b> — and the input is
+  too big to hold. The two-buffer scheme with a sentinel byte does this at
+  <b>O(1) amortised cost</b> and <b>one comparison per character</b>.</p>
+
+  <div class="headline">
+    <span class="lbl">The two moves that matter</span>
+    <p><span class="hi">advance</span> reads a character and steps forward;
+    <span class="hi">retract</span> steps back one when you've looked too far.
+    Both O(1). The sentinel makes "did I reach the buffer edge?" and "did I
+    reach end-of-input?" the <b>same single check</b>.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../prerequisites/the-cursor-pattern.html">peek / advance / mark / reset</a></li>
+    <li><a href="../prerequisites/big-o-quickref.html">amortised O(1)</a></li>
+    <li><a href="../03-regex-formal-definition/tutorial.html">maximal munch, mentioned (Module 3 / 15)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the librarian and the dumbwaiter</h2></div>
+
+  <div class="picture">
+    <p>A librarian is transcribing a document that arrives <b>one page at a
+    time</b> through a dumbwaiter from the archive below. Her desk has room for
+    exactly <b>two pages</b>.</p>
+    <p>She reads word by word. A ribbon marks where the current word started
+    (<code>lexemeBegin</code>); her eyes scan ahead of it (<code>forward</code>).
+    When her eyes reach the bottom of page 1, she calls for page 2 — it lands
+    <em>next to</em> page 1. When her eyes reach the bottom of page 2, she calls
+    for page 3, and it <b>replaces page 1</b> — which she's finished with,
+    because her ribbon has long since moved onto page 2.</p>
+    <p>Instead of glancing at the page edge after every single word — "am I at
+    the bottom yet?" — she clips a <b>bright red bookmark</b> to the bottom of
+    each page. Her eyes just watch for red. Hit red → either call for the next
+    page, or, if it's the special "END OF DOCUMENT" red card, stop. <b>One thing
+    to watch for, one decision when she sees it.</b></p>
+    <p>Sometimes she reads one letter past a word's end to be sure it's over,
+    then slides her eyes back one (<code>retract</code>) — instant. The only
+    rule: <b>no word may be longer than a page</b>, or fetching the next page
+    would overwrite the page her ribbon is on.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Librarian's desk</th><th>Two-buffer scheme</th></tr></thead>
+    <tbody>
+      <tr><td>a page</td><td>one half-buffer of <code>halfSize</code> chars</td></tr>
+      <tr><td>room for two pages</td><td>two halves</td></tr>
+      <tr><td>the dumbwaiter delivering a page</td><td><code>fillHalf()</code> — one buffer load</td></tr>
+      <tr><td>the word-start ribbon</td><td><code>lexemeBegin</code></td></tr>
+      <tr><td>her scanning eyes</td><td><code>forward</code></td></tr>
+      <tr><td>the red bookmark on each page edge</td><td>the <code>SENTINEL</code> value</td></tr>
+      <tr><td>the "END OF DOCUMENT" red card</td><td><code>EOF</code> (same check, different action)</td></tr>
+      <tr><td>sliding her eyes back one letter</td><td><code>retract(1)</code></td></tr>
+      <tr><td>"no word longer than a page"</td><td>lexeme ≤ <code>halfSize</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Layout:</b> one array, <code>[ half0 | S | half1 | S ]</code>. The
+        <code>S</code> slots hold the sentinel.</li>
+      <li><b>Fill half 0</b> from the source. If it filled completely, write
+        <code>SENTINEL</code> in its <code>S</code> slot; if the source ran out
+        first, write <code>EOF</code> right after the last real character.</li>
+      <li><b><code>advance()</code>:</b> read <code>data[forward]</code>. If it's
+        <code>SENTINEL</code> → fill the <em>other</em> half, move
+        <code>forward</code> to its start, read again. If it's <code>EOF</code>
+        → return <code>EOF</code>, don't move. Otherwise → return the character,
+        <code>forward++</code>.</li>
+      <li><b><code>mark()</code></b> sets <code>lexemeBegin = forward</code>.</li>
+      <li><b><code>retract(n)</code></b> does <code>forward -= n</code>. Throws
+        if that would cross the halfway boundary (lexeme too long).</li>
+      <li><b><code>lexeme()</code></b> walks <code>lexemeBegin → forward</code>,
+        jumping to the other half when it meets a sentinel, stitching the text.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Scanning <code>"brownish"</code>, which straddles the split (halfSize 8)</h3>
+  <div class="diagram"><pre>  data:   [ q u i c k _ b r | S | o w n i s h _ f | S ]
+            half 0            ^     half 1 (just reloaded)  ^
+                              lexemeBegin=here             forward=here after 8 advances
+
+  advance 'b','r'  ── forward hits S ──► fillHalf(1) = "ownish f", forward → start of half 1
+  advance 'o','w','n','i','s','h'  ── peek ' ' → stop
+
+  lexeme():  walk from lexemeBegin
+             "br"  ── meet S ── jump to half 1 start ── "ownish"
+             = "brownish"        ✓ stitched (half 0 was NOT overwritten — only half 1 reloaded)</pre></div>
+
+  <h3>The sentinel: one check, two meanings</h3>
+  <div class="diagram"><pre>  without a sentinel, every character:      with a sentinel, every character:
+
+    if (forward == halfEnd)   reload           c = data[forward]
+    else if (forward == eof)  stop             if (c == SENTINEL)  reload-or-stop
+    else  c = data[forward++]                  else                c = data[forward++]
+
+         two comparisons                            one comparison
+                                            (and the SAME one for edge and for EOF)</pre></div>
+
+  <h3>The retract at <code>"12.go"</code></h3>
+  <div class="diagram"><pre>  read '1' '2'  → NUM so far
+  peek '.'      → maybe a FLOAT? advance the '.'
+  peek 'g'      → not a digit!  the '.' isn't part of the number
+  retract(1)    → forward-- , back onto the '.'
+  emit NUM "12"  ;  the '.' is scanned next as its own token</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>advance — the whole loop is one sentinel test</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Buffer.java</figcaption>
+<pre><code><span class="k">public int</span> advance() {
+  <span class="k">while</span> (<span class="k">true</span>) {
+    <span class="k">int</span> c = data[forward];
+    forwardReads++;                     <span class="c">// the ONE compare per char</span>
+    <span class="k">if</span> (c == SENTINEL) { crossBoundary(); <span class="k">continue</span>; }
+    <span class="k">if</span> (c == EOF)      <span class="k">return</span> EOF;      <span class="c">// idempotent: stays at EOF</span>
+    forward++;
+    consumed++;
+    <span class="k">return</span> c;
+  }
+}
+
+<span class="k">private void</span> crossBoundary() {
+  <span class="k">int</span> other = <span class="y">1</span> - whichHalf(forward);
+  fillHalf(other);                      <span class="c">// one buffer load</span>
+  forward = halfStart(other);
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/buffer.mjs</figcaption>
+<pre><code>advance() {
+  <span class="k">for</span> (;;) {
+    <span class="k">const</span> c = <span class="k">this</span>.data[<span class="k">this</span>.forward];
+    <span class="k">this</span>.forwardReads++;
+    <span class="k">if</span> (c === SENTINEL) { <span class="k">this</span>.crossBoundary(); <span class="k">continue</span>; }
+    <span class="k">if</span> (c === EOF) <span class="k">return</span> EOF;
+    <span class="k">this</span>.forward++;
+    <span class="k">this</span>.consumedCount++;
+    <span class="k">return</span> c;
+  }
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>fillHalf — SENTINEL if full, EOF inline if the source ran out</h3>
+<pre><code><span class="k">private void</span> fillHalf(<span class="k">int</span> half) {
+  bufferLoads++;
+  <span class="k">int</span> base = halfStart(half);
+  <span class="k">int</span> n = Math.min(halfSize, source.length() - sourcePos);
+  <span class="k">for</span> (<span class="k">int</span> i = <span class="y">0</span>; i &lt; n; i++) data[base + i] = source.charAt(sourcePos + i);
+  sourcePos += n;
+  <span class="k">if</span> (n &lt; halfSize) data[base + n] = EOF;              <span class="c">// source exhausted mid-half</span>
+  <span class="k">else</span>             data[sentinelIndex(half)] = SENTINEL; <span class="c">// half full: boundary</span>
+}</code></pre>
+
+  <div class="callout brain">
+    <span class="ct">The <code>-1</code> / <code>-2</code>, and why chars are <code>int</code></span>
+    <p>The sentinel must be a value <em>that cannot be a real character</em>.
+    Java <code>char</code> has no spare value, so the buffer stores
+    <code>int</code>s and <code>advance()</code> returns <code>int</code> —
+    exactly like <code>Reader.read()</code> returning <code>-1</code> at EOF.
+    <code>-1</code> = true end, <code>-2</code> = half boundary. JS uses an
+    <code>Int32Array</code> for the same reason. This is bucket <b>(a)</b>,
+    forced — see <a href="DECISIONS.md">DECISIONS.md</a>.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Handle a lexeme longer than one half — <code>retract</code> across the boundary throws (the Dragon Book's own limit).</li>
+        <li>Decide what a token <em>is</em> — the demo scanner is hand-coded; a real one is driven by an automaton (Modules 10–16).</li>
+        <li>Multi-character retract in general — supported, but only within the current half.</li>
+        <li>Anything about Unicode — `charAt` here is a UTF-16 code unit (Appendix X13).</li>
+        <li>Track line/column — that's Module 13's job, layered on top.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Feed a scanner characters from input of any size, block by block.</li>
+        <li><code>advance</code> / <code>retract</code> at O(1), amortised O(1) buffer loads.</li>
+        <li>One comparison per character, regardless of buffer edges.</li>
+        <li>Stitch a lexeme that spans the halfway split.</li>
+        <li>Report end-of-input idempotently.</li>
+        <li>Expose the exact <code>peek/advance/mark/retract/lexeme</code> interface every later scanner uses.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg)</h4>
+<pre><code>cd 09-input-buffering
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>scan trace  (token | running buffer loads):
+  WORD   "the"      loads=1  half=0
+  FLOAT  "12.5"     loads=2  half=1
+  WORD   "brownish" loads=3  half=0     <span class="exp">← spans the split, stitched</span>
+  ...
+  NUM    "12"       loads=4  half=1     <span class="exp">← after retracting the '.' in "12.go"</span>
+
+totals:
+  characters consumed : 39
+  buffer loads        : 5
+  loads per character : 0.128   (amortized O(1))
+  forward reads       : 40   (one 'data[forward]' compare per advance ...)</code></pre>
+    <h4>Tests — both "OK 22 passed"</h4>
+<pre><code>java -cp java/out BufferTest
+node js/buffer.test.mjs</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>retract crossed the halfway boundary</code></b> — a lexeme longer
+    than one half. Raise <code>halfSize</code> above your longest token.<br>
+    <b><code>lexeme()</code> returns a truncated string</b> — same cause: the
+    lexeme's start half was reloaded before you asked for it.<br>
+    <b>Buffer loads one higher than expected</b> — the source length is an exact
+    multiple of <code>halfSize</code>, so a final 0-char fill places the EOF
+    sentinel. That's the <code>+1</code> in the classic formula.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p>The sentinel saves one comparison per character — ~10 million on a 10 MB
+  file. But a modern CPU's branch predictor gets that <code>forward == end</code>
+  check right almost every time, essentially for free.</p>
+  <p><b>(1)</b> So is the sentinel still worth it? What does it still buy?
+  <b>(2)</b> Why two halves and not three, or a ring of ten?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> The <em>saved compare</em> is nearly free on modern hardware —
+    the historical motivation is weak now. What endures is <b>structure</b>: the
+    inner loop has <em>one</em> exit condition instead of two, which keeps the
+    hot path (<code>while (isLetter(c = data[forward])) forward++;</code>) tight
+    and predictable, with all the block-management logic outside it. And the
+    trick itself — <em>a value outside the alphabet as a universal boundary
+    marker</em> — recurs constantly: the <code>$</code> end-marker on the token
+    stream (Module 22), the bottom-of-stack marker in LR parsing (Module 27).
+    Learn it here.</p>
+    <p><b>(2)</b> Two is the minimum that lets you fill the <em>next</em> block
+    while still holding the block your <code>lexemeBegin</code> ribbon is in.
+    More blocks would support longer lexemes (retract further back) at a memory
+    cost; some real lexers use a bigger ring, and many just <code>mmap</code>
+    the whole file and skip buffering entirely. Two halves is the classic
+    space-and-simplicity sweet spot, not a law.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why not just read the whole file into a String? Memory is cheap.</summary>
+    <p>For most tools you can, and modern lexers often do — or <code>mmap</code>
+    the file so the OS pages it in. The two-buffer scheme earns its keep for
+    <em>streaming</em> input: stdin, a network socket, a 4 GB log you can't fit.
+    What you actually reuse everywhere is the <em>interface</em> —
+    <code>peek/advance/mark/retract</code> — and the buffering behind it can be a
+    <code>String</code>, two halves, a ring, or an mmap.</p>
+  </details>
+
+  <details>
+    <summary>What's the sentinel value in a real hand-written lexer? <code>\0</code>?</summary>
+    <p><code>\0</code> works only if you're certain the input has no NUL bytes —
+    fine for source code, not for binary. Common real choices: read into
+    <code>int</code> and use <code>EOF = -1</code> with a separate boundary flag;
+    or <code>mmap</code> plus a guard page that faults on over-read; or, in
+    <code>flex</code>, a two-buffer scheme much like this one with a
+    <code>YY_END_OF_BUFFER_CHAR</code>. The <em>idea</em> (a value outside the
+    alphabet) is constant; the encoding is a taste call.</p>
+  </details>
+
+  <details>
+    <summary>Retract only works within one buffer. What if my parser needs 2 tokens of lookahead?</summary>
+    <p>Different layer. The parser buffers <em>tokens</em>, not characters, and a
+    token ring of size <code>k</code> is trivial (Module 19 builds one). At the
+    <em>character</em> level, lexers almost never need more than one char of
+    retract — maximal munch reads until the pattern stops matching, then backs
+    up one.</p>
+  </details>
+
+  <details>
+    <summary>The <code>12.go</code> case emits <code>NUM . go</code> — shouldn't <code>.go</code> be a method call?</summary>
+    <p>This toy scanner has no concept of <code>.</code> as an operator. The only
+    thing being shown is that the <code>.</code> was <em>not consumed</em> by the
+    number rule and is sitting there for the next scan. A real language's
+    scanner would recognise <code>.</code> as its own token; a real parser would
+    make <code>a.b</code> a member access. That's their job, not the buffer's.</p>
+  </details>
+
+  <details>
+    <summary>Why does the demo count "forward reads" as 40 for 39 characters?</summary>
+    <p>39 real character reads, plus one extra <code>data[forward]</code> read
+    where <code>advance()</code> hit a <code>SENTINEL</code> and looped. Boundary
+    crossings that happen during <code>peek()</code> (in the lookahead loops)
+    aren't counted. The number is "≈ one per character," which is the point —
+    it does not grow with the number of buffer edges.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>Characters now flow in cleanly, one comparison each. <b>Module 10 — DFA</b>
+  builds the machine that consumes them: a deterministic finite automaton,
+  <code>δ : Q × Σ → Q</code>, a start state, a set of accepting states. You'll
+  simulate one, prove its accepted set is exactly a regular language, and see
+  why "finite states" is precisely the limit the pumping lemma described. Then
+  Modules 11–13 add nondeterminism, compile the Module-3 regex tree into an NFA
+  (Thompson), and flatten that back to a DFA (subset construction) — a real
+  matcher, built from the regex you already have.</p>
+</section>
+
+<nav class="pager">
+  <a href="../08-bnf-ebnf-abnf/tutorial.html"><span class="dir">Previous</span>← Module 08 · BNF, EBNF, ABNF &amp; Syntax Diagrams</a>
+  <a href="../10-dfa/tutorial.html"><span class="dir">Next</span>Module 10 · DFA: Deterministic Finite Automata →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 09 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>09-input-buffering/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.
+Start of Part II.</p>
+
+</div>
+</body>
+</html>

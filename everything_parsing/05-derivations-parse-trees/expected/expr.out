@@ -1,0 +1,60 @@
+=== Module 05 - Derivations, Parse Trees, Leftmost/Rightmost ===
+
+grammar: fixtures/expr.grammar
+  (0) E -> E + T
+  (1) E -> T
+  (2) T -> T * F
+  (3) T -> F
+  (4) F -> ( E )
+  (5) F -> id
+
+target: id + id * id
+
+parse tree:
+E
++- E
+|  +- T
+|     +- F
+|        +- id
++- +
++- T
+   +- T
+   |  +- F
+   |     +- id
+   +- *
+   +- F
+      +- id
+
+yield (terminal frontier): id + id * id
+  matches target? true
+
+leftmost derivation  (always expand the leftmost nonterminal):
+    E
+=>  E + T                   (E -> E + T)
+=>  T + T                   (E -> T)
+=>  F + T                   (T -> F)
+=>  id + T                  (F -> id)
+=>  id + T * F              (T -> T * F)
+=>  id + F * F              (T -> F)
+=>  id + id * F             (F -> id)
+=>  id + id * id            (F -> id)
+    8 steps
+
+rightmost derivation  (always expand the rightmost nonterminal):
+    E
+=>  E + T                   (E -> E + T)
+=>  E + T * F               (T -> T * F)
+=>  E + T * id              (F -> id)
+=>  E + F * id              (T -> F)
+=>  E + id * id             (F -> id)
+=>  T + id * id             (E -> T)
+=>  F + id * id             (T -> F)
+=>  id + id * id            (F -> id)
+    8 steps
+
+productions used (multiset, sorted by index):
+  leftmost : [E->E+T, E->T, T->T*F, T->F, T->F, F->id, F->id, F->id]
+  rightmost: [E->E+T, E->T, T->T*F, T->F, T->F, F->id, F->id, F->id]
+  same multiset? true  (they are derived from the SAME tree)
+
+summary: parseTrees=1  canonicalDerivations=2  steps=8  productionsEach=8  sameMultiset=true

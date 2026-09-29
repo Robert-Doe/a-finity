@@ -1,0 +1,4 @@
+# A grammar that IS LR(0): no state has both a shift and a complete item, and no
+# state has two complete items.
+%start A
+A -> lp A rp | x

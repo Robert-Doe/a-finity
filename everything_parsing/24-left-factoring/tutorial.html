@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 24 — Left Factoring | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#96702A;--accent-wash:#F3EDDE;--accent-line:#DFCFA6}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 24 · Part III — Top-Down Parsing</p>
+  <h1>Left <em>Factoring</em></h1>
+  <p class="thesis">Left recursion is gone (Module 23). One obstacle to LL(1)
+  remains: two alternatives of a rule that <b>begin with the same tokens</b>.
+  <code>stmt → id ( args ) | id = expr</code> — the parser sees <code>id</code>
+  and cannot yet tell which rule it's in. The fix is algebra: factor out the
+  common prefix. <code>A → αβ₁ | αβ₂</code> becomes <code>A → α A'</code>,
+  <code>A' → β₁ | β₂</code> — read the <code>α</code> once, decide after.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p><code>S → if b then S | if b then S else S | other</code> factors to
+    <span class="hi">S → other | if b then S S', S' → ε | else S</span> — the
+    exact grammar Modules 20 and 22 dissected. It came from here.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../20-predictive-condition/tutorial.html">why shared FIRST sets break LL(1) (Module 20)</a></li>
+    <li><a href="../23-left-recursion-elimination/tutorial.html">grammar rewrites, fresh nonterminals, `LeftRec.G` (Module 23)</a></li>
+    <li><a href="../19-recursive-descent/tutorial.html">one token of lookahead picks the alternative (Module 19)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the choose-your-own-adventure with a duplicated page</h2></div>
+
+  <div class="picture">
+    <p>Two entries in the book: "<em>Walk to the old bridge and cross it.
+    On the far side, turn left → page 40</em>" and "<em>Walk to the old bridge
+    and cross it. On the far side, turn right → page 55</em>." A reader deciding
+    at the fork has to read almost the whole sentence before the two options
+    diverge. Worse, if they commit early and guess wrong, they have to come back
+    and re-read.</p>
+    <p>A good editor merges the shared text: "<em>Walk to the old bridge and
+    cross it. On the far side: to turn left → page 40; to turn right →
+    page 55.</em>" Now the shared part is stated once, and the choice is a
+    single clean branch at the exact point the paths split.</p>
+    <p>That's left factoring. The shared opening — <code>α</code> — gets pulled
+    into the main rule. A new helper "page" — <code>A'</code> — holds just the
+    parts that differ, <code>β₁</code> and <code>β₂</code>. The parser walks
+    <code>α</code> with no decision to make, then branches once on
+    <code>A'</code>, where the alternatives finally start with different
+    tokens.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>The adventure book</th><th>The grammar</th></tr></thead>
+    <tbody>
+      <tr><td>two entries with the same opening sentence</td><td><code>A → α β₁ | α β₂</code></td></tr>
+      <tr><td>the shared opening</td><td><code>α</code> — the longest common prefix</td></tr>
+      <tr><td>merge it, state once</td><td><code>A → α A'</code></td></tr>
+      <tr><td>the helper page with just the differences</td><td><code>A' → β₁ | β₂</code></td></tr>
+      <tr><td>one option is "just stop here"</td><td>an empty <code>βᵢ</code> → <code>A' → ε</code></td></tr>
+      <tr><td>branch at the point paths split</td><td>alternatives of <code>A'</code> now have disjoint FIRST</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li>Pick a nonterminal <code>A</code>. Among its alternatives, find the
+        <b>longest symbol sequence <code>α</code> (length ≥ 1) that prefixes at
+        least two</b> of them. (Compare every pair; keep the longest common
+        prefix found.)</li>
+      <li>If there's no such <code>α</code>, <code>A</code> is done.</li>
+      <li>Split the alternatives: <code>withα</code> = those starting with
+        <code>α</code>; <code>rest</code> = the others.</li>
+      <li>Make a fresh nonterminal <code>A'</code>.</li>
+      <li>New <code>A</code> alternatives: <code>rest</code>, plus one new one
+        <code>α A'</code>.</li>
+      <li>New <code>A'</code> alternatives: for each member of <code>withα</code>,
+        its suffix after <code>α</code> — a zero-length suffix becomes
+        <code>A' → ε</code>.</li>
+      <li>Repeat over all nonterminals (including the freshly made
+        <code>A'</code>, and <code>A</code> again — it may still have another
+        shared prefix) until a full pass factors nothing.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The dangling else — one long prefix</h3>
+  <div class="diagram"><pre>  S -> if b then S | if b then S else S | other
+
+  pairs:  (0,1) common prefix = [if b then S]   length 4   <- longest
+          (0,2) = []      (1,2) = []
+
+  alpha = [if b then S]
+  withalpha = { "if b then S" , "if b then S else S" }
+  rest      = { "other" }
+
+  S  -> other | if b then S S'
+  S' -> epsilon | else S        (suffix of alt 0 is empty; suffix of alt 1 is "else S")
+
+  FIRST(S' -> epsilon)  contributes nothing;  FIRST(S' -> else S) = { else }
+  disjoint!  ...but else is ALSO in FOLLOW(S'), so the dangling-else conflict
+  (Module 20) is still there. factoring fixed the prefix, not the ambiguity.</pre></div>
+
+  <h3>Nested prefixes — two passes</h3>
+  <div class="diagram"><pre>  A -> a b c | a b d | a e
+
+  pass 1:  longest shared prefix = [a b]  (alts 0,1)
+           A  -> a e | a b A'
+           A' -> c | d
+
+  pass 2:  A now has  "a e"  and  "a b A'"  -> shared prefix [a]
+           A   -> a A''
+           A'' -> e | b A'
+
+  final:   A -> a A''      A'' -> e | b A'      A' -> c | d
+           no nonterminal has two alternatives with the same first symbol.</pre></div>
+
+  <h3>Realistic — three <code>id</code>-prefixed statements</h3>
+  <div class="diagram"><pre>  stmt -> id lp args rp semi | id assign expr semi | id colon type semi
+
+  shared prefix = [id]   (only the first symbol — the rules diverge immediately after)
+
+  stmt  -> id stmt'
+  stmt' -> lp args rp semi | assign expr semi | colon type semi
+           ^^  ^^^^^^  ^^^^^  three different first tokens -> LL(1) here</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Longest shared prefix</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/LeftFactor.java</figcaption>
+<pre><code>List&lt;String&gt; longestSharedPrefix(List&lt;List&lt;String&gt;&gt; alts) {
+  List&lt;String&gt; best = List.of();
+  <span class="k">for</span> (<span class="k">int</span> i = 0; i &lt; alts.size(); i++)
+    <span class="k">for</span> (<span class="k">int</span> j = i + 1; j &lt; alts.size(); j++) {
+      List&lt;String&gt; cp = commonPrefix(alts.get(i), alts.get(j));
+      <span class="k">if</span> (cp.size() &gt; best.size()) best = cp;
+    }
+  <span class="k">return</span> best;           <span class="c">// empty => nothing to factor</span>
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/leftfactor.mjs</figcaption>
+<pre><code><span class="k">function</span> longestSharedPrefix(alts) {
+  <span class="k">let</span> best = [];
+  <span class="k">for</span> (<span class="k">let</span> i = 0; i &lt; alts.length; i++)
+    <span class="k">for</span> (<span class="k">let</span> j = i + 1; j &lt; alts.length; j++) {
+      <span class="k">const</span> cp = commonPrefix(alts[i], alts[j]);
+      <span class="k">if</span> (cp.length &gt; best.length) best = cp;
+    }
+  <span class="k">return</span> best;
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>The factoring step</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/LeftFactor.java</figcaption>
+<pre><code><span class="k">for</span> (List&lt;String&gt; a : alts) {
+  <span class="k">if</span> (startsWith(a, prefix)) withP.add(a);
+  <span class="k">else</span> rest.add(a);
+}
+String ap = fresh(g, nt);                        <span class="c">// A'</span>
+List&lt;List&lt;String&gt;&gt; newNt = <span class="k">new</span> ArrayList&lt;&gt;(rest);
+newNt.add(concat(prefix, ap));                   <span class="c">// A -> alpha A'</span>
+
+<span class="k">for</span> (List&lt;String&gt; a : withP)
+  newAp.add(a.subList(prefix.size(), a.size())); <span class="c">// suffix; [] -> epsilon</span>
+
+g.prods.put(nt, dedupe(newNt));
+g.prods.put(ap, dedupe(newAp));
+g.order.add(g.order.indexOf(nt) + 1, ap);</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/leftfactor.mjs</figcaption>
+<pre><code><span class="k">for</span> (<span class="k">const</span> a <span class="k">of</span> alts) {
+  <span class="k">if</span> (startsWith(a, prefix)) withP.push(a);
+  <span class="k">else</span> rest.push(a);
+}
+<span class="k">const</span> ap = fresh(g, nt);
+<span class="k">const</span> newNt = [...rest, [...prefix, ap]];
+<span class="k">const</span> newAp = withP.map(a =&gt; a.slice(prefix.length));
+
+g.prods.set(nt, dedupe(newNt));
+g.prods.set(ap, dedupe(newAp));
+g.order.splice(g.order.indexOf(nt) + 1, 0, ap);</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Why restart the whole pass after one factoring</span>
+    <p><code>factor</code> loops the nonterminals and <code>break</code>s the
+    moment <code>factorOne</code> changes anything, then starts over. It's the
+    simplest way to be obviously correct: every factoring step strictly reduces
+    the number of alternative-pairs sharing a prefix, so the loop must
+    terminate, and restarting means we never reason about a half-modified
+    grammar. At this scale the cost is nothing.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Make a grammar LL(1) when the problem <em>isn't</em> a shared prefix — the dangling-else FOLLOW conflict survives factoring.</li>
+        <li>Factor a common prefix that only appears <em>after</em> expanding a nonterminal (e.g. <code>A → B x | C x</code> where <code>B</code>, <code>C</code> can both start with <code>d</code>) — needs FIRST-set reasoning, Module 25's table build surfaces it.</li>
+        <li>Preserve parse-tree shape (the stem nonterminal adds a node).</li>
+        <li>Choose the <em>minimal</em> set of new nonterminals.</li>
+        <li>Prove language preservation in general — checked empirically here.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Factor the longest shared prefix out of any rule.</li>
+        <li>Handle nested prefixes (multiple passes) and empty suffixes (<code>A' → ε</code>).</li>
+        <li>Leave an already-factored grammar untouched.</li>
+        <li>Preserve the language (bounded enumeration).</li>
+        <li>Produce the Module 20/22 dangling-else grammar from the unfactored one.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 24-left-factoring
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>########## fixtures/danglingelse.grammar
+BEFORE:
+  S -&gt; if b then S | if b then S else S | other
+  needs factoring? true
+AFTER:
+  S -&gt; other | if b then S S'
+  S' -&gt; epsilon | else S
+  needs factoring? false
+language check (all strings up to length 8):
+  before: 4   after: 4   identical? true</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out LeftFactorTest    # OK 12 passed
+node js/leftfactor.test.mjs          # OK 12 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>Still needs factoring after one call</b> — loop until a full pass does
+    nothing (nested prefixes).<br>
+    <b>An empty suffix vanishes</b> — an alternative that <em>equals</em> the
+    prefix must give <code>A' → ε</code>.<br>
+    <b>Language changed</b> — every alt with the prefix goes in
+    <code>withα</code>; the rest stay; nothing is dropped or duplicated.<br>
+    <b>Infinite loop</b> — you're "factoring" a length-0 prefix; require
+    length ≥ 1.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Factor <code>E → num | num . num | num e num</code> (integer,
+  float, scientific). What's <code>E'</code>? Is the result LL(1)? <b>(2)</b>
+  Grammar <code>A → B c | B d</code>, <code>B → b</code>. There's no literal
+  shared prefix in <code>A</code>'s alternatives (<code>B c</code> vs
+  <code>B d</code>) — or is there? Can you left-factor it?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Shared prefix <code>num</code>. <code>E → num E'</code>,
+    <code>E' → ε | . num | e num</code>. FIRST sets: <code>ε</code> contributes
+    nothing, <code>{.}</code>, <code>{e}</code> — pairwise disjoint, and
+    <code>.</code>/<code>e</code> aren't in a colliding FOLLOW. LL(1). Yes.</p>
+    <p><b>(2)</b> The alternatives <em>literally</em> share the first symbol
+    <code>B</code> — it's a nonterminal, but it's still the same symbol, so
+    factor it: <code>A → B A'</code>, <code>A' → c | d</code>. (If instead the
+    shared prefix were "two different nonterminals that both start with
+    <code>b</code>," you couldn't fix it by textual factoring — you'd have to
+    inline or accept it's not LL(1). That's the limit noted in §05.)</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>If factoring doesn't always give LL(1), why bother?</summary>
+    <p>Because when a shared prefix <em>is</em> the problem, factoring is the
+    only fix, and it's mechanical. The dangling else has two problems stacked —
+    a shared prefix (fixable) and a FOLLOW conflict (not). Factoring clears the
+    first so the second is the only thing left to reason about.</p>
+  </details>
+
+  <details>
+    <summary>Does the order I factor prefixes in matter?</summary>
+    <p>It changes which intermediate nonterminals you get, not the language or
+    whether the final grammar is factored. Longest-first tends to produce fewer,
+    more meaningful stems.</p>
+  </details>
+
+  <details>
+    <summary>What if two alternatives are identical?</summary>
+    <p>They dedupe — a grammar rule is a set of alternatives, and
+    <code>A → x | x</code> is just <code>A → x</code>. The code dedupes after
+    every rewrite.</p>
+  </details>
+
+  <details>
+    <summary>Is left factoring reversible?</summary>
+    <p>Yes — inline <code>A'</code> back into <code>A</code> (substitute each
+    <code>A'</code> alternative into the <code>α A'</code> rule) and you recover
+    the original. The transforms in Modules 23–24 are all language-preserving
+    and (up to naming) invertible.</p>
+  </details>
+
+  <details>
+    <summary>Do hand-written recursive-descent parsers left-factor?</summary>
+    <p>Informally, yes: you write code that reads the shared prefix, then
+    <code>switch</code>es on the next token. The grammar transform is the
+    formal version for tools that consume productions — the LL(1) table builder
+    (Module 25), the parser generator (Module X15).</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>The grammar toolkit is complete: no left recursion (Module 23), no shared
+  prefixes (Module 24), FIRST and FOLLOW computed (Modules 21–22). <b>Module 25
+  — The LL(1) Parsing Table</b> spends it all: a two-dimensional table
+  <code>M[A][t]</code> that names, for nonterminal <code>A</code> and lookahead
+  token <code>t</code>, the one production to apply. The table is single-valued
+  exactly when the grammar is LL(1); every double-booked cell is a concrete
+  conflict witness.</p>
+</section>
+
+<nav class="pager">
+  <a href="../23-left-recursion-elimination/tutorial.html"><span class="dir">Previous</span>← Module 23 · Left Recursion Elimination</a>
+  <a href="../25-ll1-table/tutorial.html"><span class="dir">Next</span>Module 25 · The LL(1) Parsing Table →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 24 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>24-left-factoring/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

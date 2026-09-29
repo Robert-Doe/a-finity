@@ -1,0 +1,32 @@
+# Ajoda's syntax, exactly as the language spec writes it.
+# UPPER_CASE names are token classes from the scanner; "quoted" text is a
+# literal token; every other name is a rule defined below.
+
+Program      ::= { FunctionDecl }
+FunctionDecl ::= "fn" IDENT "(" [ ParamList ] ")" "->" Type Block
+ParamList    ::= Param { "," Param }
+Param        ::= IDENT ":" Type
+Type         ::= "i64" | "bool" | "f64"
+Block        ::= "{" { Statement } "}"
+
+Statement    ::= LetStmt | AssignStmt | IfStmt | WhileStmt
+               | ReturnStmt | ExprStmt
+LetStmt      ::= "let" IDENT ":" Type "=" Expression ";"
+AssignStmt   ::= IDENT "=" Expression ";"
+IfStmt       ::= "if" "(" Expression ")" Block [ "else" ( Block | IfStmt ) ]
+WhileStmt    ::= "while" "(" Expression ")" Block
+ReturnStmt   ::= "return" [ Expression ] ";"
+ExprStmt     ::= Expression ";"
+
+Expression   ::= LogicalOr
+LogicalOr    ::= LogicalAnd { "||" LogicalAnd }
+LogicalAnd   ::= Equality { "&&" Equality }
+Equality     ::= Comparison { ( "==" | "!=" ) Comparison }
+Comparison   ::= Term { ( "<" | "<=" | ">" | ">=" ) Term }
+Term         ::= Factor { ( "+" | "-" ) Factor }
+Factor       ::= Unary { ( "*" | "/" | "%" ) Unary }
+Unary        ::= ( "!" | "-" ) Unary | Call
+Call         ::= Primary [ "(" [ ArgList ] ")" ]
+ArgList      ::= Expression { "," Expression }
+Primary      ::= INT_LIT | FLOAT_LIT | "true" | "false"
+               | IDENT | "(" Expression ")"

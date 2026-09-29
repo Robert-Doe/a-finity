@@ -1,0 +1,8 @@
+# A labeled-statement grammar. On 'id' the parser can't tell a label from an
+# expression with ONE token: it needs to see the token AFTER the id
+# ('colon' -> label, else -> expression). LL(2), not LL(1). 'label' and 'expr'
+# are different nonterminals, so left factoring doesn't apply directly.
+%start stmt
+stmt  -> label colon stmt | expr semi
+label -> id
+expr  -> id | id lparen rparen

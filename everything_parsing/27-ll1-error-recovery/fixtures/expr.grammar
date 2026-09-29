@@ -1,0 +1,6 @@
+%start E
+E  -> T Ep
+Ep -> + T Ep | epsilon
+T  -> F Tp
+Tp -> * F Tp | epsilon
+F  -> ( E ) | id | num

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 17 — Lexical Errors &amp; Recovery | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#A85818;--accent-wash:#F3E9DE;--accent-line:#E1C3A2}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 17 · Part II — Lexical Analysis</p>
+  <h1>Lexical Errors &amp;<em>Recovery</em></h1>
+  <p class="thesis">Module 16's lexer <b>stops</b> at the first bad character.
+  This one <b>reports it, resynchronizes, and keeps going</b> — so a single
+  scan finds <em>every</em> lexical error, not just the first. Two strategies:
+  one <code>ERROR</code> per bad character, or one per garbage run.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>A file with three typos on three lines. Module 16 stops at the first and
+    you learn nothing else. With recovery: <span class="hi">3 errors, at 2:20,
+    3:20 and 5:14</span>, plus every good token around them.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../16-scanner-generator/tutorial.html">the scanner generator (Module 16)</a></li>
+    <li><a href="../15-maximal-munch-priority/tutorial.html">maximal munch (Module 15)</a></li>
+    <li><a href="../09-input-buffering/tutorial.html">skipping / advancing the cursor (Module 9)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the proofreader who doesn't quit</h2></div>
+
+  <div class="picture">
+    <p>A junior proofreader circles the <em>first</em> typo on your page and
+    hands it back: "fix this, then I'll re-read." Ten typos, ten rounds, ten
+    days.</p>
+    <p>A good proofreader marks <b>every</b> mistake in one pass. And when they
+    hit a stretch of genuine gibberish — a smudge, a coffee stain, three lines
+    of keyboard mash — they don't stop. They draw a box around it, write
+    "<b>??</b>", and <b>resume reading from the next real word</b>.</p>
+    <p>That's error recovery. <b>SKIP_ONE</b> is circling each bad character
+    individually: precise, but a smudge covering five characters gets five
+    circles. <b>SKIP_TO_RESTART</b> is the box-and-"??" move: one mark around the
+    whole garbled run, then pick up at the next thing that could plausibly be a
+    word.</p>
+    <p>"Panic mode" is the actual textbook name — the scanner <em>panics</em>,
+    throws away input in a hurry, and scrambles back to solid ground.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Proofreader</th><th>Lexer</th></tr></thead>
+    <tbody>
+      <tr><td>marks every mistake in one pass</td><td>one scan, an <em>ordered list</em> of every lexical error</td></tr>
+      <tr><td>circle each bad character</td><td><code>SKIP_ONE</code>: one <code>ERROR</code> token per bad character</td></tr>
+      <tr><td>box the whole garbled run, write "??"</td><td><code>SKIP_TO_RESTART</code>: one <code>ERROR</code> token spanning it</td></tr>
+      <tr><td>resume at the next real word</td><td>skip to a character where the DFA can start a token</td></tr>
+      <tr><td>the good sentences still get read</td><td>valid tokens before/after the error are kept</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li>At <code>pos</code>, ask the Module 16 scanner for the longest match.
+        If there is one, emit the token (unless its rule is
+        <code>discard</code>), advance <code>line:col</code>, repeat.</li>
+      <li><b>No match</b> → a lexical error at the current <code>line:col</code>.</li>
+      <li><b>Recover:</b>
+        <ul>
+          <li><code>SKIP_ONE</code>: <code>end = pos + 1</code>.</li>
+          <li><code>SKIP_TO_RESTART</code>: advance <code>end</code> from
+            <code>pos + 1</code> while no token can start there
+            (<code>longestMatch(src, end) == null</code>).</li>
+        </ul>
+      </li>
+      <li>Record <code>LexError(line, col, src[pos..end])</code>; emit an
+        <code>ERROR</code> token for that span; advance over it; set
+        <code>pos = end</code>.</li>
+      <li>Continue. <code>end</code> always started at <code>pos + 1</code>,
+        so the scanner always makes progress. Finish with <code>EOF</code>.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Both strategies on <code>a @@@# b</code>  (no Ajoda token starts with <code>@</code> or <code>#</code>)</h3>
+  <div class="diagram"><pre>  col:   1 2 3 4 5 6 7 8
+  input: a   @ @ @ #   b
+
+  SKIP_ONE:
+    col 1: match IDENT "a", then SPACE (discarded)
+    col 3: no match → ERROR "@" 1:3
+    col 4: no match → ERROR "@" 1:4
+    col 5: no match → ERROR "@" 1:5
+    col 6: no match → ERROR "#" 1:6
+    col 7: SPACE, col 8: IDENT "b"
+    tokens: IDENT ERROR ERROR ERROR ERROR IDENT EOF     errors: 4
+
+  SKIP_TO_RESTART:
+    col 3: no match. skip while no token can start:
+           col 4 '@' → skip,  col 5 '@' → skip,  col 6 '#' → skip
+           col 7 ' ' → SPACE can start here → STOP
+           ERROR "@@@#" 1:3
+    tokens: IDENT ERROR IDENT EOF                      errors: 1</pre></div>
+
+  <h3>Recovery keeps the good tokens — <code>let n: i64 = 5 @ 2;</code></h3>
+  <div class="diagram"><pre>  LET IDENT COLON I64 ASSIGN INT_LIT  ERROR(@) 1:16  INT_LIT SEMI EOF
+
+  the '@' is isolated; everything before and after it still scans.
+  Module 16 would have stopped at 1:16 and never seen the "2;".</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The recovery loop</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Recovery.java</figcaption>
+<pre><code><span class="k">int</span>[] m = sc.longestMatch(src, pos);
+<span class="k">if</span> (m != <span class="k">null</span>) {                              <span class="c">// a real token</span>
+  ... emit; advance(lc, lexeme); pos = m[<span class="y">0</span>]; <span class="k">continue</span>;
+}
+<span class="c">// no token starts at pos: report, then resynchronize</span>
+<span class="k">int</span> end = pos + <span class="y">1</span>;                         <span class="c">// always consume ≥ 1</span>
+<span class="k">if</span> (strategy == Strategy.SKIP_TO_RESTART)
+  <span class="k">while</span> (end &lt; src.length() &amp;&amp; sc.longestMatch(src, end) == <span class="k">null</span>) end++;
+String text = src.substring(pos, end);
+errors.add(<span class="k">new</span> LexError(lc[<span class="y">0</span>], lc[<span class="y">1</span>], text));
+tokens.add(<span class="k">new</span> Scanner.Token(<span class="y">"ERROR"</span>, text, lc[<span class="y">0</span>], lc[<span class="y">1</span>]));
+advance(lc, text);
+pos = end;</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/recovery.mjs</figcaption>
+<pre><code><span class="k">const</span> m = sc.longestMatch(src, pos);
+<span class="k">if</span> (m !== <span class="k">null</span>) { ... advance(lexeme); pos = m.end; <span class="k">continue</span>; }
+
+<span class="k">let</span> end = pos + <span class="y">1</span>;
+<span class="k">if</span> (strategy === Strategy.SKIP_TO_RESTART)
+  <span class="k">while</span> (end &lt; src.length &amp;&amp; sc.longestMatch(src, end) === <span class="k">null</span>) end++;
+<span class="k">const</span> text = src.slice(pos, end);
+errors.push({ line, col, text });
+tokens.push({ kind: <span class="y">"ERROR"</span>, lexeme: text, line, col });
+advance(text);
+pos = end;</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">The sync check is just "can a token start here?"</span>
+    <p><code>sc.longestMatch(src, end) != null</code>: the longest match at that
+    position has positive length. No separate "first character of any pattern"
+    set to build and keep in sync; the scanner already has the function. A
+    parser's sync set is a hand-picked list of boundary tokens
+    (<code>;</code>, <code>}</code>, <code>)</code>). See the Brain Exercise.</p>
+  </div>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Suppress cascading follow-on errors (a compiler caps at ~20 and hides errors near a previous one).</li>
+        <li>Repair: insert a missing quote, fix a typo'd character (least-cost repair, Appendix X9).</li>
+        <li>Recover at the <em>parser</em> level; that's Modules 22 and 27.</li>
+        <li>Pick a good sync set automatically; the parser's FOLLOW sets do that (Module 27).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Report every lexical error in a single scan, each with <code>line:col</code>.</li>
+        <li>Keep the token stream gap-free with <code>ERROR</code> tokens.</li>
+        <li>Recover one character at a time (<code>SKIP_ONE</code>) or one run at a time (<code>SKIP_TO_RESTART</code>).</li>
+        <li>Resynchronize on "a position where a token can start."</li>
+        <li>Preserve all valid tokens before and after the garbage, across many lines.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 17-lexical-errors
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>--- probe: total = a @@@# b; ---
+  SKIP_ONE (one ERROR per bad character):
+    IDENT(total) ASSIGN(=) IDENT(a) ERROR(@) ERROR(@) ERROR(@) ERROR(#) IDENT(b) SEMI(;) EOF
+    <span class="exp">4 errors</span>: 1:11 "@", 1:12 "@", 1:13 "@", 1:14 "#"
+  SKIP_TO_RESTART (one ERROR per bad run):
+    IDENT(total) ASSIGN(=) IDENT(a) ERROR(@@@#) IDENT(b) SEMI(;) EOF
+    <span class="exp">1 error</span>: 1:11 "@@@#"
+  Module 16 alone: stops at 1:11: no token can start with '@'
+
+--- fixtures/typos.ajoda, SKIP_TO_RESTART ---
+  32 tokens, 3 errors:
+    2:20 "$"
+    3:20 "??"
+    5:14 "@"</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out RecoveryTest    # OK 15 passed
+node js/recovery.test.mjs         # OK 15 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>Recovery loops forever</b>: <code>end</code> must start at
+    <code>pos + 1</code>; one character is always consumed.<br>
+    <b><code>SKIP_TO_RESTART</code> makes one giant <code>ERROR</code> to EOF</b>:
+    no later character can start a token. That's correct; the rest is garbage.<br>
+    <b>Characters inside a comment are flagged</b>: the comment rule isn't
+    matching, so its contents are scanned as code. Check the
+    <code>discard COMMENT</code> pattern.<br>
+    <b>Error columns are off after an error</b>: the skipped text must advance
+    <code>line</code> and <code>col</code> like any other lexeme.</p>
+  </div>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Our sync set is "a character where a token can start." A
+  <em>parser's</em> panic-mode recovery syncs on <code>;</code>, <code>}</code>,
+  <code>)</code> specifically. Why those? <b>(2)</b> What's the failure mode of a
+  sync set that's <em>too small</em>? Too <em>large</em>?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>;</code>, <code>}</code>, <code>)</code> mark the
+    <em>end</em> of a syntactic unit — a statement, a block, a parenthesised
+    group. Recovering there means the parser resumes at a clean boundary where
+    it knows what to expect next, instead of somewhere in the middle of a broken
+    expression. They're also frequent enough that recovery doesn't discard huge
+    spans.</p>
+    <p><b>(2)</b> <b>Too small</b> (rare sync tokens): one typo makes the scanner
+    skip most of a function looking for the next sync point — you get one error
+    and lose all the real content after it. <b>Too large</b> (almost anything
+    syncs): recovery lands immediately, often still <em>inside</em> the broken
+    construct, so the parser mis-reads the next few tokens and emits a
+    <em>cascade</em> of spurious follow-on errors. The craft is choosing tokens
+    that are both common and genuinely terminal.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why emit an <code>ERROR</code> token <em>and</em> keep a separate error list?</summary>
+    <p>The token stream stays gap-free — every source character belongs to some
+    token — so a downstream parser can walk it without special-casing holes. The
+    ordered <code>errors</code> list is the human diagnostic (positions,
+    messages). Different consumers, different shapes.</p>
+  </details>
+
+  <details>
+    <summary>Is "panic mode" really the technical term?</summary>
+    <p>Yes — it's in the Dragon Book. The scanner (or parser) "panics": it
+    abandons its current attempt, discards input as fast as it can, and races to
+    a synchronizing token where it can resume. Crude but robust, and still the
+    default in most production compilers.</p>
+  </details>
+
+  <details>
+    <summary><code>SKIP_ONE</code> just produces more errors. Why keep it?</summary>
+    <p>It's the most faithful ("here is literally every character I couldn't
+    handle") and the simplest to reason about. For an editor drawing red
+    squiggles, per-character marks can be exactly what you want. It's a genuine
+    trade-off against <code>SKIP_TO_RESTART</code>'s fewer-but-wider errors.</p>
+  </details>
+
+  <details>
+    <summary>After recovery, compilers often spew nonsense errors. Why?</summary>
+    <p>Recovery <em>guesses</em> about structure, and if it guesses wrong the
+    next tokens are interpreted in the wrong context — a missing <code>}</code>
+    can make every following declaration look misplaced. Mitigations: suppress
+    errors within <code>k</code> tokens of a previous one, cap the total (~20),
+    or use error-correcting recovery (Burke–Fisher) that tries small
+    insertions/deletions to minimise disruption.</p>
+  </details>
+
+  <details>
+    <summary>Does the parser recover too, or just the lexer?</summary>
+    <p>Both. Module 22 gives the LL parser panic-mode recovery (sync on FOLLOW-set
+    tokens), and Module 27's LR parser has its own. Same idea one layer up:
+    report, discard to a trusted token, resume.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>The lexer is now robust. <b>Module 18 — Practical Lexemes</b> handles the
+  messy real-world token rules that a naive regex spec can't: the
+  <b>reserved-word trick</b> (lex everything as an identifier, then look up
+  keywords in a table), <b>nested <code>/* */</code></b> and line
+  <code>//</code> comments (nesting is technically beyond regular — a small
+  hand-coded counter), <b>string literals</b> with <code>\n</code>,
+  <code>\"</code>, <code>\uXXXX</code> escapes, and <b>numbers</b> with signs,
+  decimal points, exponents, and hex. That closes Part II — and Part III starts
+  turning the token stream into a tree.</p>
+</section>
+
+<nav class="pager">
+  <a href="../16-scanner-generator/tutorial.html"><span class="dir">Previous</span>← Module 16 · Scanner Generator</a>
+  <a href="../18-practical-lexemes/tutorial.html"><span class="dir">Next</span>Module 18 · Practical Lexemes →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 17 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>17-lexical-errors/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

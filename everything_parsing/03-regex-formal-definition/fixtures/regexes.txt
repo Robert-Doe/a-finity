@@ -1,0 +1,7 @@
+# One regex per line, then '|', then space-separated test strings.
+# Use ~ for the empty string.
+(a|b)*abb | abb aabb babb abababb ab abba ~
+a*b* | ~ a b ab aabbb ba
+(ab)*a | a aba ababa ab abaa
+a?b?c? | ~ a c abc acb abcc
+a|bc* | a b bc bccc c abc

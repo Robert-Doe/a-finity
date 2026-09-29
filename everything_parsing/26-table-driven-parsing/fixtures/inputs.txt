@@ -1,0 +1,7 @@
+# One token stream per non-# line; terminals separated by spaces.
+id + id * id
+( id + num ) * id
+num
+id +
+id id
+( id + id

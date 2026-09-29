@@ -1,0 +1,8 @@
+# The natural expression grammar — LEFT-recursive (E -> E + T), which is how you
+# get left associativity (Module 6) but exactly what recursive descent cannot
+# parse (Module 19). Eliminating direct left recursion here yields the
+# E -> T E' / E' -> + T E' | epsilon grammar Modules 19-22 have been using.
+%start E
+E -> E + T | T
+T -> T * F | F
+F -> ( E ) | id | num

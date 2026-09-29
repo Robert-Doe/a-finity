@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 09 — IR Optimization | Bob's Compiler Course</title>
+<style>
+  /* ── Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a2e;
+    color: #e0e0f0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 18px;
+    line-height: 1.7;
+    padding: 0 0 60px;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+    border-bottom: 4px solid #e94560;
+    padding: 32px 40px 24px;
+    text-align: center;
+    position: relative;
+  }
+
+  .module-badge {
+    display: inline-block;
+    background: #e94560;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+
+  header h1 {
+    font-size: 2.4rem;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(233,69,96,0.4);
+  }
+
+  header p.subtitle {
+    color: #a0b4d0;
+    font-size: 1.1rem;
+    margin-top: 8px;
+  }
+
+  /* ── Navigation ── */
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 40px;
+    background: #0f3460;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+  }
+
+  nav a {
+    color: #53d8fb;
+    text-decoration: none;
+    padding: 6px 14px;
+    border: 1px solid #53d8fb44;
+    border-radius: 6px;
+    transition: background 0.2s;
+  }
+
+  nav a:hover { background: #53d8fb22; }
+
+  nav .current-module {
+    color: #e94560;
+    font-weight: bold;
+    font-size: 1rem;
+  }
+
+  /* ── Main content ── */
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 30px;
+  }
+
+  /* ── Section headings ── */
+  h2 {
+    font-size: 1.7rem;
+    color: #53d8fb;
+    border-left: 5px solid #e94560;
+    padding-left: 16px;
+    margin: 50px 0 20px;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    color: #f0c040;
+    margin: 28px 0 12px;
+  }
+
+  p { margin-bottom: 16px; }
+
+  /* ── Analogy box ── */
+  .analogy {
+    background: #16213e;
+    border: 2px solid #f0c040;
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 32px 0;
+    position: relative;
+  }
+
+  .analogy::before {
+    content: "ANALOGY";
+    position: absolute;
+    top: -13px;
+    left: 20px;
+    background: #f0c040;
+    color: #1a1a2e;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    padding: 2px 10px;
+    border-radius: 4px;
+  }
+
+  /* ── Brain Exercise ── */
+  .brain {
+    background: #1e1040;
+    border: 2px solid #a060ff;
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 36px 0;
+    position: relative;
+  }
+
+  .brain::before {
+    content: "BRAIN EXERCISE";
+    position: absolute;
+    top: -13px;
+    left: 20px;
+    background: #a060ff;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    padding: 2px 10px;
+    border-radius: 4px;
+  }
+
+  .brain .question {
+    color: #d0b0ff;
+    font-style: italic;
+    margin-bottom: 12px;
+  }
+
+  details summary {
+    cursor: pointer;
+    color: #a060ff;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    user-select: none;
+    margin-top: 10px;
+  }
+
+  details[open] summary { color: #c090ff; }
+
+  .answer {
+    background: #28205a;
+    border-left: 3px solid #a060ff;
+    padding: 12px 16px;
+    margin-top: 12px;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.95rem;
+    color: #d0c0f0;
+  }
+
+  /* ── Code blocks ── */
+  pre {
+    background: #0d1117;
+    border: 1px solid #30404060;
+    border-radius: 8px;
+    padding: 20px 22px;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    margin: 18px 0;
+    color: #c9d1d9;
+  }
+
+  code { font-family: 'Courier New', monospace; color: #79c0ff; }
+
+  /* ── Inline IR coloring ── */
+  .ir-before { color: #ff9f7e; }
+  .ir-after  { color: #7effa0; }
+  .ir-label  { color: #f0c040; }
+  .ir-op     { color: #79c0ff; }
+  .ir-temp   { color: #e0a0ff; }
+  .ir-const  { color: #79d6ff; }
+
+  /* ── Before/After panel ── */
+  .before-after {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 24px 0;
+  }
+
+  @media (max-width: 700px) {
+    .before-after { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: #0d1117;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 8px 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+
+  .panel-header.before { background: #3a1a0a; color: #ff9f7e; }
+  .panel-header.after  { background: #0a2a14; color: #7effa0; }
+
+  .panel pre { border: none; border-radius: 0; margin: 0; }
+
+  /* ── Key point box ── */
+  .keypoint {
+    background: #0a2a3a;
+    border-left: 4px solid #53d8fb;
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 20px 0;
+    font-size: 0.95rem;
+  }
+
+  /* ── Warning box ── */
+  .warning {
+    background: #2a1a0a;
+    border-left: 4px solid #f0a040;
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 20px 0;
+    font-size: 0.95rem;
+    color: #f0c080;
+  }
+
+  /* ── Pass summary table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0;
+    font-size: 0.93rem;
+  }
+
+  th {
+    background: #0f3460;
+    color: #53d8fb;
+    padding: 10px 14px;
+    text-align: left;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.5px;
+  }
+
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #ffffff10;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td { background: #ffffff06; }
+
+  /* ── Footer nav ── */
+  footer {
+    max-width: 900px;
+    margin: 60px auto 0;
+    padding: 0 30px;
+  }
+
+  .footer-nav {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0;
+    border-top: 1px solid #ffffff20;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+  }
+
+  .footer-nav a {
+    color: #53d8fb;
+    text-decoration: none;
+  }
+
+  .footer-nav a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="module-badge">MODULE 09 / 16</div>
+  <h1>IR Optimization</h1>
+  <p class="subtitle">Constant Folding &bull; Dead-Code Elimination &bull; Copy Propagation</p>
+</header>
+
+<nav>
+  <a href="../module_08%20-%20IR%20Generation/tutorial.html">&larr; Module 08: IR Generation</a>
+  <span class="current-module">MODULE 09</span>
+  <a href="../module_10%20-%20x86-64%20Code%20Generation/tutorial.html">Module 10: Code Generation &rarr;</a>
+</nav>
+
+<main>
+
+<!-- ================================================================ -->
+<!-- Section 1: The Film Editor Analogy                               -->
+<!-- ================================================================ -->
+<h2>1. Meet the Film Editor</h2>
+
+<div class="analogy">
+  <p>Imagine you have just finished shooting a film. You hand the raw footage
+  to your editor. The script says what should happen; the raw footage is your
+  IR. But the director (you, the programmer) left in a lot of rough material:</p>
+
+  <ul style="margin: 12px 0 12px 24px; line-height: 2;">
+    <li><strong>Quick shots that could be one shot</strong> — a camera cut to an actor picking up a
+        pen, then a cut where the pen value is <em>already known</em>. Why cut away
+        at all? This is <strong>constant folding</strong>: compute the result now, not
+        at screening time.</li>
+    <li><strong>Scenes after a hard cut to credits</strong> — the director yelled
+        "CUT!" (an unconditional jump), but the camera kept rolling for five
+        more seconds. Nobody will ever see those frames. This is
+        <strong>dead-code elimination</strong>: throw away unreachable instructions.</li>
+    <li><strong>Continuity issues</strong> — in one scene the prop is called "the red briefcase"
+        and in the next it becomes "the case." The editor notices they are the same
+        object and uses one consistent name throughout. This is
+        <strong>copy propagation</strong>: replace a temporary alias with the original.</li>
+  </ul>
+
+  <p>The editor does not reshoot anything. She just rearranges and trims what
+  already exists. That is exactly what our optimizer does: it rewrites the IR
+  <em>in place</em>, instruction by instruction, without changing what the
+  program means.</p>
+</div>
+
+<!-- ================================================================ -->
+<!-- Section 2: What is the IR?                                        -->
+<!-- ================================================================ -->
+<h2>2. A Quick IR Refresher</h2>
+
+<p>From Module 08 you know that the IR is a singly-linked list of
+<code>IRInstr</code> nodes. Each instruction has an opcode, up to two source
+temporaries (<code>src1</code>, <code>src2</code>), a destination temporary
+(<code>dst</code>), and an optional integer literal (<code>ival</code>) or
+string name (<code>name</code>).</p>
+
+<p>The instructions that matter most for optimization are:</p>
+
+<table>
+  <tr>
+    <th>Instruction</th>
+    <th>Meaning</th>
+    <th>Relevant pass</th>
+  </tr>
+  <tr>
+    <td><code>tN = ICONST v</code></td>
+    <td>Load the integer constant <em>v</em> into temporary tN</td>
+    <td>Constant folding (source &amp; result)</td>
+  </tr>
+  <tr>
+    <td><code>tN = ADD tA tB</code></td>
+    <td>tN = tA + tB</td>
+    <td>Constant folding (fold if tA and tB are known)</td>
+  </tr>
+  <tr>
+    <td><code>tN = COPY tA</code></td>
+    <td>tN = tA (just a rename)</td>
+    <td>Copy propagation (replace later uses of tN with tA)</td>
+  </tr>
+  <tr>
+    <td><code>JUMP L5</code></td>
+    <td>Go to label L5 unconditionally</td>
+    <td>Dead-code elimination (instructions after this are dead)</td>
+  </tr>
+  <tr>
+    <td><code>LABEL L5</code></td>
+    <td>Branch target</td>
+    <td>Dead-code elimination (ends the dead zone)</td>
+  </tr>
+</table>
+
+<!-- ================================================================ -->
+<!-- Section 3: Pass 1 — Constant Folding                             -->
+<!-- ================================================================ -->
+<h2>3. Pass 1: Constant Folding</h2>
+
+<p><strong>Goal:</strong> if both operands of an arithmetic instruction are
+compile-time constants, compute the answer at compile time and replace the
+instruction with a single <code>ICONST</code>.</p>
+
+<h3>The Algorithm</h3>
+
+<p>We maintain a small array indexed by temporary number:</p>
+
+<pre>int  is_const[MAX_TEMPS];   /* 1 if this temp has a known constant value */
+long const_val[MAX_TEMPS];  /* the value, when is_const is 1 */</pre>
+
+<p>Then we make <strong>one forward pass</strong> through the instruction list:</p>
+
+<pre>for each instruction in:
+  if in.op == IR_ICONST:
+      is_const[in.dst] = 1
+      const_val[in.dst] = in.ival
+
+  else if in.op is arithmetic AND
+          is_const[in.src1] AND is_const[in.src2]:
+      result = compute(in.op, const_val[in.src1], const_val[in.src2])
+      rewrite in to:  IR_ICONST  dst=in.dst  ival=result
+      is_const[in.dst] = 1
+      const_val[in.dst] = result
+
+  else if in writes in.dst:
+      is_const[in.dst] = 0   /* runtime value — we don't know it */</pre>
+
+<h3>Before and After for <code>a = 3 + 4</code></h3>
+
+<div class="before-after">
+  <div class="panel">
+    <div class="panel-header before">BEFORE FOLDING</div>
+    <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">ICONST</span> <span class="ir-const">3</span>
+  <span class="ir-temp">t1</span> = <span class="ir-op">ICONST</span> <span class="ir-const">4</span>
+  <span class="ir-temp">t2</span> = <span class="ir-op">ADD</span> <span class="ir-temp">t0</span> <span class="ir-temp">t1</span>
+  <span class="ir-op">STORE</span> a = <span class="ir-temp">t2</span></pre>
+  </div>
+  <div class="panel">
+    <div class="panel-header after">AFTER FOLDING</div>
+    <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">ICONST</span> <span class="ir-const">3</span>
+  <span class="ir-temp">t1</span> = <span class="ir-op">ICONST</span> <span class="ir-const">4</span>
+  <span class="ir-temp">t2</span> = <span class="ir-op">ICONST</span> <span class="ir-const">7</span>  <span style="color:#555">← folded!</span>
+  <span class="ir-op">STORE</span> a = <span class="ir-temp">t2</span></pre>
+  </div>
+</div>
+
+<p>Notice that <code>t0</code> and <code>t1</code> are still in the list —
+constant folding only rewrites the binary instruction itself.  The now-
+unused <code>ICONST</code> instructions for 3 and 4 are harmless; a later
+"dead store" pass (not in this module) could remove them.</p>
+
+<div class="keypoint">
+  <strong>Key insight:</strong> we do not need to remove the old
+  <code>ICONST</code> instructions for the optimization to be correct.
+  The code generator will simply never use <code>t0</code> or <code>t1</code>
+  because nothing reads them after folding.
+</div>
+
+<!-- ================================================================ -->
+<!-- Section 4: Pass 2 — Dead-Code Elimination                        -->
+<!-- ================================================================ -->
+<h2>4. Pass 2: Dead-Code Elimination After Unconditional Jumps</h2>
+
+<p><strong>Goal:</strong> remove instructions between an <code>IR_JUMP</code>
+and the next <code>IR_LABEL</code> — they can never be reached.</p>
+
+<h3>Why Does This Happen?</h3>
+
+<p>Consider an <code>if</code> statement without an else clause:</p>
+
+<pre>if (x &lt; 10) {
+    return 0;
+}</pre>
+
+<p>The IR generator emits this as:</p>
+
+<pre>  JUMPZ t_cond L1          ; skip if condition is false
+  t_ret = ICONST 0
+  RETURN t_ret
+  JUMP L2                  ← unconditional jump to merge point
+  LABEL L1                 ← else label (merge)
+  ...
+  LABEL L2                 ← end label</pre>
+
+<p>After the <code>RETURN</code> there is a <code>JUMP L2</code>.  The
+instructions between that <code>JUMP</code> and <code>LABEL L1</code> are
+dead.  In this simple case there are none — but in more complex programs,
+especially with nested ifs, dead regions do appear.</p>
+
+<h3>The Algorithm</h3>
+
+<pre>in_dead_zone = false
+for each instruction in (with pointer to previous):
+  if in.op == IR_LABEL:
+      in_dead_zone = false   /* label ends the dead zone */
+      keep instruction
+  else if in_dead_zone:
+      unlink and free instruction
+  else:
+      if in.op == IR_JUMP:
+          in_dead_zone = true
+      keep instruction</pre>
+
+<div class="before-after">
+  <div class="panel">
+    <div class="panel-header before">BEFORE DEAD-CODE</div>
+    <pre>  <span class="ir-op">JUMP</span> <span class="ir-label">L2</span>
+  <span class="ir-temp">t9</span> = <span class="ir-op">ICONST</span> 0  <span style="color:#555">← dead</span>
+  <span class="ir-temp">t10</span> = <span class="ir-op">ADD</span> <span class="ir-temp">t9</span> <span class="ir-temp">t9</span>  <span style="color:#555">← dead</span>
+  <span class="ir-label">LABEL L2</span></pre>
+  </div>
+  <div class="panel">
+    <div class="panel-header after">AFTER DEAD-CODE</div>
+    <pre>  <span class="ir-op">JUMP</span> <span class="ir-label">L2</span>
+  <span class="ir-label">LABEL L2</span></pre>
+  </div>
+</div>
+
+<div class="warning">
+  <strong>Limitation:</strong> this pass only handles the simple
+  <em>JUMP&nbsp;&rarr;&nbsp;dead&nbsp;instructions&nbsp;&rarr;&nbsp;LABEL</em>
+  pattern. It does not remove entire unreachable basic blocks (e.g., a block
+  that has a label but no jump targeting that label). Full dead-block removal
+  requires a control-flow graph — that comes in a later module.
+</div>
+
+<!-- ================================================================ -->
+<!-- Section 5: Pass 3 — Copy Propagation                             -->
+<!-- ================================================================ -->
+<h2>5. Pass 3: Copy Propagation</h2>
+
+<p><strong>Goal:</strong> when we see <code>t2 = COPY t1</code>, replace all
+subsequent uses of <code>t2</code> with <code>t1</code> (until <code>t2</code>
+is re-assigned).</p>
+
+<h3>Why Copies Appear</h3>
+
+<p>Our IR generator is simple and sometimes produces a copy when it could have
+used the original temporary directly.  Copy propagation cleans those up.</p>
+
+<h3>The Algorithm</h3>
+
+<pre>sub[t] = t  for all t    /* identity: no substitution by default */
+
+for each instruction in:
+  if in.op == IR_COPY:
+      resolved = sub[in.src1]   /* follow chains */
+      sub[in.dst] = resolved
+      in.src1 = resolved        /* rewrite copy source too */
+  else:
+      in.src1 = sub[in.src1]   /* apply substitution to sources */
+      in.src2 = sub[in.src2]
+      if in writes in.dst:
+          sub[in.dst] = in.dst  /* dst is redefined — reset */</pre>
+
+<div class="before-after">
+  <div class="panel">
+    <div class="panel-header before">BEFORE COPY PROP</div>
+    <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">ICONST</span> 7
+  <span class="ir-temp">t1</span> = <span class="ir-op">COPY</span> <span class="ir-temp">t0</span>
+  <span class="ir-op">STORE</span> a = <span class="ir-temp">t1</span></pre>
+  </div>
+  <div class="panel">
+    <div class="panel-header after">AFTER COPY PROP</div>
+    <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">ICONST</span> 7
+  <span class="ir-temp">t1</span> = <span class="ir-op">COPY</span> <span class="ir-temp">t0</span>  <span style="color:#555">(src stays t0)</span>
+  <span class="ir-op">STORE</span> a = <span class="ir-temp">t0</span>  <span style="color:#555">← t1 replaced</span></pre>
+  </div>
+</div>
+
+<p>The <code>COPY</code> instruction itself is not removed — its source is
+rewritten to <code>t0</code> (already was) and the <em>use</em> of
+<code>t1</code> in STORE is replaced with <code>t0</code>.  A later
+"dead-copy" pass (or the code generator) would notice that <code>t1</code>
+is never read after this and could drop the <code>COPY</code> entirely.</p>
+
+<!-- ================================================================ -->
+<!-- Section 6: Full Before/After for sample.c                        -->
+<!-- ================================================================ -->
+<h2>6. Full Before / After: <code>sample.c</code></h2>
+
+<p>Here is exactly what our optimizer does to the IR generated from
+<code>sample.c</code>.  Pay attention to how the constant literals 3, 4, 2, 5
+collapse into 7 and 10 in the <code>main</code> function, while
+<code>square</code> is left completely unchanged (its operand <code>x</code>
+is a runtime value, not a constant).</p>
+
+<h3>Function: <code>square</code></h3>
+
+<div class="before-after">
+  <div class="panel">
+    <div class="panel-header before">BEFORE</div>
+    <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">LOAD</span> x
+  <span class="ir-temp">t1</span> = <span class="ir-op">LOAD</span> x
+  <span class="ir-temp">t2</span> = <span class="ir-op">MUL</span> <span class="ir-temp">t0</span> <span class="ir-temp">t1</span>
+  <span class="ir-op">RETURN</span> <span class="ir-temp">t2</span></pre>
+  </div>
+  <div class="panel">
+    <div class="panel-header after">AFTER (unchanged)</div>
+    <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">LOAD</span> x
+  <span class="ir-temp">t1</span> = <span class="ir-op">LOAD</span> x
+  <span class="ir-temp">t2</span> = <span class="ir-op">MUL</span> <span class="ir-temp">t0</span> <span class="ir-temp">t1</span>
+  <span class="ir-op">RETURN</span> <span class="ir-temp">t2</span></pre>
+  </div>
+</div>
+
+<p>Both LOADs produce runtime values (<code>x</code> is a parameter);
+<code>is_const</code> is 0 for both, so the MUL cannot be folded.</p>
+
+<h3>Function: <code>main</code></h3>
+
+<div class="before-after">
+  <div class="panel">
+    <div class="panel-header before">BEFORE</div>
+    <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">ICONST</span> 3
+  <span class="ir-temp">t1</span> = <span class="ir-op">ICONST</span> 4
+  <span class="ir-temp">t2</span> = <span class="ir-op">ADD</span> <span class="ir-temp">t0</span> <span class="ir-temp">t1</span>
+  <span class="ir-op">STORE</span> a = <span class="ir-temp">t2</span>
+  <span class="ir-temp">t3</span> = <span class="ir-op">ICONST</span> 2
+  <span class="ir-temp">t4</span> = <span class="ir-op">ICONST</span> 5
+  <span class="ir-temp">t5</span> = <span class="ir-op">MUL</span> <span class="ir-temp">t3</span> <span class="ir-temp">t4</span>
+  <span class="ir-op">STORE</span> b = <span class="ir-temp">t5</span>
+  <span class="ir-temp">t6</span> = <span class="ir-op">LOAD</span> a
+  <span class="ir-op">PARAM</span> <span class="ir-temp">t6</span>
+  <span class="ir-temp">t7</span> = <span class="ir-op">CALL</span> square (1 args)
+  <span class="ir-op">STORE</span> c = <span class="ir-temp">t7</span>
+  <span class="ir-temp">t8</span> = <span class="ir-op">LOAD</span> c
+  <span class="ir-temp">t9</span> = <span class="ir-op">LOAD</span> b
+  <span class="ir-temp">t10</span> = <span class="ir-op">ADD</span> <span class="ir-temp">t8</span> <span class="ir-temp">t9</span>
+  <span class="ir-op">RETURN</span> <span class="ir-temp">t10</span></pre>
+  </div>
+  <div class="panel">
+    <div class="panel-header after">AFTER</div>
+    <pre>  <span class="ir-temp">t0</span> = <span class="ir-op">ICONST</span> 3
+  <span class="ir-temp">t1</span> = <span class="ir-op">ICONST</span> 4
+  <span class="ir-temp">t2</span> = <span class="ir-op">ICONST</span> <span class="ir-const">7</span>   <span style="color:#7effa0">← folded</span>
+  <span class="ir-op">STORE</span> a = <span class="ir-temp">t2</span>
+  <span class="ir-temp">t3</span> = <span class="ir-op">ICONST</span> 2
+  <span class="ir-temp">t4</span> = <span class="ir-op">ICONST</span> 5
+  <span class="ir-temp">t5</span> = <span class="ir-op">ICONST</span> <span class="ir-const">10</span>  <span style="color:#7effa0">← folded</span>
+  <span class="ir-op">STORE</span> b = <span class="ir-temp">t5</span>
+  <span class="ir-temp">t6</span> = <span class="ir-op">LOAD</span> a
+  <span class="ir-op">PARAM</span> <span class="ir-temp">t6</span>
+  <span class="ir-temp">t7</span> = <span class="ir-op">CALL</span> square (1 args)
+  <span class="ir-op">STORE</span> c = <span class="ir-temp">t7</span>
+  <span class="ir-temp">t8</span> = <span class="ir-op">LOAD</span> c
+  <span class="ir-temp">t9</span> = <span class="ir-op">LOAD</span> b
+  <span class="ir-temp">t10</span> = <span class="ir-op">ADD</span> <span class="ir-temp">t8</span> <span class="ir-temp">t9</span>
+  <span class="ir-op">RETURN</span> <span class="ir-temp">t10</span></pre>
+  </div>
+</div>
+
+<p>The ADD for <code>3+4</code> is folded to <code>ICONST 7</code>.  The MUL
+for <code>2*5</code> is folded to <code>ICONST 10</code>.  The call to
+<code>square</code> and all the LOAD/STORE pairs remain unchanged — they
+depend on runtime values.</p>
+
+<!-- ================================================================ -->
+<!-- Section 7: Brain Exercise                                         -->
+<!-- ================================================================ -->
+<h2>7. Brain Exercise</h2>
+
+<div class="brain">
+  <p class="question">
+    After constant folding turns <code>a = 3 + 4</code> into <code>a = 7</code>,
+    can the optimizer also fold <code>c = square(a)</code> into
+    <code>c = 49</code>? Why or why not?
+  </p>
+  <details>
+    <summary>Show answer &darr;</summary>
+    <div class="answer">
+      <p><strong>No.</strong> Even though we know at compile time that
+      <code>a == 7</code> after folding, the optimizer cannot fold the call
+      <code>square(a)</code> into <code>49</code>.</p>
+      <p>Here is why:</p>
+      <ul style="margin: 8px 0 0 20px; line-height: 1.9;">
+        <li>Our optimizer works on one function at a time
+            (<em>intra-procedural</em>). It does not look inside
+            <code>square</code>.</li>
+        <li>From the caller's point of view, a function call is a black
+            box. The callee might modify global state, produce different
+            results depending on hidden state, or have other side effects
+            that we must not eliminate.</li>
+        <li>To fold <code>square(7)</code> &rarr; <code>49</code>, we would
+            need either <strong>function inlining</strong> (copy square's body
+            into main and then fold) or <strong>inter-procedural constant
+            propagation</strong> (analyze the call graph across function
+            boundaries). Both are significantly more complex and are left for
+            later modules.</li>
+      </ul>
+      <p>This is the key boundary of <em>local</em> optimization: anything
+      that crosses a function call boundary is out of scope.</p>
+    </div>
+  </details>
+</div>
+
+<!-- ================================================================ -->
+<!-- Section 8: Pass Order and Implementation Notes                   -->
+<!-- ================================================================ -->
+<h2>8. Pass Order and Implementation Notes</h2>
+
+<h3>Why This Order?</h3>
+
+<p>We run the passes in this order: <strong>fold &rarr; copy prop &rarr; dead
+code</strong>.  Here is the reasoning:</p>
+
+<ol style="margin: 12px 0 12px 28px; line-height: 2.2;">
+  <li><strong>Fold first</strong> — creates new <code>ICONST</code>
+      instructions. Copy propagation immediately benefits because the
+      constants are now represented as clean ICONST temps that can be
+      substituted directly.</li>
+  <li><strong>Copy prop second</strong> — replaces aliases with original
+      temps, reducing the number of indirections the code generator has
+      to deal with.</li>
+  <li><strong>Dead code last</strong> — constant folding and copy propagation
+      never create new unreachable regions, so running dead-code elimination
+      last catches any unreachable code that was already there in the
+      unoptimized IR.</li>
+</ol>
+
+<h3>How to Add a New Pass</h3>
+
+<p>Adding a new optimization is a four-step process:</p>
+
+<ol style="margin: 12px 0 12px 28px; line-height: 2.2;">
+  <li>Add a declaration <code>void opt_my_pass(IRFunc *fn);</code> in
+      <code>opt.h</code>.</li>
+  <li>Implement the pass with a linear scan in <code>opt.c</code>.</li>
+  <li>Call it from <code>opt_all</code> in the right position.</li>
+  <li>Test it with a sample program designed to trigger the pattern.</li>
+</ol>
+
+<div class="keypoint">
+  <strong>The one-scan rule:</strong> each pass in this module makes exactly
+  one forward pass through the instruction list.  This keeps the time
+  complexity of each pass at O(N) where N is the number of instructions.
+  Even running all three passes is only O(3N) = O(N).
+</div>
+
+<h3>The <code>IR_MAX_TEMPS</code> Limit</h3>
+
+<p>The constant-folding and copy-propagation passes use fixed-size arrays of
+size <code>IR_MAX_TEMPS = 1024</code>.  If you compile a very large function
+that allocates more than 1024 temporaries, those arrays are too small and the
+optimization silently skips temps beyond the limit.  For this course,
+functions stay well under that limit.  A production optimizer would use
+dynamically-sized arrays.</p>
+
+<h3>What We Are Not Doing (Yet)</h3>
+
+<table>
+  <tr>
+    <th>Missing optimization</th>
+    <th>Why not in Module 09</th>
+  </tr>
+  <tr>
+    <td>Common subexpression elimination</td>
+    <td>Requires hashing or value numbering — covered in a later module</td>
+  </tr>
+  <tr>
+    <td>Strength reduction (replace * with shifts)</td>
+    <td>Architecture-specific — better handled in code generation</td>
+  </tr>
+  <tr>
+    <td>Loop invariant code motion</td>
+    <td>Requires loop detection and a control-flow graph</td>
+  </tr>
+  <tr>
+    <td>Function inlining</td>
+    <td>Requires inter-procedural analysis and a call graph</td>
+  </tr>
+  <tr>
+    <td>Dead-store elimination</td>
+    <td>Requires liveness analysis (backward data flow)</td>
+  </tr>
+</table>
+
+<p>Each of these is a genuine compiler optimization used in production
+compilers like GCC and LLVM. We add them incrementally in later modules once
+we have the data structures to support them.</p>
+
+</main>
+
+<footer>
+  <div class="footer-nav">
+    <a href="../module_08%20-%20IR%20Generation/tutorial.html">&larr; Module 08: IR Generation</a>
+    <span style="color:#ffffff40; font-family: 'Courier New', monospace; font-size:0.85rem;">
+      MODULE 09 / 16
+    </span>
+    <a href="../module_10%20-%20x86-64%20Code%20Generation/tutorial.html">Module 10: Code Generation &rarr;</a>
+  </div>
+</footer>
+
+</body>
+</html>

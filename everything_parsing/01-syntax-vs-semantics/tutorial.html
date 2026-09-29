@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 01 — Syntax vs. Semantics | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#1F7A6B;--accent-wash:#E4F1EE;--accent-line:#B2D8CF}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 01 · Part I — Foundations</p>
+  <h1>Syntax vs.<em>Semantics</em></h1>
+  <p class="thesis">Before any grammar, any parser, any of it: a string can obey
+  every rule of form and still mean nothing. <b>Form and meaning are checked by
+  two different machines</b>, and this module builds both — small enough to
+  read in one sitting — over a four-symbol language.</p>
+
+  <div class="headline">
+    <span class="lbl">The one input that carries the whole module</span>
+    <p><span class="hi">12 0 /</span> &nbsp;— the syntax checker says
+    <b>PASS</b>. The evaluator says <b>division by zero</b>. Same six
+    characters. Two verdicts. That gap is why compilers have separate passes,
+    and it is the only thing you must leave here believing.</p>
+  </div>
+</header>
+
+<!-- ══════════════════════════════ 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <p>This module assumes four short pages. If a term below is unfamiliar, read
+  the one page and come back — nothing here re-teaches them.</p>
+  <ul class="prereqs">
+    <li><a href="../prerequisites/sets-and-languages.html">a language is a set of strings</a></li>
+    <li><a href="../prerequisites/functions-and-notation.html">ε, and why {ε} ≠ ∅</a></li>
+    <li><a href="../prerequisites/the-cursor-pattern.html">peek / advance over an index</a></li>
+    <li><a href="../prerequisites/java-and-js-setup.html">toolchain + the Assert helper</a></li>
+  </ul>
+</section>
+
+<!-- ══════════════════════════════ 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the flawless cheque</h2></div>
+
+  <div class="picture">
+    <p>You write a cheque. There is a right <em>form</em>: today's date, a payee
+    on the "pay to" line, the amount as digits <em>and</em> spelled out, the two
+    matching, your signature at the bottom right. Miss any of that and the
+    cashier hands it straight back at the counter — they never even look up your
+    balance. That check, at the counter, is <b>syntax</b>.</p>
+
+    <p>Now the cheque is perfect. Every line filled, amounts agree, signed. The
+    cashier passes it through. And it <em>bounces</em> — because the account
+    behind it holds nothing. Nobody could have known that from the paper. It
+    took a second machine, in a back office, that does the one thing the counter
+    never does: <b>look at what's actually there</b>. That is <b>semantics</b>.</p>
+
+    <p><code>3 4 + +</code> is handed back at the counter — a line left blank.
+    <code>12 0 /</code> is a <em>flawless cheque drawn on an empty account</em>.
+    The form is immaculate. There is simply nothing to divide into.</p>
+  </div>
+
+  <p>Two checkers, two jobs, and a strict order: the back office never sees a
+  cheque the counter rejected. In this module, <code>checkSyntax</code> is the
+  counter and <code>evaluate</code> is the back office, and
+  <code>Main</code> prints <code>(skipped: syntax failed)</code> every time the
+  counter says no.</p>
+
+  <div class="callout brain">
+    <span class="ct">Why this analogy and not "a grammatical nonsense sentence"</span>
+    <p>"Colorless green ideas sleep furiously" is the famous linguistics
+    example, but it's slippery — people argue about whether it means something.
+    A bounced cheque is not slippery. The form is objectively complete; the
+    funds are objectively absent; and the two facts were established by two
+    different people who checked two different things. That is exactly the
+    relationship <code>checkSyntax</code> and <code>evaluate</code> have.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+
+  <div class="mechanism">
+    <p>For one input line, e.g. <code>12 0 /</code>:</p>
+    <ol>
+      <li><b>Tokenize.</b> Walk the characters. Skip spaces and tabs. Each
+        maximal run of non-space characters becomes a token
+        <code>{ text, col }</code>, where <code>col</code> is its 1-based start
+        column. → <code>[{"12",1}, {"0",4}, {"/",6}]</code></li>
+      <li><b>Syntax pass</b> (<code>checkSyntax</code>). Start a counter
+        <code>depth = 0</code>. For each token: if it's all digits,
+        <code>depth += 1</code>; if it's one of <code>+ - * /</code>, require
+        <code>depth ≥ 2</code> then <code>depth -= 1</code>; anything else is an
+        "unknown token" failure. At the end, require <code>depth == 1</code>.
+        <b>No digit is ever converted to a number. No arithmetic happens.</b></li>
+      <li><b>Gate.</b> If the syntax pass failed, print its message and
+        <code>(skipped: syntax failed)</code>. Stop. The evaluator never runs.</li>
+      <li><b>Semantic pass</b> (<code>evaluate</code>). Only now. Start an empty
+        value stack. Push each integer (as <code>long</code> / <code>BigInt</code>).
+        For each operator, pop <code>b</code> then <code>a</code>, and — for
+        <code>/</code> only — if <code>b == 0</code>, stop with
+        <code>division by zero</code> at that operator's column. Otherwise push
+        <code>a op b</code>.</li>
+      <li><b>Report.</b> One block per input; a summary line at the end counting
+        how many inputs passed each stage, and how many passed syntax but
+        failed semantics.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <p>Two different quantities are tracked over the <em>same</em> token stream.
+  The syntax pass tracks a <b>count</b>. The semantic pass tracks <b>values</b>.
+  Here is <code>12 0 /</code> through both:</p>
+
+  <div class="diagram"><pre>token:      12        0         /
+            │         │         │
+SYNTAX  ───┤ depth=1  depth=2   depth≥2 ok → depth=1   ── end: depth==1  <span class="dim">PASS</span>
+(a count)  │ (+1)     (+1)      (pop 2, push 1)
+            │
+SEMANTIC ──┤ stack    stack     pop b=<span class="new">0</span>, pop a=12
+(values)   │ [12]     [12,0]    op is '/', b==0  ───────────────────────►  <span class="new">FAIL  col 6: division by zero</span></pre></div>
+
+  <p>The syntax pass reaches <code>depth == 1</code> and is satisfied — it never
+  learned that the second value was <code>0</code>, because it never looked at
+  values at all. The semantic pass is the first thing in the pipeline that
+  <em>knows</em>.</p>
+
+  <p>And a purely structural failure, <code>3 4 + +</code>, dies in the syntax
+  pass — the evaluator is never called:</p>
+
+  <div class="diagram"><pre>token:      3         4         +                    +
+            │         │         │                    │
+SYNTAX  ───┤ depth=1  depth=2   depth≥2 ok → depth=1  depth=<span class="new">1</span>, need ≥2  ──►  <span class="new">FAIL  col 7</span>
+            │ (+1)     (+1)      (pop 2, push 1)      "operator '+' needs 2 operands, stack has 1"</pre></div>
+</section>
+
+<!-- ══════════════════════════════ 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The syntax checker — a counter, nothing more</h3>
+  <p>This is the whole thing. Notice what is <em>absent</em>: no
+  <code>parseLong</code>, no <code>+ - * /</code> arithmetic, no value stack.</p>
+
+  <div class="split">
+    <figure>
+      <figcaption>java/Rpn.java — checkSyntax</figcaption>
+<pre><code><span class="k">static</span> SyntaxResult checkSyntax(List&lt;Token&gt; tokens) {
+  <span class="k">if</span> (tokens.isEmpty())
+    <span class="k">return</span> SyntaxResult.fail(<span class="y">"empty expression"</span>, <span class="y">0</span>);
+
+  <span class="k">int</span> depth = <span class="y">0</span>;
+  <span class="k">for</span> (Token tok : tokens) {
+    String t = tok.text();
+    <span class="k">if</span> (isInteger(t)) {
+      depth += <span class="y">1</span>;
+    } <span class="k">else if</span> (isOperator(t)) {
+      <span class="k">if</span> (depth &lt; <span class="y">2</span>)
+        <span class="k">return</span> SyntaxResult.fail(
+          <span class="y">"operator '"</span> + t + <span class="y">"' needs 2 operands, stack has "</span> + depth,
+          tok.col());
+      depth -= <span class="y">1</span>;              <span class="c">// pop 2, push 1</span>
+    } <span class="k">else</span> {
+      <span class="k">return</span> SyntaxResult.fail(<span class="y">"unknown token '"</span> + t + <span class="y">"'"</span>, tok.col());
+    }
+  }
+  <span class="k">if</span> (depth != <span class="y">1</span>)
+    <span class="k">return</span> SyntaxResult.fail(depth + <span class="y">" values left on stack, expected 1"</span>, <span class="y">0</span>);
+  <span class="k">return</span> SyntaxResult.pass();
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/rpn.mjs — checkSyntax</figcaption>
+<pre><code><span class="k">export function</span> checkSyntax(tokens) {
+  <span class="k">if</span> (tokens.length === <span class="y">0</span>)
+    <span class="k">return</span> { ok: <span class="k">false</span>, message: <span class="y">"empty expression"</span>, col: <span class="y">0</span> };
+
+  <span class="k">let</span> depth = <span class="y">0</span>;
+  <span class="k">for</span> (<span class="k">const</span> tok <span class="k">of</span> tokens) {
+    <span class="k">const</span> t = tok.text;
+    <span class="k">if</span> (isInteger(t)) {
+      depth += <span class="y">1</span>;
+    } <span class="k">else if</span> (isOperator(t)) {
+      <span class="k">if</span> (depth &lt; <span class="y">2</span>)
+        <span class="k">return</span> { ok: <span class="k">false</span>,
+          message: <span class="y">`operator '${t}' needs 2 operands, stack has ${depth}`</span>,
+          col: tok.col };
+      depth -= <span class="y">1</span>;              <span class="c">// pop 2, push 1</span>
+    } <span class="k">else</span> {
+      <span class="k">return</span> { ok: <span class="k">false</span>, message: <span class="y">`unknown token '${t}'`</span>, col: tok.col };
+    }
+  }
+  <span class="k">if</span> (depth !== <span class="y">1</span>)
+    <span class="k">return</span> { ok: <span class="k">false</span>, message: <span class="y">`${depth} values left on stack, expected 1`</span>, col: <span class="y">0</span> };
+  <span class="k">return</span> { ok: <span class="k">true</span>, message: <span class="k">null</span>, col: <span class="y">0</span> };
+}</code></pre>
+    </figure>
+  </div>
+
+  <p>The two are line-for-line the same algorithm. That is deliberate: for the
+  <em>syntax</em> layer the languages agree completely. They diverge only when
+  real numbers appear.</p>
+
+  <h3>The semantic checker — where the languages split</h3>
+  <p>The evaluator's <code>/</code> case is the entire reason the JS build uses
+  <code>BigInt</code> and not a plain number:</p>
+
+  <div class="split">
+    <figure>
+      <figcaption>java/Rpn.java — evaluate, the '/' case</figcaption>
+<pre><code><span class="k">long</span> b = stack.pop();
+<span class="k">long</span> a = stack.pop();
+<span class="k">long</span> r;
+<span class="k">switch</span> (t) {
+  <span class="k">case</span> <span class="y">"+"</span>: r = a + b; <span class="k">break</span>;
+  <span class="k">case</span> <span class="y">"-"</span>: r = a - b; <span class="k">break</span>;
+  <span class="k">case</span> <span class="y">"*"</span>: r = a * b; <span class="k">break</span>;
+  <span class="k">case</span> <span class="y">"/"</span>:
+    <span class="k">if</span> (b == <span class="y">0</span>)
+      <span class="k">return</span> SemanticResult.err(<span class="y">"division by zero"</span>, tok.col());
+    r = a / b;   <span class="c">// long: truncates toward zero</span>
+    <span class="k">break</span>;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/rpn.mjs — evaluate, the '/' case</figcaption>
+<pre><code><span class="k">const</span> b = stack.pop();   <span class="c">// BigInt</span>
+<span class="k">const</span> a = stack.pop();
+<span class="k">let</span> r;
+<span class="k">switch</span> (t) {
+  <span class="k">case</span> <span class="y">"+"</span>: r = a + b; <span class="k">break</span>;
+  <span class="k">case</span> <span class="y">"-"</span>: r = a - b; <span class="k">break</span>;
+  <span class="k">case</span> <span class="y">"*"</span>: r = a * b; <span class="k">break</span>;
+  <span class="k">case</span> <span class="y">"/"</span>:
+    <span class="k">if</span> (b === <span class="y">0n</span>)
+      <span class="k">return</span> { ok: <span class="k">false</span>, value: <span class="y">0n</span>, message: <span class="y">"division by zero"</span>, col: tok.col };
+    r = a / b;   <span class="c">// BigInt: truncates toward zero, like Java long</span>
+    <span class="k">break</span>;
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — why not just let it throw?</span>
+    <p>Delete the <code>if (b == 0)</code> guard and Java throws
+    <code>ArithmeticException: / by zero</code>; JavaScript's <code>BigInt</code>
+    throws <code>RangeError: Division by zero</code>. Two exception types, two
+    messages, <em>neither carrying a source column</em>. The guard exists so
+    both builds emit the identical string <code>col 6: division by zero</code>.
+    Every "why is the code shaped like this" question in this course resolves to
+    one of: forced by the language, forced by an external contract, or a
+    convention we chose — see <a href="DECISIONS.md">DECISIONS.md</a>. This one
+    is the external-contract kind: the contract is "both builds print the same
+    bytes."</p>
+  </div>
+
+  <h3>Columns are 1-based — and that costs exactly one <code>+ 1</code></h3>
+<pre><code><span class="c">// tokenize(), the only place a column is computed:</span>
+out.add(<span class="k">new</span> Token(line.substring(start, i), start + <span class="y">1</span>));
+                                              <span class="c">// ^^^ 0-based index → 1-based column</span></code></pre>
+  <p>Every compiler and editor the learner has ever used reports 1-based
+  columns. Matching that convention here means <code>col 6</code> in our output
+  lines up with what their editor's status bar shows.</p>
+</section>
+
+<!-- ══════════════════════════════ 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Parse infix (<code>3 + 4</code>) — no precedence, no associativity, no parentheses.</li>
+        <li>Build a parse tree or an AST. RPN's structure is <em>implicit</em> in operator order; we recognize, we don't yet represent.</li>
+        <li>Handle variables, so "undefined variable" — the other classic semantic error — can't appear.</li>
+        <li>Report more than one error per input.</li>
+        <li>Accept negative literals (<code>-5</code>), floats, or any base but 10.</li>
+        <li>Detect integer overflow (see the Brain Exercise — the two builds actually <em>disagree</em> past 2⁶³).</li>
+        <li>Anything for any language other than this exact four-operator postfix one.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Decide well-formedness of <em>any</em> postfix integer expression with a counter that never does arithmetic.</li>
+        <li>Evaluate a well-formed one to a 64-bit (Java) / exact (JS) integer.</li>
+        <li>Point at the first error with a 1-based column.</li>
+        <li>Prove, with a passing test, that <code>12 0 /</code> is syntactically valid and semantically not.</li>
+        <li><b>Name which kind of error each failure is</b> — the skill the rest of the course is built on.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+
+  <div class="runit">
+    <h4>Java — build, then run the demo</h4>
+<pre><code>cd 01-syntax-vs-semantics
+javac -d java/out java/*.java
+java -cp java/out Main fixtures/inputs.txt</code></pre>
+    <h4>JavaScript — run the demo</h4>
+<pre><code>node js/main.mjs fixtures/inputs.txt</code></pre>
+    <h4>Expected — identical from both builds</h4>
+<pre><code>=== Module 01 - Syntax vs. Semantics - RPN checker ===
+
+[1] "3 4 +"
+    syntax   : PASS
+    semantics: PASS  value = 7
+
+[2] "3 4 + +"
+    syntax   : FAIL  col 7: operator '+' needs 2 operands, stack has 1
+    semantics: (skipped: syntax failed)
+
+[3] "3 4"
+    syntax   : FAIL  2 values left on stack, expected 1
+    semantics: (skipped: syntax failed)
+
+[4] "12 0 /"
+    syntax   : PASS
+    <span class="exp">semantics: FAIL  col 6: division by zero</span>
+
+[5] "10 2 - 3 *"
+    syntax   : PASS
+    semantics: PASS  value = 24
+
+[6] "3 x +"
+    syntax   : FAIL  col 3: unknown token 'x'
+    semantics: (skipped: syntax failed)
+
+[7] ""
+    syntax   : FAIL  empty expression
+    semantics: (skipped: syntax failed)
+
+summary: inputs=7  syntaxPass=3  semanticsChecked=3  semanticsPass=2  syntaxOkButSemanticFail=1</code></pre>
+    <h4>Tests — both must end "OK 28 passed"</h4>
+<pre><code>java -cp java/out RpnTest
+node js/rpn.test.mjs</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>cannot find symbol: Assert</code></b> — you compiled one file.
+    Always <code>javac -d java/out java/*.java</code> with the glob.<br>
+    <b><code>NoSuchFileException: fixtures/inputs.txt</code></b> — run from
+    inside <code>01-syntax-vs-semantics/</code>.<br>
+    <b><code>summary: inputs=0</code></b> — something stripped the
+    <code>"</code> quotes from the fixture file; they're part of the format.<br>
+    <b>A diff between the two builds shows every line differing</b> — your editor
+    re-saved <code>expected/main.out</code> with Windows CRLF endings.
+    Regenerate it: <code>java -cp java/out Main fixtures/inputs.txt &gt;
+    expected/main.out</code>.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+
+  <p>The course promises the Java and JavaScript builds produce
+  <b>byte-identical</b> output. Section 05 hinted that isn't quite unconditional.</p>
+
+  <p><b>Construct an input that both checkers accept — <code>syntax: PASS</code>,
+  <code>semantics: PASS</code> — where the two builds nonetheless print
+  different <code>value =</code> lines.</b> Then say which of the two is
+  "right," and which of the module's error categories the discrepancy belongs
+  to.</p>
+
+  <details>
+    <summary>Think first. Then open.</summary>
+    <p>Any product that exceeds <code>2⁶³ − 1 = 9223372036854775807</code>. For
+    example, twenty <code>9</code>s followed by nineteen <code>*</code> — i.e.
+    <code>9²⁰</code>:</p>
+<pre><code>java: semantics: PASS  value = <span class="r">-6289078614652622815</span>
+js  : semantics: PASS  value = <span class="g">12157665459056928801</span></code></pre>
+    <p>Java's <code>long</code> is 64-bit and <b>wraps silently</b> on overflow —
+    the spec (JLS §15.18.2) mandates two's-complement wraparound, no exception.
+    JavaScript's <code>BigInt</code> is arbitrary precision and gives the exact
+    answer, <code>9²⁰</code>. The BigInt result is the mathematically correct
+    one.</p>
+    <p><b>Neither checker flags it.</b> It isn't malformed syntax — the form is
+    fine. It isn't the one semantic error we defined — nobody divided by zero.
+    It is a <em>third</em> thing: a runtime fault that depends on the machine's
+    integer width. "Semantics" itself has layers — static semantics (types,
+    scope; Modules 42–44) and dynamic semantics (what actually happens when it
+    runs), and overflow lives in the second. The lesson: the syntax/semantics
+    split is real and clean, but "semantics" is not one box.</p>
+  </details>
+</section>
+
+<!-- ══════════════════════════════ 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>"Unknown token 'x'" is about meaning — isn't that a semantic error?</summary>
+    <p>No. The checker rejects <code>x</code> without knowing, or caring, what
+    <code>x</code> would mean. It fails because <code>x</code> is not a
+    <em>shape</em> the language allows — not all-digits, not one of four
+    operators. That's a lexical/syntactic judgment: is this a legal token at
+    all? Compare a real semantic name error — "variable <code>x</code> used
+    before it was declared" — which requires knowing the <em>rules about what
+    names mean in scope</em>. This language has no names, so it can't have that
+    error.</p>
+  </details>
+
+  <details>
+    <summary>Operand underflow stops evaluation just like divide-by-zero does. Why is one "syntax" and the other "semantics"?</summary>
+    <p>Because underflow is visible in the <em>structure alone</em>. Count
+    operators and operands as you read left to right; the counts tell you
+    <code>3 4 + +</code> can't work, without evaluating anything. Divide-by-zero
+    is invisible in the structure: <code>12 0 /</code> and <code>12 3 /</code>
+    have the identical shape. Telling them apart needs a <em>runtime value</em>.
+    "Detectable from form alone" vs. "needs a value" is the line.</p>
+  </details>
+
+  <details>
+    <summary>Couldn't a smarter syntax checker catch <code>12 0 /</code> by noticing the literal <code>0</code>?</summary>
+    <p>It could special-case a literal zero divisor — but not <code>12 5 5 - /</code>,
+    where the divisor is <code>5 - 5</code>, computed at runtime. To catch that
+    you'd have to evaluate, which is the semantic pass by another name.
+    Constant-folding zero divisors is a real compiler <em>optimization</em>
+    (and warning), but it's an extra, not a redrawing of the syntax/semantics
+    line.</p>
+  </details>
+
+  <details>
+    <summary>Real compilers report a screenful of errors at once. Why does this one stop at the first?</summary>
+    <p>Reporting error #2 means deciding where to <em>resume</em> after error #1
+    — which tokens to skip, which to trust. That's error recovery, and doing it
+    without cascading nonsense is genuinely hard. It gets its own module (22).
+    Stopping at the first error keeps <code>SyntaxResult</code> a plain
+    <code>(ok, message, col)</code> triple here.</p>
+  </details>
+
+  <details>
+    <summary>Where's the parse tree? I thought parsing was all about building trees.</summary>
+    <p>It will be — from Module 5 on. RPN is the one notation where you can get
+    away without a tree, because the <em>order</em> of tokens already encodes
+    the structure (<code>3 4 + 5 *</code> can only mean one thing). This module
+    <em>recognizes</em> — decides yes/no membership — without
+    <em>representing</em>. Separating those two verbs early is worth the
+    detour.</p>
+  </details>
+</section>
+
+<!-- ══════════════════════════════ 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>This module leaned on the phrase "a language is a set of strings" without
+  ever pinning it down. <b>Module 2 — Alphabets, Strings, Languages,
+  Operations</b> makes it exact: what an alphabet is, what the empty string is,
+  and the three operations — union, concatenation, Kleene star — that every
+  regular expression is secretly built from. You'll implement a
+  <code>Language</code> value with those operations and watch
+  <code>a|b</code>, <code>ab</code>, <code>a*</code> fall out of it.</p>
+</section>
+
+<nav class="pager">
+  <a href="../prerequisites/java-and-js-setup.html"><span class="dir">Previous</span>← Prerequisites · Java &amp; JS Setup</a>
+  <a href="../02-strings-languages-operations/tutorial.html"><span class="dir">Next</span>Module 02 · Alphabets, Strings, Languages, Operations →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 01 · verified against OpenJDK 24
+and Node v22.14.0. Source, tests, and every output shown here live in
+<code>01-syntax-vs-semantics/</code>. See <a href="DECISIONS.md">DECISIONS.md</a>
+for the line-by-line rationale and <a href="../ROADMAP.md">ROADMAP.md</a> for the
+whole course.</p>
+
+</div>
+</body>
+</html>

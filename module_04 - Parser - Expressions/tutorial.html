@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 04 — Parser: Expressions | my_compiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:          #0f1117;
+    --surface:     #1a1d27;
+    --surface2:    #22263a;
+    --border:      #2e3250;
+    --text:        #e2e8f0;
+    --text-muted:  #8892a4;
+    --accent:      #7c6af7;
+    --accent2:     #56cfb2;
+    --gold:        #f5c842;
+    --red:         #f87171;
+    --green:       #4ade80;
+    --blue:        #60a5fa;
+    --purple:      #c084fc;
+    --orange:      #fb923c;
+    --code-bg:     #141720;
+    --radius:      10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    padding: 0 1rem 4rem;
+  }
+
+  .page-wrap { max-width: 860px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .site-header {
+    padding: 2rem 0 1.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+  }
+  .module-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: .25rem .7rem;
+    border-radius: 999px;
+    margin-bottom: .6rem;
+    text-transform: uppercase;
+  }
+  h1 { font-size: 2.2rem; font-weight: 700; line-height: 1.2; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--text-muted); margin-top: .4rem; font-size: 1.05rem; }
+
+  /* ── Prereq bar ── */
+  .prereq-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .75rem 1.2rem;
+    margin-bottom: 2.5rem;
+    font-size: .9rem;
+  }
+  .prereq-bar strong { color: var(--text-muted); font-weight: 600; margin-right: .3rem; }
+  .prereq-bar a {
+    color: var(--accent);
+    text-decoration: none;
+    background: rgba(124,106,247,.12);
+    padding: .2rem .6rem;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: background .15s;
+  }
+  .prereq-bar a:hover { background: rgba(124,106,247,.28); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: var(--radius);
+    padding: 1rem 1.4rem;
+    margin: 1.5rem 0;
+    border-left: 4px solid;
+    font-size: .97rem;
+  }
+  .callout-gold  { background: rgba(245,200,66,.08); border-color: var(--gold);   color: #f5e6a0; }
+  .callout-teal  { background: rgba(86,207,178,.08); border-color: var(--accent2); color: #a7f3e8; }
+  .callout-red   { background: rgba(248,113,113,.08); border-color: var(--red);   color: #fca5a5; }
+  .callout strong { font-weight: 700; }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3.5rem; }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 1.4rem 0 .6rem; color: var(--text); }
+  p  { margin-bottom: 1rem; color: var(--text); }
+
+  /* ── Code ── */
+  pre, code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: .87rem;
+  }
+  code { background: var(--code-bg); padding: .15rem .4rem; border-radius: 4px; color: var(--green); }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.2rem 1.4rem;
+    overflow-x: auto;
+    line-height: 1.6;
+    margin: 1rem 0;
+    color: #c9d1d9;
+  }
+  /* Syntax colouring helpers */
+  .kw  { color: #c084fc; }
+  .ty  { color: #60a5fa; }
+  .fn  { color: #56cfb2; }
+  .cm  { color: #6b7280; font-style: italic; }
+  .st  { color: #fbbf24; }
+  .num { color: #fb923c; }
+  .op  { color: #f472b6; }
+
+  /* ── Analogy card ── */
+  .analogy-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.4rem 1.6rem;
+    margin: 1.5rem 0;
+  }
+  .analogy-card .role { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); font-weight: 700; margin-bottom: .4rem; }
+
+  /* ── Token / tree visual ── */
+  .tok-tree-wrap {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.2rem 1.4rem;
+    margin: 1.5rem 0;
+    align-items: flex-start;
+  }
+  .tok-col, .tree-col { flex: 1; min-width: 180px; }
+  .tok-col h4, .tree-col h4 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: .8rem; font-weight: 600; }
+  .token-list { list-style: none; }
+  .token-list li {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .25rem 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .85rem;
+  }
+  .tok-badge {
+    display: inline-block;
+    font-size: .7rem;
+    padding: .1rem .45rem;
+    border-radius: 5px;
+    font-weight: 600;
+    min-width: 70px;
+    text-align: center;
+  }
+  .tok-int  { background: rgba(251,146,60,.18); color: var(--orange); }
+  .tok-op   { background: rgba(196,132,252,.18); color: var(--purple); }
+
+  .tree-ascii {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre;
+  }
+  .tree-ascii .t-op  { color: var(--purple); font-weight: 700; }
+  .tree-ascii .t-num { color: var(--orange); }
+
+  /* ── Call stack diagram ── */
+  .call-stack {
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+    max-width: 420px;
+    margin: 1.2rem 0;
+  }
+  .cs-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: .55rem 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .88rem;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+  }
+  .cs-box::after {
+    content: '↓';
+    position: absolute;
+    bottom: -1.1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--text-muted);
+    font-size: .9rem;
+  }
+  .cs-box:last-child::after { display: none; }
+  .cs-box .fn-name { color: var(--accent2); font-weight: 600; }
+  .cs-box .cs-note { color: var(--text-muted); font-size: .78rem; }
+  .cs-box.top { border-color: var(--accent); }
+
+  /* ── BNF grammar table ── */
+  .grammar { margin: 1rem 0; }
+  .grammar-row {
+    display: grid;
+    grid-template-columns: 190px 30px 1fr;
+    gap: .2rem .5rem;
+    padding: .3rem 0;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .85rem;
+    align-items: start;
+  }
+  .grammar-row:last-child { border-bottom: none; }
+  .gr-rule { color: var(--accent2); }
+  .gr-eq   { color: var(--text-muted); }
+  .gr-def  { color: var(--text); white-space: pre-wrap; }
+  .gr-note { color: var(--text-muted); font-size: .78rem; font-family: 'Inter', sans-serif; padding: .1rem 0 .5rem 220px; }
+
+  /* ── Annotated code block ── */
+  .annotated pre { counter-reset: line; }
+  .annotated pre .line { display: block; }
+  .annotated pre .line:hover { background: rgba(255,255,255,.04); }
+
+  /* ── Win box (terminal) ── */
+  .win-box {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin: 1.5rem 0;
+  }
+  .win-box-bar {
+    background: var(--surface2);
+    padding: .45rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .8rem;
+    color: var(--text-muted);
+  }
+  .win-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .wd-r { background: #ff5f57; }
+  .wd-y { background: #febc2e; }
+  .wd-g { background: #28c840; }
+  .win-box-body { padding: 1rem 1.2rem; font-family: 'JetBrains Mono', monospace; font-size: .84rem; line-height: 1.7; white-space: pre-wrap; color: #c9d1d9; }
+  .win-box-body .prompt { color: var(--accent2); }
+  .win-box-body .ast-op  { color: var(--purple); }
+  .win-box-body .ast-int { color: var(--orange); }
+  .win-box-body .ast-id  { color: var(--blue); }
+  .win-box-body .ast-call{ color: var(--accent2); }
+
+  /* ── QA ── */
+  .qa-item { margin-bottom: 1.4rem; }
+  .qa-q {
+    font-weight: 600;
+    color: var(--gold);
+    margin-bottom: .3rem;
+    padding-left: 1.4rem;
+    position: relative;
+  }
+  .qa-q::before { content: 'Q:'; position: absolute; left: 0; color: var(--text-muted); }
+  .qa-a {
+    color: var(--text);
+    padding-left: 1.4rem;
+    position: relative;
+  }
+  .qa-a::before { content: 'A:'; position: absolute; left: 0; color: var(--accent2); font-weight: 600; }
+
+  /* ── Brain exercise ── */
+  .brain-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.3rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .brain-box .label {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--orange);
+    font-weight: 700;
+    margin-bottom: .6rem;
+  }
+  details summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 600;
+    margin-top: .8rem;
+    user-select: none;
+  }
+  details[open] summary { margin-bottom: .6rem; }
+
+  /* ── Footer ── */
+  .page-footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-size: .9rem;
+    color: var(--text-muted);
+  }
+  .page-footer a { color: var(--accent); text-decoration: none; font-weight: 500; }
+  .page-footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <div class="module-badge">Module 04</div>
+  <h1>Parser — <span>Expressions</span></h1>
+  <p class="subtitle">Turning a flat token stream into a structured tree</p>
+</header>
+
+<!-- ── Section 00: Prerequisites ── -->
+<div class="prereq-bar">
+  <strong>Prerequisites:</strong>
+  <a href="../module_01%20-%20Source%20File%20Reader/tutorial.html">Module 01 — Source</a>
+  <a href="../module_02%20-%20Lexer%20-%20Tokeniser/tutorial.html">Module 02 — Lexer</a>
+  <a href="../module_03%20-%20Symbol%20Table/tutorial.html">Module 03 — Symbol Table</a>
+</div>
+
+<div class="callout callout-gold">
+  <strong>Before continuing, make sure you know:</strong> the <code>Token</code> struct and all its fields, how <code>lexer_next()</code> works (one call = one token, advances position), and what a tree data structure is (nodes with parent/child relationships, recursive traversal).
+</div>
+
+<!-- ── Section 01: Big Analogy ── -->
+<section class="section">
+  <h2>01 — The Story Analyst</h2>
+
+  <div class="analogy-card">
+    <div class="role">Analogy</div>
+    <p>The <strong>Script Supervisor</strong> (Module 02, the Lexer) labelled every word in the script: "this is a noun", "this is a verb", "this is an adjective". She produced a flat list of labelled words — a token stream.</p>
+    <p>Now the <strong>Story Analyst</strong> reads that labelled list and understands <em>structure</em>. When she sees the sentence "John hit Mary hard", she knows:</p>
+    <ul style="margin: .5rem 0 .5rem 1.5rem; color: var(--text);">
+      <li>"hit" is the main action (the root of the tree)</li>
+      <li>"John" is the subject (left child)</li>
+      <li>"Mary hard" is the object group (right child) — and within that, "hard" modifies "hit", not "Mary"</li>
+    </ul>
+    <p>She draws a <strong>tree</strong>. Your parser is that Story Analyst. It reads the token stream and constructs the <em>Abstract Syntax Tree</em> (AST).</p>
+  </div>
+
+  <p>Here is the concrete example. The token stream for <code>3 + 4 * 2</code> on the left, and the AST it becomes on the right:</p>
+
+  <div class="tok-tree-wrap">
+    <div class="tok-col">
+      <h4>Token Stream</h4>
+      <ul class="token-list">
+        <li><span class="tok-badge tok-int">INT_LIT</span> <code>3</code></li>
+        <li><span class="tok-badge tok-op">PLUS</span> <code>+</code></li>
+        <li><span class="tok-badge tok-int">INT_LIT</span> <code>4</code></li>
+        <li><span class="tok-badge tok-op">STAR</span> <code>*</code></li>
+        <li><span class="tok-badge tok-int">INT_LIT</span> <code>2</code></li>
+        <li><span class="tok-badge tok-op">EOF</span> </li>
+      </ul>
+    </div>
+    <div class="tree-col">
+      <h4>Abstract Syntax Tree</h4>
+      <div class="tree-ascii">      <span class="t-op">+</span>
+     / \
+    <span class="t-num">3</span>   <span class="t-op">*</span>
+       / \
+      <span class="t-num">4</span>   <span class="t-num">2</span></div>
+    </div>
+  </div>
+
+  <p>Notice that <code>*</code> is <em>deeper</em> in the tree than <code>+</code>. Deeper = higher precedence = computed first. The tree structure <em>encodes</em> precedence automatically. That is the main job of a parser.</p>
+</section>
+
+<!-- ── Section 02: Precedence and Recursion ── -->
+<section class="section">
+  <h2>02 — Precedence and Recursion</h2>
+
+  <h3>Why 3 + 4 * 2 equals 11, not 14</h3>
+  <p>We all learn in school that multiplication happens before addition. But <em>why</em>? And how does a parser know?</p>
+  <p>In our recursive descent parser, precedence is encoded as <strong>layers of functions</strong>. The function that handles <code>+</code> and <code>-</code> always calls the function for <code>*</code> and <code>/</code> to get its operands. That means multiplication is always parsed first — it is "deeper" in the call stack.</p>
+
+  <h3>The call stack as a precedence ladder</h3>
+  <p>When the parser sees <code>3 + 4 * 2</code>, the call sequence looks like this:</p>
+
+  <div class="call-stack">
+    <div class="cs-box top">
+      <span class="fn-name">parse_expr</span>
+      <span class="cs-note">entry point</span>
+    </div>
+    <div class="cs-box">
+      <span class="fn-name">parse_logical</span>
+      <span class="cs-note">&amp;&amp;  ||</span>
+    </div>
+    <div class="cs-box">
+      <span class="fn-name">parse_comparison</span>
+      <span class="cs-note">==  !=  &lt;  &gt;  &lt;=  &gt;=</span>
+    </div>
+    <div class="cs-box">
+      <span class="fn-name">parse_additive</span>
+      <span class="cs-note">+  −  ← handles 3 + …</span>
+    </div>
+    <div class="cs-box">
+      <span class="fn-name">parse_multiplicative</span>
+      <span class="cs-note">*  /  %  ← handles 4 * 2</span>
+    </div>
+    <div class="cs-box">
+      <span class="fn-name">parse_unary</span>
+      <span class="cs-note">−x</span>
+    </div>
+    <div class="cs-box">
+      <span class="fn-name">parse_primary</span>
+      <span class="cs-note">3  4  2  foo(…)  (…)</span>
+    </div>
+  </div>
+
+  <p><code>parse_additive</code> calls <code>parse_multiplicative</code> to get its left operand. So by the time <code>parse_additive</code> sees the <code>+</code>, it already has an entire multiply-group as the left side. The tree comes out right automatically.</p>
+</section>
+
+<!-- ── Section 03: The Grammar ── -->
+<section class="section">
+  <h2>03 — The Grammar</h2>
+  <p>Here is the formal grammar for Module 04 expressions. Each rule is one function in <code>parser.c</code>.</p>
+
+  <div class="grammar">
+    <div class="grammar-row">
+      <span class="gr-rule">expr</span>
+      <span class="gr-eq">=</span>
+      <span class="gr-def">logical</span>
+    </div>
+    <div class="gr-note">Top-level entry point — delegates everything to logical.</div>
+
+    <div class="grammar-row">
+      <span class="gr-rule">logical</span>
+      <span class="gr-eq">=</span>
+      <span class="gr-def">comparison (('&amp;&amp;' | '||') comparison)*</span>
+    </div>
+    <div class="gr-note">Logical AND/OR — lowest precedence among binary operators.</div>
+
+    <div class="grammar-row">
+      <span class="gr-rule">comparison</span>
+      <span class="gr-eq">=</span>
+      <span class="gr-def">additive (('=='|'!='|'&lt;'|'&gt;'|'&lt;='|'&gt;=') additive)*</span>
+    </div>
+    <div class="gr-note">Relational operators — compare two numeric values.</div>
+
+    <div class="grammar-row">
+      <span class="gr-rule">additive</span>
+      <span class="gr-eq">=</span>
+      <span class="gr-def">multiplicative (('+' | '-') multiplicative)*</span>
+    </div>
+    <div class="gr-note">Addition and subtraction.</div>
+
+    <div class="grammar-row">
+      <span class="gr-rule">multiplicative</span>
+      <span class="gr-eq">=</span>
+      <span class="gr-def">unary (('*' | '/' | '%') unary)*</span>
+    </div>
+    <div class="gr-note">Multiplication, division, modulo — higher precedence than addition.</div>
+
+    <div class="grammar-row">
+      <span class="gr-rule">unary</span>
+      <span class="gr-eq">=</span>
+      <span class="gr-def">'-' unary | primary</span>
+    </div>
+    <div class="gr-note">Prefix negation — right-recursive so -(-(x)) works.</div>
+
+    <div class="grammar-row">
+      <span class="gr-rule">primary</span>
+      <span class="gr-eq">=</span>
+      <span class="gr-def">INT_LIT | IDENT '(' arglist ')' | IDENT | '(' expr ')'</span>
+    </div>
+    <div class="gr-note">Atoms: literals, identifiers, function calls, parenthesised sub-expressions.</div>
+
+    <div class="grammar-row">
+      <span class="gr-rule">arglist</span>
+      <span class="gr-eq">=</span>
+      <span class="gr-def">(expr (',' expr)*)?</span>
+    </div>
+    <div class="gr-note">Zero or more comma-separated expressions inside a function call.</div>
+  </div>
+</section>
+
+<!-- ── Section 04: Reading parse_additive ── -->
+<section class="section">
+  <h2>04 — Reading <code>parse_additive</code></h2>
+  <p>Let's walk through the most instructive function line by line. The same pattern repeats in <code>parse_logical</code>, <code>parse_comparison</code>, and <code>parse_multiplicative</code>.</p>
+
+<pre><span class="kw">static</span> Node *<span class="fn">parse_additive</span>(Parser *p) {
+    <span class="cm">/* Parse the left operand first — higher-precedence multiplication. */</span>
+    Node *left = <span class="fn">parse_multiplicative</span>(p);
+
+    <span class="cm">/* Left-associativity via while loop.
+     * Each iteration consumes one operator and one right operand.
+     * 3 + 4 + 5  becomes  ((3 + 4) + 5)  — left-leaning tree. */</span>
+    <span class="kw">while</span> (<span class="fn">check</span>(p, TOK_PLUS) || <span class="fn">check</span>(p, TOK_MINUS)) {
+
+        <span class="cm">/* Encode the operator before advancing (advancing overwrites current). */</span>
+        <span class="ty">char</span> op   = <span class="fn">check</span>(p, TOK_PLUS) ? <span class="st">'+'</span> : <span class="st">'-'</span>;
+        <span class="ty">int</span>  line = p->current.line;  <span class="cm">/* record source line for error messages */</span>
+        <span class="fn">advance</span>(p);                   <span class="cm">/* consume + or - */</span>
+
+        <span class="cm">/* Parse the right operand — again at the higher-precedence layer. */</span>
+        Node *right = <span class="fn">parse_multiplicative</span>(p);
+
+        <span class="cm">/* Build a BINARY node that holds both operands. */</span>
+        Node *n  = <span class="fn">node_new</span>(AST_BINARY, line);
+        n->op    = op;
+        n->left  = left;
+        n->right = right;
+
+        <span class="cm">/* The new node BECOMES the left operand for the next iteration.
+         * This is the key to left-associativity: folding left. */</span>
+        left = n;
+    }
+
+    <span class="kw">return</span> left;
+}</pre>
+
+  <p>The while loop is the standard fix for left-recursive grammars. On every iteration it consumes at least one token (the operator), so the loop is guaranteed to terminate.</p>
+  <p>After parsing <code>3 + 4 + 5</code>, the tree looks like:</p>
+<pre>  BINARY '+'
+    BINARY '+'
+      INT 3
+      INT 4
+    INT 5</pre>
+  <p>The <code>3 + 4</code> subtree is on the <em>left</em>, which means it is evaluated first — correct left-to-right behaviour.</p>
+</section>
+
+<!-- ── Section 05: The AST Node ── -->
+<section class="section">
+  <h2>05 — The AST Node</h2>
+  <p>Every construct in the language — literals, operators, calls — becomes one <code>Node</code>. We use a single "fat" struct where different node kinds use different subsets of the fields:</p>
+
+<pre><span class="kw">struct</span> Node {
+    NodeKind  kind;   <span class="cm">/* tag: what kind of node is this? */</span>
+    <span class="ty">long</span>      ival;   <span class="cm">/* integer value — AST_INT_LIT only */</span>
+    <span class="ty">char</span>     *sval;   <span class="cm">/* heap name — IDENT, CALL, ASSIGN, VAR_DECL, FUNC */</span>
+    <span class="ty">char</span>      op;     <span class="cm">/* operator char — UNARY and BINARY */</span>
+    Node     *left;   <span class="cm">/* first child */</span>
+    Node     *right;  <span class="cm">/* second child */</span>
+    Node     *extra;  <span class="cm">/* third child — else branch in AST_IF */</span>
+    Node    **args;   <span class="cm">/* dynamic array — call args, block stmts, func params */</span>
+    <span class="ty">int</span>       nargs;  <span class="cm">/* count of entries in args[] */</span>
+    <span class="ty">int</span>       line;   <span class="cm">/* source line for error messages */</span>
+};</pre>
+
+  <p>This is called the <strong>tagged-union</strong> pattern (or discriminated union). The <code>kind</code> field is the tag — it tells us which other fields are valid. Unused fields are zeroed by <code>memset</code> in <code>node_new</code>, so NULL-checks are always safe.</p>
+
+  <h3>Example: node_print output for <code>foo(1, 2 + 3)</code></h3>
+<pre>  CALL 'foo' (2 args)
+    INT 1
+    BINARY '+'
+      INT 2
+      INT 3</pre>
+  <p>The <code>CALL</code> node stores the function name in <code>sval</code> and keeps its arguments in the <code>args[]</code> dynamic array. The second argument <code>2 + 3</code> is itself a subtree.</p>
+</section>
+
+<!-- ── N+1: Run It ── -->
+<section class="section">
+  <h2>Run It</h2>
+
+  <div class="win-box">
+    <div class="win-box-bar">
+      <div class="win-dot wd-r"></div>
+      <div class="win-dot wd-y"></div>
+      <div class="win-dot wd-g"></div>
+      <span>terminal — module_04</span>
+    </div>
+    <div class="win-box-body"><span class="prompt">$ make run</span>
+gcc -Wall -Wextra -Werror -std=c11 -c -o source.o source.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o lexer.o lexer.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o symtab.o symtab.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o ast.o ast.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o parser.o parser.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o main.o main.c
+gcc -Wall -Wextra -Werror -std=c11 -o parser_expr source.o lexer.o symtab.o ast.o parser.o main.o
+./parser_expr
+=== Expression Parser — Module 04 ===
+
+Input: "3 + 4 * 2"
+  <span class="ast-op">BINARY '+'</span>
+    <span class="ast-int">INT 3</span>
+    <span class="ast-op">BINARY '*'</span>
+      <span class="ast-int">INT 4</span>
+      <span class="ast-int">INT 2</span>
+
+Input: "a == b &amp;&amp; c > 0"
+  <span class="ast-op">BINARY 'A'</span>
+    <span class="ast-op">BINARY 'E'</span>
+      <span class="ast-id">IDENT 'a'</span>
+      <span class="ast-id">IDENT 'b'</span>
+    <span class="ast-op">BINARY '>'</span>
+      <span class="ast-id">IDENT 'c'</span>
+      <span class="ast-int">INT 0</span>
+
+Input: "foo(1, 2 + 3)"
+  <span class="ast-call">CALL 'foo' (2 args)</span>
+    <span class="ast-int">INT 1</span>
+    <span class="ast-op">BINARY '+'</span>
+      <span class="ast-int">INT 2</span>
+      <span class="ast-int">INT 3</span>
+
+Input: "-(x + 1)"
+  <span class="ast-op">UNARY '-'</span>
+    <span class="ast-op">BINARY '+'</span>
+      <span class="ast-id">IDENT 'x'</span>
+      <span class="ast-int">INT 1</span>
+</div>
+  </div>
+</section>
+
+<!-- ── N+2: Brain Exercise ── -->
+<section class="section">
+  <h2>Brain Exercise</h2>
+
+  <div class="brain-box">
+    <div class="label">Challenge</div>
+    <p>You try to write the grammar rule for <code>additive</code> as left-recursive:</p>
+<pre>additive = additive ('+' | '-') multiplicative
+         | multiplicative</pre>
+    <p>What happens when you turn this directly into a recursive descent function in C?</p>
+    <details>
+      <summary>Show answer</summary>
+      <p><strong>Infinite recursion.</strong> The function's first action is to call itself before consuming any input token. Every call to <code>parse_additive</code> immediately calls <code>parse_additive</code> again, which calls it again — the call stack grows until the process crashes with a stack overflow.</p>
+      <p>The fix is to rewrite the rule using a <code>*</code> (repeat) instead of left recursion:</p>
+<pre>additive = multiplicative (('+' | '-') multiplicative)*</pre>
+      <p>In code, this becomes a <code>while</code> loop. Every iteration consumes at least one token (the operator), so the loop always terminates.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ── N+3: Q&A ── -->
+<section class="section">
+  <h2>Q &amp; A</h2>
+
+  <div class="qa-item">
+    <div class="qa-q">Why a tree and not a list?</div>
+    <div class="qa-a">Because trees naturally capture nesting and precedence. A flat list of tokens like <code>[3, +, 4, *, 2]</code> can't represent "multiply before add" without extra parentheses or an additional pass. A tree represents it structurally: the <code>*</code> node is a child of the <code>+</code> node, so it is evaluated first automatically during any tree traversal.</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">What's the difference between <code>parse_expr</code> and <code>parse_additive</code>?</div>
+    <div class="qa-a"><code>parse_expr</code> is the public entry point for expression parsing — it is the name callers use. Internally it just calls <code>parse_logical</code>, which eventually calls <code>parse_additive</code>. They are different precedence layers in the same hierarchy. <code>parse_additive</code> only handles <code>+</code> and <code>-</code>; anything higher-precedence is handled by the functions below it in the call chain.</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">Why does <code>parse_primary</code> handle function calls?</div>
+    <div class="qa-a">Because <code>foo(a, b)</code> starts with an identifier, just like a variable reference <code>foo</code>. We cannot tell it is a call until we see the <code>(</code> that follows the name. <code>parse_primary</code> is the right place to check for this: we have already consumed the identifier, we peek at the next token, and if it is <code>(</code> we continue parsing an argument list. If it is not <code>(</code>, we return a plain <code>AST_IDENT</code> node.</div>
+  </div>
+</section>
+
+<!-- ── N+4: What's Next ── -->
+<section class="section">
+  <h2>What's Next</h2>
+  <div class="callout callout-teal">
+    <strong>Module 05 — Statements:</strong> Expressions compute values. Statements control what happens. <code>return</code>, <code>if</code>, <code>while</code>, and assignment are all statements — and they each contain expressions inside them. Module 05 adds <code>parse_stmt</code> and <code>parse_block</code> so you can parse a complete function body.
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer class="page-footer">
+  <a href="../module_03%20-%20Symbol%20Table/tutorial.html">← Module 03 — Symbol Table</a>
+  <a href="../module_05%20-%20Parser%20-%20Statements/tutorial.html">Module 05 — Statements →</a>
+</footer>
+
+</div><!-- .page-wrap -->
+</body>
+</html>

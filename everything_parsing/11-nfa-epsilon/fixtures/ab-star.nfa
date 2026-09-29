@@ -1,0 +1,19 @@
+# A proper Thompson-style epsilon-NFA for (a|b)*.
+#   inner union (a|b):  U branches by epsilon to the 'a' path and the 'b' path,
+#                        both rejoin at W by epsilon
+#   outer star:          I -eps-> U (enter the loop) and I -eps-> F (zero times);
+#                        W -eps-> U (loop back)      and W -eps-> F (exit)
+states: I U A1 A2 B1 B2 W F
+alphabet: a b
+start: I
+accept: F
+I  epsilon U
+I  epsilon F
+U  epsilon A1
+U  epsilon B1
+A1 a A2
+B1 b B2
+A2 epsilon W
+B2 epsilon W
+W  epsilon U
+W  epsilon F

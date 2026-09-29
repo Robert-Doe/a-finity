@@ -1,0 +1,40 @@
+=== Module 15 - Maximal Munch & Token Priority ===
+
+token rules  (priority = declaration order):
+  (0) KW_IF    = if
+  (1) ID       = (i|f|x|y)(i|f|x|y)*
+  (2) ASSIGN   = ==
+  (3) EQ       = =
+
+RULE 1 -- longest match wins:
+  "iffy"   -> ID "iffy" @0   (KW_IF/EQ would have matched a shorter prefix)
+  "ifx"    -> ID "ifx" @0   (KW_IF/EQ would have matched a shorter prefix)
+  "=="     -> ASSIGN "==" @0   (KW_IF/EQ would have matched a shorter prefix)
+
+RULE 2 -- on a length tie, the EARLIER rule wins:
+  "if"   -> KW_IF matches len 2,  ID matches len 2  -- tie  ->  KW_IF "if" @0   (rule 0 < rule 1)
+
+the mechanism -- run the DFA, keep the LAST-ACCEPT position, back up to it:
+  KW_IF    on "iffy":  i(-) if(ACCEPT@2) iff(-) iffy(-)   -> last accept = 2
+  ID       on "iffy":  i(ACCEPT@1) if(ACCEPT@2) iff(ACCEPT@3) iffy(ACCEPT@4)   -> last accept = 4
+  -> ID's last-accept (4) beats KW_IF's (2)  ->  the token is ID "iffy"
+
+full tokenization:
+  input "iffy==x=y":
+    ID "iffy" @0
+    ASSIGN "==" @4
+    ID "x" @6
+    EQ "=" @7
+    ID "y" @8
+  input "if==x":
+    KW_IF "if" @0
+    ASSIGN "==" @2
+    ID "x" @4
+  input "x=y":
+    ID "x" @0
+    EQ "=" @1
+    ID "y" @2
+
+lexical error demo:  tokenize("if z")  ->  lexical error at position 2 (char ' ')
+
+summary: 4 rules | longest match wins | ties -> first declared | mechanism = DFA + last-accept mark

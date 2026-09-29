@@ -1,0 +1,6 @@
+# INDIRECT left recursion (Dragon Book 4.18). A -> S d -> A c d : A can reach a
+# form starting with A without any single rule being A -> A... . Needs Paull's
+# algorithm with a fixed nonterminal order (S before A).
+%start S
+S -> A a | b
+A -> A c | S d | e

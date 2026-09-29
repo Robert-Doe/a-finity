@@ -1,0 +1,98 @@
+=== Module 28 - Grammar Workbench: from a language's EBNF to a working LL(1) parser ===
+
+--- 1. the grammar as the spec writes it ---
+grammar: fixtures/ajoda.ebnf
+  24 EBNF rules -> 82 BNF productions | 24 rules + 21 helpers = 45 nonterminals | 37 terminals (3 token classes)
+  helpers:
+    Program_rep1       { FunctionDecl }
+    FunctionDecl_opt1  [ ParamList ]
+    ParamList_rep1     { "," Param }
+    Block_rep1         { Statement }
+    IfStmt_opt1        [ "else" ( Block | IfStmt ) ]
+    IfStmt_grp2        ( Block | IfStmt )
+    ReturnStmt_opt1    [ Expression ]
+    LogicalOr_rep1     { "||" LogicalAnd }
+    LogicalAnd_rep1    { "&&" Equality }
+    Equality_rep1      { ( "==" | "!=" ) Comparison }
+    Equality_grp2      ( "==" | "!=" )
+    Comparison_rep1    { ( "<" | "<=" | ">" | ">=" ) Term }
+    Comparison_grp2    ( "<" | "<=" | ">" | ">=" )
+    Term_rep1          { ( "+" | "-" ) Factor }
+    Term_grp2          ( "+" | "-" )
+    Factor_rep1        { ( "*" | "/" | "%" ) Unary }
+    Factor_grp2        ( "*" | "/" | "%" )
+    Unary_grp1         ( "!" | "-" )
+    Call_opt1          [ "(" [ ArgList ] ")" ]
+    Call_opt2          [ ArgList ]
+    ArgList_rep1       { "," Expression }
+  nullable: Program Program_rep1 FunctionDecl_opt1 ParamList_rep1 Block_rep1 IfStmt_opt1 ReturnStmt_opt1 LogicalOr_rep1 LogicalAnd_rep1 Equality_rep1 Comparison_rep1 Term_rep1 Factor_rep1 Call_opt1 Call_opt2 ArgList_rep1
+  left recursion: none
+  LL(1): NO, 1 conflict
+    Statement on IDENT:
+      [Statement -> AssignStmt]  via Statement -> AssignStmt -> IDENT
+      [Statement -> ExprStmt]  via Statement -> ExprStmt -> Expression -> LogicalOr -> LogicalAnd -> Equality -> Comparison -> Term -> Factor -> Unary -> Call -> Primary -> IDENT
+
+--- 2. one repair: fold assignment into ExprStmt ---
+grammar: fixtures/ajoda-fixed.ebnf
+  23 EBNF rules -> 82 BNF productions | 23 rules + 22 helpers = 45 nonterminals | 37 terminals (3 token classes)
+  helpers:
+    Program_rep1       { FunctionDecl }
+    FunctionDecl_opt1  [ ParamList ]
+    ParamList_rep1     { "," Param }
+    Block_rep1         { Statement }
+    IfStmt_opt1        [ "else" ( Block | IfStmt ) ]
+    IfStmt_grp2        ( Block | IfStmt )
+    ReturnStmt_opt1    [ Expression ]
+    ExprStmt_opt1      [ "=" Expression ]
+    LogicalOr_rep1     { "||" LogicalAnd }
+    LogicalAnd_rep1    { "&&" Equality }
+    Equality_rep1      { ( "==" | "!=" ) Comparison }
+    Equality_grp2      ( "==" | "!=" )
+    Comparison_rep1    { ( "<" | "<=" | ">" | ">=" ) Term }
+    Comparison_grp2    ( "<" | "<=" | ">" | ">=" )
+    Term_rep1          { ( "+" | "-" ) Factor }
+    Term_grp2          ( "+" | "-" )
+    Factor_rep1        { ( "*" | "/" | "%" ) Unary }
+    Factor_grp2        ( "*" | "/" | "%" )
+    Unary_grp1         ( "!" | "-" )
+    Call_opt1          [ "(" [ ArgList ] ")" ]
+    Call_opt2          [ ArgList ]
+    ArgList_rep1       { "," Expression }
+  nullable: Program Program_rep1 FunctionDecl_opt1 ParamList_rep1 Block_rep1 IfStmt_opt1 ReturnStmt_opt1 ExprStmt_opt1 LogicalOr_rep1 LogicalAnd_rep1 Equality_rep1 Comparison_rep1 Term_rep1 Factor_rep1 Call_opt1 Call_opt2 ArgList_rep1
+  left recursion: none
+  LL(1): YES  table 45 x 38, 267 of 1710 cells used
+
+parse fixtures/factorial.tokens (42 tokens from Module 16):
+  first 12 steps:
+    top of stack          lookahead   action
+    Program               "fn"        Program -> Program_rep1
+    Program_rep1          "fn"        Program_rep1 -> FunctionDecl Program_rep1
+    FunctionDecl          "fn"        FunctionDecl -> "fn" IDENT "(" FunctionDecl_opt1 ")" "->" Type Block
+    "fn"                  "fn"        match
+    IDENT                 IDENT       match
+    "("                   "("         match
+    FunctionDecl_opt1     IDENT       FunctionDecl_opt1 -> ParamList
+    ParamList             IDENT       ParamList -> Param ParamList_rep1
+    Param                 IDENT       Param -> IDENT ":" Type
+    IDENT                 IDENT       match
+    ":"                   ":"         match
+    Type                  "i64"       Type -> "i64"
+  ACCEPTED: 176 expansions, 41 matches, stack depth up to 16
+
+parse fixtures/missing-semi.tokens (23 tokens from Module 16):
+  REJECTED at 3:5: in Call, expected one of "(" ")" "," "=" ";" "||" "&&" "==" "!=" "<" "<=" ">" ">=" "+" "-" "*" "/" "%" but found "return"
+
+--- 3. a left-recursive grammar ---
+grammar: fixtures/arith-leftrec.ebnf
+  3 EBNF rules -> 7 BNF productions | 3 rules + 0 helpers = 3 nonterminals | 6 terminals (1 token class)
+  nullable: (none)
+  left recursion: YES
+  removed with Paull's algorithm (Module 23):
+    Expr -> Term Expr'
+    Expr' -> "+" Term Expr' | "-" Term Expr' | epsilon
+    Term -> Atom Term'
+    Term' -> "*" Atom Term' | epsilon
+    Atom -> "(" Expr ")" | INT_LIT
+  LL(1): YES  table 5 x 7, 15 of 35 cells used
+
+summary: EBNF read as written | brackets desugared to named helpers | conflicts traced to the rules that cause them | left recursion removed | the finished table parses Module 16's tokens

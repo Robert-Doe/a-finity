@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 16 — Scanner Generator | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#0E7C7B;--accent-wash:#DEF0F0;--accent-line:#A4D6D5}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 16 · Part II — Lexical Analysis · <b>Capstone A</b></p>
+  <h1>The Scanner<em>Generator</em></h1>
+  <p class="thesis">Write down a language's tokens as a short spec file, and get
+  a working lexer back. Every pattern becomes an NFA, the NFAs are joined and
+  determinized into <b>one DFA</b>, and a single left-to-right pass turns
+  source text into tokens stamped with <b>line and column</b>. The spec here is
+  the complete lexical grammar of <b>Ajoda</b>, a small typed language, so the
+  output is a lexer you could hand straight to a parser.</p>
+
+  <div class="headline">
+    <span class="lbl">28 lines of spec, one DFA, a real language</span>
+    <p>28 rules → 1 DFA of 287 states over 97 input symbols.
+    <code>iffy while1 truest</code> → <span class="hi">IDENT IDENT IDENT</span>.
+    <code>a&lt;=b</code> → <code>IDENT LE IDENT</code>. A spec rule like
+    <code>[+\-]?</code> is refused before scanning starts, because it can
+    match nothing at all.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../15-maximal-munch-priority/tutorial.html">longest match and rule priority (Module 15)</a></li>
+    <li><a href="../12-thompson-construction/tutorial.html">regex → NFA (Module 12)</a></li>
+    <li><a href="../13-subset-construction/tutorial.html">NFA → DFA (Module 13)</a></li>
+    <li><a href="../11-nfa-epsilon/tutorial.html">ε-closure, which is how we detect "matches nothing" (Module 11)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — a sorting office with one conveyor belt</h2></div>
+
+  <div class="picture">
+    <p>A post office receives one long strip of paper with many letters glued
+    end to end. It needs them cut apart and dropped into labelled bins.</p>
+    <p>The slow way is a row of clerks, one per bin, each checking whether the
+    strip starts with "their" kind of letter. The fast way is <b>one cutting
+    machine</b> that has every bin's rules built into it. The strip feeds in
+    one character at a time. At every moment the machine knows which bins the
+    paper so far could still belong to, and whether it would be a complete
+    letter if it were cut <em>right here</em>.</p>
+    <p>The machine keeps feeding as long as some bin is still possible. When
+    nothing more fits, it <b>backs up to the last place a cut was valid</b>,
+    cuts, and drops the piece in that bin. If two bins claim the same piece,
+    the bin listed first in the rulebook wins. Packing tissue between letters
+    (<b>whitespace and comments</b>) goes straight into the recycling bin.</p>
+    <p>Two extra rules. Letters addressed with a reserved name (<code>if</code>,
+    <code>while</code>) are pulled out of the general "name" bin <em>after</em>
+    the cut, so <code>iffy</code> stays one letter. And the machine refuses a
+    rulebook in which some bin accepts a <b>zero-length</b> letter: it would
+    cut nothing, forever, without moving the belt.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Sorting office</th><th>Scanner generator</th></tr></thead>
+    <tbody>
+      <tr><td>one machine with every bin's rules built in</td><td>one DFA from the union of every pattern's NFA</td></tr>
+      <tr><td>"which bins could this still be?"</td><td>a DFA state = a set of NFA states across all rules</td></tr>
+      <tr><td>back up to the last valid cut</td><td>remember the last accepting <code>(end, rule)</code>, emit that</td></tr>
+      <tr><td>first bin in the rulebook wins a tie</td><td>a DFA state's rule = the lowest rule index it accepts</td></tr>
+      <tr><td>recycling bin</td><td><code>discard</code> rules: matched, then dropped</td></tr>
+      <tr><td>reserved names pulled out after the cut</td><td><code>keywords IDENT fn let ...</code> table lookup</td></tr>
+      <tr><td>address label on every letter</td><td><code>line:col</code> on every token</td></tr>
+      <tr><td>refuse a zero-length-letter rulebook</td><td>refuse any pattern whose NFA accepts <code>""</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <p><b>THE SPEC</b> (<code>fixtures/ajoda.tokens</code>, excerpt):</p>
+<pre><code>token    IDENT      [A-Za-z_][A-Za-z0-9_]*
+token    FLOAT_LIT  [0-9]+"."[0-9]+
+token    INT_LIT    [0-9]+
+token    ARROW      "->"
+token    LPAREN     \(
+discard  SPACE      [\s\t\n]+
+discard  COMMENT    "//"[^\n]*
+keywords IDENT      fn let if else while return true false i64 bool f64</code></pre>
+    <p><b>BUILD:</b></p>
+    <ol>
+      <li><b>Read directives.</b> <code>token</code> emits, <code>discard</code>
+        matches and drops, <code>keywords</code> names the rule whose lexemes
+        get looked up afterwards. Unknown directives and duplicate names are
+        spec errors with a line number.</li>
+      <li><b>Desugar each pattern</b> (<code>pattern.mjs</code> /
+        <code>Pattern.java</code>). Classes, ranges, negation, escapes and
+        quoted literals all compile down to Module 3's six node kinds, so
+        <code>[0-9]</code> is just <code>0|1|…|9</code>.</li>
+      <li><b>Refuse empty matches.</b> Thompson-build the pattern; if
+        <code>εClosure({start}) ∩ accept ≠ ∅</code>, the pattern accepts
+        <code>""</code> and the spec is refused.</li>
+      <li><b>Join and determinize.</b> A fresh <code>START</code> gets an ε-edge
+        into each rule's NFA, every accept state is tagged with its rule index,
+        and the subset construction (Module 13) builds the DFA. Each DFA state
+        is labelled with the smallest rule index among its tagged NFA states.</li>
+    </ol>
+    <p><b>SCAN</b> (from <code>pos = 0</code>, <code>line = 1</code>, <code>col = 1</code>):</p>
+    <ol>
+      <li>Step the DFA over <code>src[pos..]</code>. Whenever it enters a
+        labelled state, record <code>(end = i+1, rule)</code>. Stop at a
+        character outside the alphabet or at the dead state.</li>
+      <li>No record → <code>ScanError</code> at <code>line:col</code>.</li>
+      <li>Otherwise the lexeme is <code>src[pos..end]</code>. For a
+        <code>token</code> rule, emit it (after a keyword lookup). For a
+        <code>discard</code> rule, emit nothing.</li>
+      <li>Walk the lexeme to update <code>line</code> and <code>col</code>,
+        set <code>pos = end</code>, repeat. Finish with an <code>EOF</code>
+        token.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The joined automaton</h3>
+  <div class="diagram"><pre>              ┌─ε─▶ [ NFA for IDENT ]      ──accept──▶ rule 0
+              ├─ε─▶ [ NFA for FLOAT_LIT ]  ──accept──▶ rule 1
+   START ─────┼─ε─▶ [ NFA for INT_LIT ]    ──accept──▶ rule 2
+              ├─ε─▶ [ NFA for "->" ]       ──accept──▶ rule 3
+              ├─  ...  (operators, punctuation: rules 4–25)
+              ├─ε─▶ [ NFA for SPACE ]      ──accept──▶ rule 26   (discard)
+              └─ε─▶ [ NFA for COMMENT ]    ──accept──▶ rule 27   (discard)
+
+   determinize  →  one DFA, 287 states.  each state's rule = MIN index it accepts.</pre></div>
+
+  <h3>Scanning <code>3.14 7.</code></h3>
+  <div class="diagram"><pre>  pos 0  '3'  → INT_LIT accepts            record (end 1, INT_LIT)
+         '.'  → only FLOAT_LIT still alive   no accept, keep going
+         '1'  → FLOAT_LIT accepts           record (end 3, FLOAT_LIT)
+         '4'  → FLOAT_LIT accepts           record (end 4, FLOAT_LIT)
+         ' '  → dead                         emit FLOAT_LIT "3.14" at 1:1
+
+  pos 5  '7'  → INT_LIT accepts            record (end 6, INT_LIT)
+         '.'  → FLOAT_LIT alive, no accept
+         end of input                        back up: emit INT_LIT "7" at 1:6
+
+  pos 6  '.'  → nothing starts with '.'     error 1:7: no token can start with '.'</pre></div>
+
+  <h3>Keywords happen after the cut</h3>
+  <div class="diagram"><pre>  "iffy"  → longest match is IDENT "iffy"   → lookup "iffy": not a keyword → IDENT
+  "if"    → longest match is IDENT "if"     → lookup "if":   keyword       → IF</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Labelling each DFA state with its winning rule</h3>
+<pre><code><span class="c">// legend: DFA state name -> the set of NFA states it stands for</span>
+<span class="k">for</span> (var e : Subset.legend(combined).entrySet()) {
+  <span class="k">if</span> (e.getValue().isEmpty()) sink = e.getKey();     <span class="c">// the dead state</span>
+  <span class="k">int</span> best = Integer.MAX_VALUE;
+  <span class="k">for</span> (String s : e.getValue()) {
+    Integer ri = acceptRule.get(s);                   <span class="c">// null unless s is a tagged accept</span>
+    <span class="k">if</span> (ri != <span class="k">null</span> &amp;&amp; ri &lt; best) best = ri;
+  }
+  <span class="k">if</span> (best != Integer.MAX_VALUE) stateRule.put(e.getKey(), best);
+}</code></pre>
+
+  <h3>Longest match</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Scanner.java</figcaption>
+<pre><code><span class="k">int</span>[] longestMatch(String src, <span class="k">int</span> pos) {
+  String state = dfa.start;
+  <span class="k">int</span> end = -<span class="y">1</span>, rule = -<span class="y">1</span>;
+  <span class="k">for</span> (<span class="k">int</span> i = pos; i &lt; src.length(); i++) {
+    String sym = Pattern.symbolOf(src.charAt(i));
+    <span class="k">if</span> (!dfa.alphabet.contains(sym)) <span class="k">break</span>;
+    state = dfa.step(state, sym);
+    <span class="k">if</span> (state.equals(sink)) <span class="k">break</span>;
+    Integer ri = stateRule.get(state);
+    <span class="k">if</span> (ri != <span class="k">null</span>) { end = i + <span class="y">1</span>; rule = ri; }
+  }
+  <span class="k">return</span> end &gt; pos ? <span class="k">new int</span>[] { end, rule } : <span class="k">null</span>;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/scanner.mjs</figcaption>
+<pre><code>longestMatch(src, pos) {
+  <span class="k">let</span> state = <span class="k">this</span>.dfa.start;
+  <span class="k">let</span> end = -<span class="y">1</span>, rule = -<span class="y">1</span>;
+  <span class="k">for</span> (<span class="k">let</span> i = pos; i &lt; src.length; i++) {
+    <span class="k">const</span> sym = symbolOf(src[i]);
+    <span class="k">if</span> (!<span class="k">this</span>.dfa.alphabet.includes(sym)) <span class="k">break</span>;
+    state = <span class="k">this</span>.dfa.step(state, sym);
+    <span class="k">if</span> (state === <span class="k">this</span>.sink) <span class="k">break</span>;
+    <span class="k">const</span> ri = <span class="k">this</span>.stateRule.get(state);
+    <span class="k">if</span> (ri !== <span class="k">undefined</span>) { end = i + <span class="y">1</span>; rule = ri; }
+  }
+  <span class="k">return</span> end &gt; pos ? { end, rule } : <span class="k">null</span>;
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — four characters need a stage name</span>
+    <p>The automaton text format from Module 10 splits fields on whitespace and
+    treats <code>#</code> as a comment. So a space, a tab, a newline or a
+    <code>#</code> can't appear there as themselves. The pattern layer renames
+    them <code>SP</code>, <code>TAB</code>, <code>NL</code> and
+    <code>HASH</code> on the way in, and the scanner applies the same
+    <code>symbolOf</code> to each source character on the way through. Every
+    other printable ASCII character is its own symbol. None of the automaton
+    code had to change.</p>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — the dead state costs you O(n²) if you ignore it</span>
+    <p>The subset construction builds a state for the <em>empty</em> set of NFA
+    states and loops it back to itself. If the scan loop only stopped at the
+    end of input, every token would walk the rest of the file first. Stopping
+    at <code>sink</code> keeps scanning linear.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Minimize the DFA. Plain minimization would merge states that accept <em>different</em> rules (see Brain Exercise).</li>
+        <li>Keep going after a bad character (Module 17).</li>
+        <li>Block comments, nesting, string escapes (Module 18).</li>
+        <li>Anything beyond ASCII. The alphabet is tab, newline and 0x20–0x7E.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Build a working lexer for a real language from a text spec.</li>
+        <li>Classes, ranges, negation, escapes and quoted literals, all desugared to six node kinds.</li>
+        <li>Longest match with first-declared tie-breaking, in one pass.</li>
+        <li>Keywords by table lookup, so prefixes never split identifiers.</li>
+        <li><code>line:col</code> on every token, including after comments.</li>
+        <li>Refuse an empty-matching pattern before scanning starts.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 16-scanner-generator
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>load checks: 28 patterns parsed, none accepts the empty string
+combined DFA: 287 states over 97 input symbols
+
+--- fixtures/factorial.ajoda ---
+  <span class="exp">2:1    FN        fn</span>
+  2:4    IDENT     fact
+  2:8    LPAREN    (
+  ...
+
+&gt; iffy while1 truest _if
+  IDENT(iffy) IDENT(while1) IDENT(truest) IDENT(_if) EOF
+
+--- fixtures/broken.tokens ---
+  refused: spec line 3: SIGN accepts the empty string; a token must consume at least one character</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out ScannerTest      # OK 18 passed
+node js/scanner.test.mjs           # OK 18 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>X accepts the empty string</code></b>: the whole pattern is
+    optional (<code>a?</code>, <code>[0-9]*</code>, <code>()</code>). Make at
+    least one piece required.<br>
+    <b><code>bare whitespace at column N</code></b>: write <code>\s</code>,
+    <code>\t</code> or a quoted <code>" "</code> inside a pattern.<br>
+    <b>A keyword comes out as <code>IDENT</code></b>: it's missing from the
+    <code>keywords</code> line, or the line names the wrong source rule.<br>
+    <b>Columns drift after a comment</b>: <code>line</code> and
+    <code>col</code> must advance over discarded lexemes too.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Minimize the 287-state DFA using the usual starting split
+  "accepting vs non-accepting". What goes wrong, and what starting split fixes
+  it? <b>(2)</b> Move <code>INT_LIT</code> above <code>FLOAT_LIT</code> in the
+  spec. Does any output change? Why or why not?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Two accepting states that behave the same on all future input
+    get merged even if one accepts <code>IDENT</code> and the other accepts
+    <code>INT_LIT</code>, and the merged state can't say which token it found.
+    Start instead with <b>one block per rule label</b> plus one block for
+    unlabelled states. Refinement then never mixes two different rules.</p>
+    <p><b>(2)</b> Nothing changes. Declaration order only matters when two rules
+    accept the <em>same</em> lexeme, and no string is both an
+    <code>INT_LIT</code> and a <code>FLOAT_LIT</code>. Longest match already
+    decides <code>3</code> vs <code>3.14</code>. Order does matter for, say,
+    two rules that both accept <code>=</code>.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why not give keywords their own rules above IDENT?</summary>
+    <p>That works too; longest match plus first-declared tie-breaking gets it
+    right. But every keyword then adds NFA states, and the DFA grows. A lookup
+    table after the cut costs one hash probe per identifier and keeps the DFA
+    the same size no matter how many keywords the language has. Ajoda's own
+    lexer design calls for exactly this.</p>
+  </details>
+
+  <details>
+    <summary>Why refuse empty-matching patterns instead of just skipping them?</summary>
+    <p>A pattern that can match nothing will "match" at every position without
+    moving. The scan loop requires <code>end &gt; pos</code>, so it wouldn't
+    hang, but the rule would silently never fire for the input its author
+    intended. Refusing at load makes the mistake visible on the line that caused
+    it.</p>
+  </details>
+
+  <details>
+    <summary>287 states for a small language: is that a lot?</summary>
+    <p>For an un-minimized DFA over 97 symbols, it's normal. Thompson's
+    construction leaves lots of ε-scaffolding, and character classes become wide
+    unions. Label-aware minimization and table compression (what
+    <code>flex</code> and <code>re2c</code> do) shrink it dramatically. This
+    module leaves it un-minimized so the construction stays visible.</p>
+  </details>
+
+  <details>
+    <summary>Where does the Ajoda spec come from?</summary>
+    <p>From Ajoda's lexical grammar: identifiers, integer and float literals,
+    the operator set, <code>//</code> comments and the reserved-word table.
+    The spec file is a line-for-line transcription of it, which is the point:
+    a scanner generator should let you write the grammar down once and get the
+    lexer for free.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>Right now, one bad character stops the scan. <b>Module 17 — Lexical
+  Errors &amp; Recovery</b> reports the error and then <b>resynchronizes</b>,
+  skipping ahead to a plausible token start, so one typo doesn't hide every
+  later mistake. Then Module 18 handles the messy lexemes: block and nested
+  comments, string escapes and numeric exponents.</p>
+</section>
+
+<nav class="pager">
+  <a href="../15-maximal-munch-priority/tutorial.html"><span class="dir">Previous</span>← Module 15 · Maximal Munch &amp; Token Priority</a>
+  <a href="../17-lexical-errors/tutorial.html"><span class="dir">Next</span>Module 17 · Lexical Errors &amp; Recovery →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 16 · Capstone A: Scanner Generator ·
+verified against OpenJDK 24 and Node v22.14.0. All output real, from
+<code>16-scanner-generator/</code>. See <a href="DECISIONS.md">DECISIONS.md</a> and
+<a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

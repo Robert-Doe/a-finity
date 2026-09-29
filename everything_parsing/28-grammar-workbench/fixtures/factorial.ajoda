@@ -1,0 +1,9 @@
+// iterative factorial
+fn fact(n: i64) -> i64 {
+    let acc: i64 = 1;
+    while (n > 1) {
+        acc = acc * n;   // grow
+        n = n - 1;
+    }
+    return acc;
+}

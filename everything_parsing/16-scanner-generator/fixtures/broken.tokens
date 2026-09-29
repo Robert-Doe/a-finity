@@ -1,0 +1,3 @@
+# REFUSED at load time: SIGN can match zero characters.
+token    INT_LIT    [0-9]+
+token    SIGN       [+\-]?

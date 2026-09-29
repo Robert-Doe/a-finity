@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 15 — Standard Library Shim | my_compiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     CSS VARIABLES — dark theme
+  ============================================================ */
+  :root {
+    --bg:           #0f1117;
+    --bg-card:      #181c27;
+    --bg-code:      #0d1020;
+    --bg-highlight: #1e2235;
+    --accent:       #7c6af7;
+    --accent2:      #f97316;
+    --accent3:      #22d3ee;
+    --text:         #e2e8f0;
+    --text-muted:   #8892a4;
+    --text-dim:     #5a6378;
+    --border:       #2a3044;
+    --border-light: #3a4260;
+    --green:        #4ade80;
+    --yellow:       #fbbf24;
+    --red:          #f87171;
+    --radius:       12px;
+    --radius-sm:    6px;
+  }
+
+  /* ============================================================
+     RESET & BASE
+  ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Lato', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16px;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ============================================================
+     LAYOUT
+  ============================================================ */
+  .page-wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ============================================================
+     HEADER
+  ============================================================ */
+  .site-header {
+    border-bottom: 1px solid var(--border);
+    padding: 28px 0 20px;
+    margin-bottom: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 16px; }
+
+  .module-badge {
+    background: var(--accent);
+    color: #fff;
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    line-height: 1.2;
+    text-align: center;
+  }
+  .module-badge span { display: block; font-size: 15px; letter-spacing: 0; }
+
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(20px, 4vw, 28px);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .header-title small {
+    display: block;
+    font-family: 'Lato', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .header-nav { display: flex; gap: 12px; align-items: center; }
+  .nav-btn {
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 7px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    transition: border-color .2s, color .2s;
+  }
+  .nav-btn:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
+  .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .nav-btn.primary:hover { opacity: 0.88; color: #fff; }
+
+  /* ============================================================
+     TABLE OF CONTENTS
+  ============================================================ */
+  .toc {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc h2 {
+    font-family: 'Lato', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin: 5px 0; font-size: 14px; color: var(--text-muted); }
+  .toc a { color: var(--text-muted); }
+  .toc a:hover { color: var(--accent); text-decoration: none; }
+
+  /* ============================================================
+     SECTION STRUCTURE
+  ============================================================ */
+  .section {
+    margin-bottom: 64px;
+    scroll-margin-top: 24px;
+  }
+
+  .section-number {
+    font-family: 'Lato', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(22px, 4vw, 30px);
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 20px;
+    line-height: 1.25;
+  }
+
+  .section h3 {
+    font-family: 'Lato', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 28px 0 10px;
+    letter-spacing: 0.02em;
+  }
+
+  .section p { margin-bottom: 14px; color: var(--text); }
+  .section ul, .section ol { padding-left: 22px; margin-bottom: 14px; }
+  .section li { margin: 5px 0; }
+
+  /* ============================================================
+     CARDS
+  ============================================================ */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .card.accent-left { border-left: 3px solid var(--accent); }
+  .card.accent-orange { border-left: 3px solid var(--accent2); }
+  .card.accent-cyan { border-left: 3px solid var(--accent3); }
+  .card.accent-green { border-left: 3px solid var(--green); }
+
+  /* ============================================================
+     CODE BLOCKS
+  ============================================================ */
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 20px 22px;
+    overflow-x: auto;
+    margin: 16px 0;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: #c9d1d9;
+  }
+
+  pre .kw  { color: #c792ea; }
+  pre .kw2 { color: #89ddff; }
+  pre .str { color: #c3e88d; }
+  pre .num { color: #f78c6c; }
+  pre .cmt { color: #546e7a; font-style: italic; }
+  pre .fn  { color: #82aaff; }
+  pre .type { color: #ffcb6b; }
+  pre .label { color: #f97316; }
+  pre .reg { color: #4ade80; }
+
+  code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.88em;
+    background: var(--bg-highlight);
+    color: var(--accent3);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .code-label {
+    font-family: 'Lato', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  /* ============================================================
+     PIPELINE DIAGRAM
+  ============================================================ */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 20px 0;
+  }
+  .pipe-step {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    font-size: 12px;
+    font-family: 'Source Code Pro', monospace;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .pipe-step.highlight {
+    background: var(--bg-highlight);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .pipe-arrow {
+    font-size: 16px;
+    color: var(--text-dim);
+    padding: 0 6px;
+  }
+
+  /* ============================================================
+     ANALOGY BLOCK
+  ============================================================ */
+  .analogy-box {
+    background: linear-gradient(135deg, #1a1630 0%, #181c27 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 36px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .analogy-box::before {
+    content: '"';
+    position: absolute;
+    top: -10px;
+    left: 20px;
+    font-family: 'Playfair Display', serif;
+    font-size: 120px;
+    color: var(--accent);
+    opacity: 0.08;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .analogy-role {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .analogy-box blockquote {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(17px, 2.5vw, 21px);
+    font-weight: 400;
+    line-height: 1.55;
+    color: var(--text);
+    font-style: italic;
+    margin-bottom: 16px;
+  }
+  .analogy-box p { color: var(--text-muted); font-size: 14px; }
+
+  /* ============================================================
+     DIFF / CHANGE HIGHLIGHT
+  ============================================================ */
+  .diff-add    { color: var(--green); }
+  .diff-remove { color: var(--red); text-decoration: line-through; opacity: 0.6; }
+  .diff-keep   { color: var(--text-dim); }
+
+  /* ============================================================
+     CONVERSION DIAGRAM
+  ============================================================ */
+  .conversion-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .conv-cell {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    text-align: center;
+  }
+  .conv-cell .step-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .conv-cell .value {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 18px;
+    color: var(--accent3);
+    font-weight: 600;
+  }
+  .conv-cell .sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+  .conv-arrow-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 22px;
+    margin: 4px 0;
+  }
+
+  /* ============================================================
+     Q&A
+  ============================================================ */
+  .qa-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .qa-q {
+    padding: 18px 22px;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .qa-q:hover { background: var(--bg-highlight); }
+  .qa-q::after { content: '▾'; color: var(--accent); font-size: 18px; }
+  .qa-a {
+    padding: 0 22px 18px;
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    display: none;
+  }
+  .qa-item.open .qa-a { display: block; }
+  .qa-item.open .qa-q::after { content: '▴'; }
+
+  /* ============================================================
+     TERMINAL OUTPUT
+  ============================================================ */
+  .terminal {
+    background: #050810;
+    border: 1px solid #1a2540;
+    border-radius: var(--radius-sm);
+    padding: 20px 22px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 13px;
+    color: #a8b4c8;
+    margin: 16px 0;
+  }
+  .terminal .prompt { color: #4ade80; }
+  .terminal .output { color: #c9d1d9; }
+  .terminal .comment { color: #546e7a; font-style: italic; }
+
+  /* ============================================================
+     CHECKLIST
+  ============================================================ */
+  .checklist { list-style: none; padding: 0; }
+  .checklist li {
+    padding: 6px 0 6px 28px;
+    position: relative;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .checklist li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* ============================================================
+     CALLOUT BOX
+  ============================================================ */
+  .callout {
+    background: var(--bg-highlight);
+    border-left: 3px solid var(--yellow);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .callout strong { color: var(--yellow); }
+
+  /* ============================================================
+     FOOTER NAV
+  ============================================================ */
+  .footer-nav {
+    border-top: 1px solid var(--border);
+    padding-top: 36px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .footer-nav .nav-btn { font-size: 14px; padding: 10px 20px; }
+
+  /* ============================================================
+     UTILITY
+  ============================================================ */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  .tag {
+    display: inline-block;
+    background: var(--bg-highlight);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Source Code Pro', monospace;
+    color: var(--text-muted);
+    padding: 2px 7px;
+    margin: 2px;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  @media (max-width: 580px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ================================================================
+       HEADER
+  ================================================================ -->
+  <header class="site-header">
+    <div class="header-left">
+      <div class="module-badge">
+        MODULE
+        <span>15 / 16</span>
+      </div>
+      <div class="header-title">
+        Standard Library Shim
+        <small>my_compiler · x86-64 NASM · Linux</small>
+      </div>
+    </div>
+    <nav class="header-nav">
+      <a href="../module_14%20-%20ELF%20Object%20File%20Emitter/tutorial.html" class="nav-btn">← Module 14</a>
+      <a href="../module_16%20-%20The%20Complete%20Compiler/tutorial.html" class="nav-btn primary">Module 16 →</a>
+    </nav>
+  </header>
+
+  <!-- ================================================================
+       TABLE OF CONTENTS
+  ================================================================ -->
+  <nav class="toc" aria-label="Table of Contents">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#sec-before">Before You Start</a></li>
+      <li><a href="#sec-analogy">The Foley Artist Analogy</a></li>
+      <li><a href="#sec-keyword">Adding <code>print</code> to the Language</a></li>
+      <li><a href="#sec-runtime">The <code>print_int</code> Runtime Assembly</a></li>
+      <li><a href="#sec-codegen">Codegen for <code>IR_PRINT</code></a></li>
+      <li><a href="#sec-run">Run It — Fibonacci Output</a></li>
+      <li><a href="#sec-brain">Brain Exercise</a></li>
+      <li><a href="#sec-qa">Q &amp; A</a></li>
+      <li><a href="#sec-next">What's Next</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================================================================
+       SECTION 00 — BEFORE YOU START
+  ================================================================ -->
+  <section class="section" id="sec-before">
+    <div class="section-number">Section 00</div>
+    <h2>Before You Start</h2>
+
+    <p>By the end of Module 14 you had a compiler that generates correct x86-64
+    machine code — but you had no way to see the result. Programs ran, returned
+    an exit code, and fell silent. Module 15 fixes that by adding a single new
+    statement to the language: <code>print(expr);</code>.</p>
+
+    <div class="card accent-left">
+      <strong>What you need from previous modules:</strong>
+      <ul class="checklist" style="margin-top:10px;">
+        <li>Module 10–12 NASM text codegen pipeline (we come back to text output, not binary ELF)</li>
+        <li>The IR three-address-code representation</li>
+        <li>The recursive-descent parser with <code>parse_stmt</code></li>
+        <li>Basic understanding of x86-64 calling convention (rdi = first arg)</li>
+      </ul>
+    </div>
+
+    <p>The pipeline for Module 15:</p>
+    <div class="pipeline">
+      <div class="pipe-step">source.c</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">lexer</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step highlight">parser<br><small>+print</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">sema</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step highlight">ir<br><small>IR_PRINT</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">opt</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step highlight">codegen<br><small>call print_int</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step highlight">output.asm</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step highlight">runtime.asm</div>
+    </div>
+
+    <p>The highlighted stages are new or modified. Everything else passes through
+    unchanged.</p>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ================================================================
+       SECTION 01 — ANALOGY
+  ================================================================ -->
+  <section class="section" id="sec-analogy">
+    <div class="section-number">Section 01</div>
+    <h2>The Foley Artist Analogy</h2>
+
+    <div class="analogy-box">
+      <div class="analogy-role">The Analogy</div>
+      <blockquote>
+        "A Foley artist adds the sounds that make a film feel real — footsteps on
+        gravel, the rustle of a jacket, the thud of a door. Without them, you have
+        a silent film. The scene is technically complete, but the audience can't
+        feel it."
+      </blockquote>
+      <p>
+        Until now your compiler was a silent film. It produced a technically correct
+        program with no way to communicate with the outside world.
+        The runtime shim — <code>runtime.asm</code> — is the Foley stage. It
+        adds the low-level I/O that makes compiled programs actually produce output
+        a human can see. One <code>print</code> keyword, one assembly routine, and
+        the film finally has sound.
+      </p>
+    </div>
+
+    <p>In real compilers this "Foley layer" is the C runtime library (<code>libc</code>),
+    which provides <code>printf</code>, <code>malloc</code>, <code>exit</code>, and
+    thousands of other functions. For this course we write just one function — the
+    minimum viable runtime — so you can see every byte of what happens when a program
+    speaks.</p>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ================================================================
+       SECTION 02 — ADDING print TO THE LANGUAGE
+  ================================================================ -->
+  <section class="section" id="sec-keyword">
+    <div class="section-number">Section 02</div>
+    <h2>Adding <code>print</code> to the Language</h2>
+
+    <p>Four places in the compiler need a small change. Let's walk through each one.</p>
+
+    <h3>1. token.h — a new keyword token</h3>
+    <p>We add <code>TOK_KW_PRINT</code> to the <code>TokenType</code> enum right
+    after <code>TOK_KW_WHILE</code>:</p>
+    <div class="code-label">token.h (excerpt)</div>
+<pre>
+<span class="diff-keep">    TOK_KW_INT,</span>
+<span class="diff-keep">    TOK_KW_VOID,</span>
+<span class="diff-keep">    TOK_KW_RETURN,</span>
+<span class="diff-keep">    TOK_KW_IF,</span>
+<span class="diff-keep">    TOK_KW_ELSE,</span>
+<span class="diff-keep">    TOK_KW_WHILE,</span>
+<span class="diff-add">    TOK_KW_PRINT,   <span class="cmt">/* keyword: print  (Module 15 addition) */</span></span>
+<span class="diff-keep">    TOK_PLUS,</span>
+</pre>
+
+    <p>The lexer's keyword lookup table gets one new line:</p>
+    <div class="code-label">lexer.c — keyword_or_ident()</div>
+<pre>
+<span class="diff-keep">    <span class="kw">if</span> (<span class="fn">strcmp</span>(text, <span class="str">"while"</span>) == <span class="num">0</span>) <span class="kw">return</span> TOK_KW_WHILE;</span>
+<span class="diff-add">    <span class="kw">if</span> (<span class="fn">strcmp</span>(text, <span class="str">"print"</span>) == <span class="num">0</span>) <span class="kw">return</span> TOK_KW_PRINT;</span>
+</pre>
+
+    <h3>2. ast.h — a new node kind</h3>
+    <p>The <code>NodeKind</code> enum gains <code>AST_PRINT</code>. The node
+    stores its single child — the expression to print — in the <code>left</code>
+    pointer rather than <code>args[0]</code>, so the intent is immediately obvious
+    in the code:</p>
+    <div class="code-label">ast.h (excerpt)</div>
+<pre>
+<span class="diff-keep">    AST_WHILE,      <span class="cmt">/* while stmt */</span></span>
+<span class="diff-keep">    AST_BLOCK,      <span class="cmt">/* { stmts } */</span></span>
+<span class="diff-add">    AST_PRINT,      <span class="cmt">/* print stmt: left = expression to print */</span></span>
+</pre>
+
+    <h3>3. parser.c — recognising the print statement</h3>
+    <p>In <code>parse_stmt</code> we add a branch for <code>TOK_KW_PRINT</code>
+    before the fall-through to expression statements:</p>
+    <div class="code-label">parser.c — parse_stmt() (new branch)</div>
+<pre>
+<span class="cmt">    /* print ( expr ) ; — Module 15 */</span>
+    <span class="kw">if</span> (t.type == TOK_KW_PRINT) {
+        <span class="fn">advance</span>(p);                      <span class="cmt">/* consume 'print' */</span>
+        <span class="fn">expect</span>(p, TOK_LPAREN, <span class="str">"'('"</span>);
+        Node *expr = <span class="fn">parse_expr</span>(p);
+        <span class="fn">expect</span>(p, TOK_RPAREN, <span class="str">"')'"</span>);
+        <span class="fn">expect</span>(p, TOK_SEMICOLON, <span class="str">"';'"</span>);
+        Node *n = <span class="fn">node_new</span>(AST_PRINT, t.line);
+        n-&gt;left = expr;
+        <span class="kw">return</span> n;
+    }
+</pre>
+
+    <h3>4. ir.h / ir.c — the IR_PRINT instruction</h3>
+    <p>The IR grows one new opcode:</p>
+    <div class="code-label">ir.h — IROp enum (excerpt)</div>
+<pre>
+<span class="diff-keep">    IR_LOAD,    <span class="cmt">/* dst = memory[name] */</span></span>
+<span class="diff-add">    IR_PRINT,   <span class="cmt">/* print_int(src1)  dst = IR_NO_TEMP  Module 15 */</span></span>
+</pre>
+    <p>IR generation for <code>AST_PRINT</code> in <code>gen_stmt</code>:</p>
+    <div class="code-label">ir.c — gen_stmt(), AST_PRINT case</div>
+<pre>
+    <span class="kw">case</span> AST_PRINT: {
+        <span class="kw">int</span> val = <span class="fn">gen_expr</span>(f, n-&gt;left);   <span class="cmt">/* evaluate expression → temp */</span>
+        IRInstr *pr = <span class="fn">ir_new_instr</span>(IR_PRINT);
+        pr-&gt;src1 = val;
+        pr-&gt;dst  = IR_NO_TEMP;            <span class="cmt">/* print produces no value */</span>
+        <span class="fn">ir_append</span>(f, pr);
+        <span class="kw">break</span>;
+    }
+</pre>
+
+    <p>After this change, compiling <code>print(42);</code> produces the
+    IR instruction:</p>
+<pre>
+  t0 = ICONST 42
+  PRINT t0
+</pre>
+
+    <div class="callout">
+      <strong>Note on the optimiser:</strong> <code>IR_PRINT</code> is a
+      <em>use</em> of <code>src1</code> with no destination. The constant
+      folding pass already propagates known values into <code>src1</code>
+      before reaching the <code>PRINT</code> instruction, so
+      <code>print(6 * 7)</code> will have its argument pre-computed to
+      <code>42</code> at compile time.
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ================================================================
+       SECTION 03 — THE RUNTIME
+  ================================================================ -->
+  <section class="section" id="sec-runtime">
+    <div class="section-number">Section 03</div>
+    <h2>The <code>print_int</code> Runtime Assembly</h2>
+
+    <p>The runtime lives in <code>runtime.asm</code> — a separate NASM
+    source file assembled once and linked with every compiled program.
+    It exposes two global symbols: <code>print_int</code> and
+    <code>print_newline</code>.</p>
+
+    <h3>The conversion algorithm</h3>
+    <p>Converting an integer like <strong>42</strong> to the string
+    <code>"42\n"</code> requires three steps:</p>
+
+    <div class="conversion-grid">
+      <div class="conv-cell">
+        <div class="step-label">Start</div>
+        <div class="value">42</div>
+        <div class="sub">integer in rdi</div>
+      </div>
+      <div class="conv-cell">
+        <div class="step-label">Step 1</div>
+        <div class="value">42 ÷ 10</div>
+        <div class="sub">quotient=4 remainder=<strong>2</strong> → '2'</div>
+      </div>
+      <div class="conv-cell">
+        <div class="step-label">Step 2</div>
+        <div class="value">4 ÷ 10</div>
+        <div class="sub">quotient=0 remainder=<strong>4</strong> → '4'</div>
+      </div>
+      <div class="conv-cell">
+        <div class="step-label">Reverse</div>
+        <div class="value">"42\n"</div>
+        <div class="sub">write digits + newline via sys_write</div>
+      </div>
+    </div>
+
+    <p>The digits arrive in reverse order (units first). We store them
+    right-to-left into a stack buffer by walking a pointer leftward,
+    then call <code>sys_write(1, start_ptr, length)</code> once to flush
+    the whole string.</p>
+
+    <h3>Stack buffer layout</h3>
+<pre>
+<span class="reg">rbp</span> ──►  [saved rbp]
+          [rbp - 1]   = 0x0A  <span class="cmt">; newline byte (fixed at entry)</span>
+          [rbp - 2]   = '2'   <span class="cmt">; last (units) digit written here</span>
+          [rbp - 3]   = '4'   <span class="cmt">; next digit, written leftward</span>
+          ...
+<span class="reg">rcx</span> ──►  start of digit string (after loop)
+<span class="reg">rdx</span>  =   length  =  (&rbp-1) - rcx + 1  (includes newline)
+</pre>
+
+    <h3>The print_int implementation</h3>
+    <div class="code-label">runtime.asm</div>
+<pre>
+<span class="fn">print_int</span>:
+    <span class="kw2">push</span>    <span class="reg">rbp</span>
+    <span class="kw2">mov</span>     <span class="reg">rbp</span>, <span class="reg">rsp</span>
+    <span class="kw2">sub</span>     <span class="reg">rsp</span>, <span class="num">48</span>
+
+    <span class="kw2">mov</span>     <span class="type">byte</span> [<span class="reg">rbp</span> - <span class="num">1</span>], <span class="num">10</span>     <span class="cmt">; newline at fixed position</span>
+    <span class="kw2">lea</span>     <span class="reg">rcx</span>, [<span class="reg">rbp</span> - <span class="num">2</span>]       <span class="cmt">; write pointer</span>
+
+    <span class="kw2">mov</span>     <span class="reg">rax</span>, <span class="reg">rdi</span>             <span class="cmt">; load argument</span>
+    <span class="kw2">test</span>    <span class="reg">rax</span>, <span class="reg">rax</span>
+    <span class="kw2">jnz</span>     .nonzero
+
+    <span class="kw2">mov</span>     <span class="type">byte</span> [<span class="reg">rcx</span>], <span class="str">'0'</span>       <span class="cmt">; special case: zero</span>
+    <span class="kw2">dec</span>     <span class="reg">rcx</span>
+    <span class="kw2">jmp</span>     .write
+
+<span class="label">.nonzero:</span>
+    <span class="kw2">xor</span>     <span class="reg">r9d</span>, <span class="reg">r9d</span>             <span class="cmt">; sign flag = 0 (positive)</span>
+    <span class="kw2">test</span>    <span class="reg">rax</span>, <span class="reg">rax</span>
+    <span class="kw2">jns</span>     .positive
+    <span class="kw2">mov</span>     <span class="reg">r9b</span>, <span class="num">1</span>               <span class="cmt">; negative: set sign flag</span>
+    <span class="kw2">neg</span>     <span class="reg">rax</span>                  <span class="cmt">; work with positive magnitude</span>
+
+<span class="label">.positive:</span>
+    <span class="kw2">mov</span>     <span class="reg">r10</span>, <span class="num">10</span>
+
+<span class="label">.digit_loop:</span>
+    <span class="kw2">xor</span>     <span class="reg">rdx</span>, <span class="reg">rdx</span>
+    <span class="kw2">div</span>     <span class="reg">r10</span>                  <span class="cmt">; rax = quotient, rdx = digit</span>
+    <span class="kw2">add</span>     <span class="reg">dl</span>, <span class="str">'0'</span>               <span class="cmt">; digit → ASCII</span>
+    <span class="kw2">mov</span>     [<span class="reg">rcx</span>], <span class="reg">dl</span>
+    <span class="kw2">dec</span>     <span class="reg">rcx</span>
+    <span class="kw2">test</span>    <span class="reg">rax</span>, <span class="reg">rax</span>
+    <span class="kw2">jnz</span>     .digit_loop
+
+    <span class="kw2">test</span>    <span class="reg">r9b</span>, <span class="reg">r9b</span>
+    <span class="kw2">jz</span>      .write
+    <span class="kw2">mov</span>     <span class="type">byte</span> [<span class="reg">rcx</span>], <span class="str">'-'</span>
+    <span class="kw2">dec</span>     <span class="reg">rcx</span>
+
+<span class="label">.write:</span>
+    <span class="kw2">inc</span>     <span class="reg">rcx</span>                  <span class="cmt">; rcx = start of output string</span>
+    <span class="kw2">lea</span>     <span class="reg">rdx</span>, [<span class="reg">rbp</span> - <span class="num">1</span>]     <span class="cmt">; rdx = address of newline</span>
+    <span class="kw2">sub</span>     <span class="reg">rdx</span>, <span class="reg">rcx</span>
+    <span class="kw2">inc</span>     <span class="reg">rdx</span>                  <span class="cmt">; include the newline byte</span>
+
+    <span class="kw2">mov</span>     <span class="reg">rax</span>, <span class="num">1</span>               <span class="cmt">; sys_write</span>
+    <span class="kw2">mov</span>     <span class="reg">rdi</span>, <span class="num">1</span>               <span class="cmt">; fd = stdout</span>
+    <span class="kw2">mov</span>     <span class="reg">rsi</span>, <span class="reg">rcx</span>             <span class="cmt">; buffer</span>
+    <span class="kw2">syscall</span>
+
+    <span class="kw2">mov</span>     <span class="reg">rsp</span>, <span class="reg">rbp</span>
+    <span class="kw2">pop</span>     <span class="reg">rbp</span>
+    <span class="kw2">ret</span>
+</pre>
+
+    <div class="two-col">
+      <div class="card accent-cyan">
+        <strong>Why one <code>syscall</code>, not two?</strong><br>
+        <span style="font-size:13px;color:var(--text-muted);">
+          We build the entire string (digits + newline) in the stack buffer before
+          calling <code>sys_write</code>. A single syscall is faster than two
+          (one for digits, one for newline) because syscalls cross the
+          kernel/user boundary and carry overhead.
+        </span>
+      </div>
+      <div class="card accent-orange">
+        <strong>Why not just <code>printf</code>?</strong><br>
+        <span style="font-size:13px;color:var(--text-muted);">
+          <code>printf</code> is in glibc. Our <code>gcc -no-pie</code> link
+          command doesn't pull in glibc startup files. The raw
+          <code>write(2)</code> syscall is always available — no library
+          needed at all.
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ================================================================
+       SECTION 04 — CODEGEN
+  ================================================================ -->
+  <section class="section" id="sec-codegen">
+    <div class="section-number">Section 04</div>
+    <h2>Codegen for <code>IR_PRINT</code></h2>
+
+    <p>The code generator adds exactly one new case in the instruction
+    switch. It is deliberately short: codegen's job is to translate IR to
+    assembly, not to implement I/O itself — that is runtime's job.</p>
+
+    <div class="code-label">codegen.c — IR_PRINT case</div>
+<pre>
+        <span class="cmt">/* ---- IR_PRINT (Module 15): call print_int(src1) ---- */</span>
+        <span class="kw">case</span> IR_PRINT:
+            <span class="fn">fprintf</span>(out, <span class="str">"    mov     rdi, [rbp%+d]   ; print argument\n"</span>,
+                    <span class="fn">temp_offset</span>(in-&gt;src1));
+            <span class="fn">fprintf</span>(out, <span class="str">"    call    print_int\n"</span>);
+            <span class="kw">break</span>;
+</pre>
+
+    <p>Two assembly instructions, zero complexity. The calling convention
+    says the first integer argument goes in <code>rdi</code>. We load the
+    value from its stack slot into <code>rdi</code> and call
+    <code>print_int</code>. The runtime does the rest.</p>
+
+    <h3>The extern declarations</h3>
+    <p>At the top of every generated <code>.asm</code> file the codegen
+    emits:</p>
+<pre>
+<span class="kw2">extern</span> <span class="fn">print_int</span>
+<span class="kw2">extern</span> <span class="fn">print_newline</span>
+</pre>
+    <p>This tells NASM that these symbols are defined in another object
+    file (<code>runtime.o</code>). The linker resolves them at link time.</p>
+
+    <h3>Example: <code>print(fib(3))</code></h3>
+    <p>The generated assembly for one iteration of the fib loop looks like:</p>
+<pre>
+    <span class="cmt">; Call fib (1 args)</span>
+    <span class="kw2">mov</span>     <span class="reg">rdi</span>, [<span class="reg">rbp</span>-24]   <span class="cmt">; arg 0 (i)</span>
+    <span class="kw2">call</span>    <span class="fn">fib</span>
+    <span class="kw2">mov</span>     [<span class="reg">rbp</span>-32], <span class="reg">rax</span> <span class="cmt">; t3 = return value</span>
+
+    <span class="cmt">; IR_PRINT: print_int(t3)</span>
+    <span class="kw2">mov</span>     <span class="reg">rdi</span>, [<span class="reg">rbp</span>-32]  <span class="cmt">; print argument</span>
+    <span class="kw2">call</span>    <span class="fn">print_int</span>
+</pre>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ================================================================
+       SECTION 05 — RUN IT
+  ================================================================ -->
+  <section class="section" id="sec-run">
+    <div class="section-number">Section 05</div>
+    <h2>Run It — Fibonacci Output</h2>
+
+    <p>The sample program <code>sample15.c</code> computes the first ten
+    Fibonacci numbers and prints each one:</p>
+
+    <div class="code-label">sample15.c</div>
+<pre>
+<span class="type">int</span> <span class="fn">fib</span>(<span class="type">int</span> n) {
+    <span class="type">int</span> a; <span class="type">int</span> b; <span class="type">int</span> tmp;
+    a = <span class="num">0</span>; b = <span class="num">1</span>;
+    <span class="kw">while</span> (n &gt; <span class="num">0</span>) {
+        tmp = a + b; a = b; b = tmp; n = n - <span class="num">1</span>;
+    }
+    <span class="kw">return</span> a;
+}
+
+<span class="type">int</span> <span class="fn">main</span>(<span class="type">void</span>) {
+    <span class="type">int</span> i;
+    i = <span class="num">0</span>;
+    <span class="kw">while</span> (i &lt; <span class="num">10</span>) {
+        <span class="kw">print</span>(<span class="fn">fib</span>(i));
+        i = i + <span class="num">1</span>;
+    }
+    <span class="kw">return</span> <span class="num">0</span>;
+}
+</pre>
+
+    <p>Build and run with <code>make assemble</code> (in WSL/Linux):</p>
+    <div class="terminal">
+<span class="prompt">$</span> <span class="output">make assemble</span><br>
+<span class="output">gcc -Wall -Wextra -Werror -std=c11 -c source.c ...</span><br>
+<span class="output">gcc -Wall -Wextra -Werror -std=c11 -o mycc15 ...</span><br>
+<span class="output">./mycc15 sample15.c -o sample15.asm</span><br>
+<span class="output">=== my_compiler Module 15: Standard Library Shim ===</span><br>
+<span class="output">Writing NASM assembly to: sample15.asm</span><br>
+<span class="output">Done.</span><br>
+<span class="output">nasm -f elf64 sample15.asm -o sample15_prog.o</span><br>
+<span class="output">nasm -f elf64 runtime.asm  -o runtime.o</span><br>
+<span class="output">gcc -no-pie sample15_prog.o runtime.o -o sample15_bin</span><br>
+<span class="output">./sample15_bin</span><br>
+<span class="output">0</span><br>
+<span class="output">1</span><br>
+<span class="output">1</span><br>
+<span class="output">2</span><br>
+<span class="output">3</span><br>
+<span class="output">5</span><br>
+<span class="output">8</span><br>
+<span class="output">13</span><br>
+<span class="output">21</span><br>
+<span class="output">34</span>
+    </div>
+
+    <p>Ten Fibonacci numbers, one per line. The compiler is no longer silent.</p>
+
+    <div class="card accent-green">
+      <strong>What just happened?</strong>
+      <ol style="margin-top:10px; font-size:14px; color:var(--text-muted);">
+        <li style="margin:4px 0;"><code>mycc15</code> compiled <code>sample15.c</code> → <code>sample15.asm</code> (NASM text)</li>
+        <li style="margin:4px 0;">NASM assembled both <code>sample15.asm</code> and <code>runtime.asm</code> into <code>.o</code> files</li>
+        <li style="margin:4px 0;"><code>gcc -no-pie</code> linked them together — resolving the <code>extern print_int</code> reference</li>
+        <li style="margin:4px 0;">The resulting binary runs and calls <code>print_int</code> 10 times via <code>sys_write</code></li>
+      </ol>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ================================================================
+       SECTION 06 — BRAIN EXERCISE
+  ================================================================ -->
+  <section class="section" id="sec-brain">
+    <div class="section-number">Section 06</div>
+    <h2>Brain Exercise</h2>
+
+    <div class="card accent-orange" style="margin-bottom:20px;">
+      <p style="font-weight:700; font-size:16px; margin-bottom:10px;">
+        The <code>sys_write</code> syscall takes <code>(fd, buf_ptr, count)</code>
+        and sends raw bytes from memory to a file descriptor.
+      </p>
+      <p>
+        Our <code>print_int</code> converts an integer to a decimal string before
+        calling <code>sys_write</code>. <strong>Why can't we just write the 8 raw
+        bytes of the integer directly?</strong>
+      </p>
+    </div>
+
+    <h3>Answer</h3>
+    <p>The <code>sys_write</code> syscall sends raw bytes to the terminal exactly
+    as they appear in memory. An integer like <strong>42</strong> stored in a
+    64-bit register is represented in memory as little-endian bytes:</p>
+
+<pre>
+42  decimal  =  0x000000000000002A
+In memory (little-endian, 8 bytes):
+  2A 00 00 00 00 00 00 00
+</pre>
+
+    <p>If we called <code>sys_write(1, &amp;value, 8)</code> the terminal would
+    receive those 8 bytes. The byte <code>0x2A</code> is the ASCII character
+    <code>'*'</code>. The seven zero bytes are control characters that produce
+    no visible output (or worse, corrupt the terminal). The user would see:</p>
+
+<pre>
+<span class="output">*</span><span class="cmt">       ← just an asterisk, then nothing</span>
+</pre>
+
+    <p>What we actually want the terminal to receive is the ASCII string
+    <code>"42\n"</code>:</p>
+
+<pre>
+'4' = 0x34,  '2' = 0x32,  '\n' = 0x0A
+</pre>
+
+    <p>The conversion loop in <code>print_int</code> produces exactly these
+    bytes. A terminal interprets bytes as ASCII text, not as binary integers.
+    The number <strong>42</strong> and the string <strong>"42"</strong> are
+    completely different things in memory — the conversion is not optional.</p>
+
+    <div class="callout">
+      <strong>Takeaway:</strong> "Writing an integer to stdout" is a
+      two-step process: (1) convert to ASCII decimal string, then (2)
+      write the string bytes. There is no shortcut. Every I/O library from
+      <code>printf</code> to Python's <code>print()</code> does exactly this
+      internally.
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ================================================================
+       SECTION 07 — Q&A
+  ================================================================ -->
+  <section class="section" id="sec-qa">
+    <div class="section-number">Section 07</div>
+    <h2>Q &amp; A</h2>
+
+    <div class="qa-item">
+      <div class="qa-q">Could we have made <code>print</code> a normal function instead of a keyword?</div>
+      <div class="qa-a">
+        <p>Yes — and real languages do. In C you call <code>printf</code>; in Java
+        <code>System.out.println</code>. Making it a keyword saves us from implementing
+        function prototypes or a prelude file. Without a declaration mechanism, the
+        parser has no way to know that <code>print(x)</code> is a function call at
+        all — it would just see an identifier followed by an argument list and try to
+        look it up in the symbol table. The keyword approach sidesteps that entirely.</p>
+        <p>The trade-off: <code>print</code> is now reserved. You can't name a
+        variable <code>print</code>. For a production language you'd keep it as a
+        library function in a standard header.</p>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">Why does the loop start with <code>xor rdx, rdx</code> before <code>div r10</code>?</div>
+      <div class="qa-a">
+        <p>The x86-64 <code>div</code> instruction divides the <em>128-bit</em>
+        value <code>rdx:rax</code> by the operand. Before the division, <code>rdx</code>
+        must be zeroed (or sign-extended for <code>idiv</code>). If <code>rdx</code>
+        contains garbage from a previous operation, the division result is wrong or
+        the CPU raises a divide-overflow exception. <code>xor rdx, rdx</code> is a
+        fast 2-byte encoding of "set rdx to zero" and is the standard idiom before
+        any unsigned <code>div</code>.</p>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">What happens if <code>print_int</code> receives a very large negative number like <code>INT64_MIN</code>?</div>
+      <div class="qa-a">
+        <p>This is the classic two's complement gotcha. <code>INT64_MIN</code> is
+        <code>-9223372036854775808</code>. When we <code>neg rax</code> to get the
+        absolute value, the result overflows because the positive equivalent
+        (<code>9223372036854775808</code>) does not fit in a signed 64-bit integer.
+        The CPU wraps around and <code>rax</code> still holds the original
+        negative value. Our simple runtime would then loop forever or produce
+        incorrect digits.</p>
+        <p>A production <code>print_int</code> handles this by special-casing
+        <code>INT64_MIN</code>: hard-code the string <code>"-9223372036854775808"</code>,
+        or use unsigned arithmetic throughout the digit loop.</p>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">Why link with <code>gcc -no-pie</code> rather than <code>ld</code> directly?</div>
+      <div class="qa-a">
+        <p><code>ld</code> requires you to specify every startup file manually
+        (<code>crt1.o</code>, <code>crti.o</code>, <code>crtn.o</code>, etc.) plus
+        the dynamic linker path. <code>gcc</code> knows where all these files live
+        on the current system and adds them automatically. <code>-no-pie</code>
+        disables Position Independent Executable mode, which avoids the need for
+        a GOT/PLT relocation setup that our simple codegen doesn't emit. The result
+        is a statically-positioned executable that just works.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ================================================================
+       SECTION 08 — WHAT'S NEXT
+  ================================================================ -->
+  <section class="section" id="sec-next">
+    <div class="section-number">Section 08</div>
+    <h2>What's Next</h2>
+
+    <div class="card accent-left">
+      <div class="section-number" style="margin-bottom:8px;">Module 16</div>
+      <h3 style="margin-top:0; font-family:'Playfair Display',serif; font-size:22px;">
+        The Complete End-to-End Pipeline
+      </h3>
+      <p style="color:var(--text-muted); font-size:14px; margin-top:8px;">
+        The premiere. Module 16 wires together everything built across modules 01–15
+        into a single cohesive compiler. You'll see the full pipeline — source reader,
+        lexer, parser, semantic analyser, IR generator, optimiser, and code generator
+        — working as one system. We add a proper command-line driver, clean error
+        reporting, and a test suite that validates every previous module's behaviour.
+        The compiler will be able to compile itself... well, a simple version of itself.
+      </p>
+      <div style="margin-top:16px;">
+        <span class="tag">source.h</span>
+        <span class="tag">lexer.h</span>
+        <span class="tag">parser.h</span>
+        <span class="tag">sema.h</span>
+        <span class="tag">ir.h</span>
+        <span class="tag">opt.h</span>
+        <span class="tag">codegen.h</span>
+        <span class="tag">runtime.asm</span>
+        <span class="tag">test suite</span>
+      </div>
+    </div>
+
+    <p>You now have a compiler that can see the world. The next step is making
+    it ready for its premiere.</p>
+  </section>
+
+  <!-- ================================================================
+       FOOTER NAV
+  ================================================================ -->
+  <nav class="footer-nav" aria-label="Module navigation">
+    <a href="../module_14%20-%20ELF%20Object%20File%20Emitter/tutorial.html" class="nav-btn">← Module 14: Binary ELF Emitter</a>
+    <a href="../module_16%20-%20The%20Complete%20Compiler/tutorial.html" class="nav-btn primary">Module 16: The Premiere →</a>
+  </nav>
+
+</div><!-- .page-wrap -->
+
+<script>
+  /* Q&A accordion */
+  document.querySelectorAll('.qa-q').forEach(function(q) {
+    q.addEventListener('click', function() {
+      var item = this.parentElement;
+      item.classList.toggle('open');
+    });
+  });
+</script>
+</body>
+</html>

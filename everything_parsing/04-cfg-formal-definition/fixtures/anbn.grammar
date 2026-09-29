@@ -1,0 +1,4 @@
+# The classic non-regular language  L = { a^n b^n : n >= 0 }.
+# Symbols are whitespace-separated. 'epsilon' (or the empty right-hand side)
+# is the empty string. The first left-hand side is the start symbol.
+S -> a S b | epsilon

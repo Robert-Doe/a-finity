@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 25 — The LL(1) Parsing Table | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#B0483C;--accent-wash:#F6E6E2;--accent-line:#E6BEB6}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 25 · Part III — Top-Down Parsing</p>
+  <h1>The LL(1) Parsing <em>Table</em></h1>
+  <p class="thesis">Everything from Modules 20–24 converges here. Build a
+  two-dimensional table <code>M[A][t]</code>: given nonterminal <code>A</code>
+  on the stack and lookahead token <code>t</code>, which production do you
+  apply? Fill each production into the columns of its PREDICT set. If no cell
+  ever gets a second production, the grammar is <b>LL(1)</b> and this table
+  <em>is</em> the parser. Every double-booked cell is a concrete non-LL(1)
+  witness.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>The whole expression grammar collapses to a
+    <span class="hi">5-row by 7-column table of production numbers</span>. Parse
+    <code>id + id * id</code> with nothing but a stack and lookups — no
+    recursion, no grammar-specific code.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../20-predictive-condition/tutorial.html">PREDICT sets, the LL(1) condition (Module 20)</a></li>
+    <li><a href="../21-nullable-first/tutorial.html">FIRST (Module 21)</a> · <a href="../22-follow-sets/tutorial.html">FOLLOW (Module 22)</a></li>
+    <li><a href="../23-left-recursion-elimination/tutorial.html">left-recursion elimination (Module 23)</a> · <a href="../24-left-factoring/tutorial.html">left factoring (Module 24)</a></li>
+    <li><a href="../19-recursive-descent/tutorial.html">the leftmost derivation a top-down parser follows (Module 19)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the dispatcher's wall chart</h2></div>
+
+  <div class="picture">
+    <p>An emergency dispatcher has a laminated wall chart. Down the side: the
+    <em>kind of call</em> ("structure fire", "medical", "traffic"). Across the
+    top: the <em>key detail from the caller</em> ("smoke visible", "chest pain",
+    "injuries"). Each cell says exactly which unit to send. No judgement calls
+    mid-crisis — cross-reference the row and column, read the cell, dispatch.</p>
+    <p>The parser's table is that chart. Row = the nonterminal it's currently
+    trying to build. Column = the one token it's looking at. Cell = the
+    production to apply. The entire "how do I parse this language" decision is
+    precomputed into a grid; at runtime the parser does lookups.</p>
+    <p>Building the chart is the careful part, done once, offline. For each
+    production <code>A → α</code>, you ask "which caller-details would lead here?"
+    — that's <code>PREDICT(A → α)</code> — and write this production into those
+    columns of row <code>A</code>. If two productions ever want the same cell,
+    the chart is ambiguous: the dispatcher would have two units to send and no
+    way to choose. That's a grammar that isn't LL(1).</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Dispatcher's chart</th><th>Parsing table</th></tr></thead>
+    <tbody>
+      <tr><td>row: kind of call</td><td>row: nonterminal on the stack</td></tr>
+      <tr><td>column: key detail from caller</td><td>column: lookahead token (or <code>$</code>)</td></tr>
+      <tr><td>cell: which unit to send</td><td>cell: which production to apply</td></tr>
+      <tr><td>"which details lead to this response?"</td><td><code>PREDICT(A → α)</code></td></tr>
+      <tr><td>blank cell: not a valid situation</td><td>blank: syntax error</td></tr>
+      <tr><td>two units in one cell: chart is broken</td><td>conflict: grammar is not LL(1)</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <h3>Build</h3>
+    <ol>
+      <li>Columns = every terminal that appears in the grammar, plus
+        <code>$</code>.</li>
+      <li>Start with every cell empty.</li>
+      <li>For each production <code>p = A → α</code>: compute
+        <code>PREDICT(p)</code> (Module 20 — <code>FIRST(α)</code>, and if
+        <code>α</code> is nullable, also <code>FOLLOW(A)</code>).</li>
+      <li>For each token <code>t ∈ PREDICT(p)</code>: add <code>p</code> to
+        <code>M[A][t]</code>.</li>
+      <li>Any cell now holding two or more productions is a <b>conflict</b>. No
+        conflicts ⇒ LL(1).</li>
+    </ol>
+    <h3>Use (preview of Module 26)</h3>
+    <ol>
+      <li>Stack starts as <code>[ $, start ]</code>; input ends with
+        <code>$</code>.</li>
+      <li>Top is a <b>terminal</b>: it must equal the lookahead — pop and
+        advance, or error.</li>
+      <li>Top is a <b>nonterminal</b> <code>A</code>: look up
+        <code>M[A][lookahead]</code>. Blank → syntax error. One production
+        <code>A → X₁…Xₙ</code> → pop <code>A</code>, push
+        <code>Xₙ…X₁</code> (so <code>X₁</code> ends up on top).</li>
+      <li>Top is <code>$</code> and lookahead is <code>$</code> → <b>accept</b>.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The expression table</h3>
+  <div class="diagram"><pre>  legend: 0 E->T Ep   1 Ep->+ T Ep   2 Ep->eps   3 T->F Tp
+          4 Tp->* F Tp  5 Tp->eps    6 F->( E )   7 F->id   8 F->num
+
+         +    *    (    )    id   num  $
+  E      .    .    0    .    0    0    .
+  Ep     1    .    .    2    .    .    2      <- M[Ep][)] and M[Ep][$] from FOLLOW(Ep)
+  T      .    .    3    .    3    3    .
+  Tp     5    4    .    5    .    .    5
+  F      .    .    6    .    7    8    .
+
+  row E has 0 in three columns: E -> T Ep is the only choice, whenever E is
+  even legal. row Ep splits: '+' -> production 1, else -> production 2 (epsilon).</pre></div>
+
+  <h3>Parsing <code>id + id * id</code> with the table</h3>
+  <div class="diagram"><pre>  step  action
+   0     expand E -> T Ep
+   1     expand T -> F Tp
+   2     expand F -> id
+   3     match id
+   4     expand Tp -> epsilon         (lookahead '+', M[Tp][+] = 5)
+   5     expand Ep -> + T Ep          (M[Ep][+] = 1)
+   6     match +
+   7     expand T -> F Tp
+   8     expand F -> id
+   9     match id
+  10     expand Tp -> * F Tp          (lookahead '*', M[Tp][*] = 4)
+  11     match *
+  12     expand F -> id
+  13     match id
+  14     expand Tp -> epsilon
+  15     expand Ep -> epsilon
+  16     stack $ , lookahead $  ->  ACCEPT
+
+  the sequence of "expand" lines IS a leftmost derivation (Module 19), now
+  produced by table lookup instead of a call stack.</pre></div>
+
+  <h3>A conflict — <code>M[Sp][else]</code></h3>
+  <div class="diagram"><pre>  Sp -> else S     PREDICT { else }
+  Sp -> epsilon    PREDICT { else $ }      (else from FOLLOW(Sp))
+
+  M[Sp][else] := Sp -> else S       then      M[Sp][else] := Sp -> epsilon   COLLISION
+
+  one cell, two productions. the grammar is not LL(1); left factoring
+  (Module 24) removed the shared "if b then S" prefix but not this.</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Building the table</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/LL1Table.java</figcaption>
+<pre><code><span class="k">for</span> (String nt : g.nonterminals) M.put(nt, <span class="k">new</span> LinkedHashMap&lt;&gt;());
+
+<span class="k">for</span> (Grammar.Production p : g.productions)
+  <span class="k">for</span> (String t : pr.predict(p))
+    M.get(p.lhs())
+     .computeIfAbsent(t, k -&gt; <span class="k">new</span> ArrayList&lt;&gt;())
+     .add(p);                              <span class="c">// append, never overwrite</span>
+
+<span class="c">// a cell whose list has &gt; 1 entry is a conflict</span></code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/ll1table.mjs</figcaption>
+<pre><code><span class="k">for</span> (<span class="k">const</span> nt <span class="k">of</span> g.nonterminals) <span class="k">this</span>.M.set(nt, <span class="k">new</span> Map());
+
+<span class="k">for</span> (<span class="k">const</span> p <span class="k">of</span> g.productions)
+  <span class="k">for</span> (<span class="k">const</span> t <span class="k">of</span> <span class="k">this</span>.pr.predict(p)) {
+    <span class="k">const</span> row = <span class="k">this</span>.M.get(p.lhs);
+    <span class="k">if</span> (!row.has(t)) row.set(t, []);
+    row.get(t).push(p);
+  }</code></pre>
+    </figure>
+  </div>
+
+  <h3>The table-driven parse loop</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Main.java (traceParse)</figcaption>
+<pre><code>stack.push(END); stack.push(g.start);
+<span class="k">while</span> (!stack.isEmpty()) {
+  String top = stack.peek(), look = in[ip];
+  <span class="k">if</span> (top.equals(END) &amp;&amp; look.equals(END)) { <span class="c">/* ACCEPT */</span> <span class="k">break</span>; }
+  <span class="k">if</span> (!g.isNonterminal(top)) { stack.pop(); ip++; <span class="k">continue</span>; }   <span class="c">// terminal: match</span>
+  var ps = tbl.cell(top, look);
+  <span class="k">if</span> (ps.size() != 1) { <span class="c">/* syntax error */</span> <span class="k">break</span>; }
+  Grammar.Production p = ps.get(0);
+  stack.pop();
+  <span class="k">for</span> (<span class="k">int</span> k = p.rhs().size() - 1; k &gt;= 0; k--) stack.push(p.rhs().get(k));
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/main.mjs (traceParse)</figcaption>
+<pre><code>stack = [END, g.start];
+<span class="k">while</span> (stack.length &gt; 0) {
+  <span class="k">const</span> top = stack.at(-1), look = inp[ip];
+  <span class="k">if</span> (top === END &amp;&amp; look === END) <span class="k">break</span>;      <span class="c">// ACCEPT</span>
+  <span class="k">if</span> (!g.isNonterminal(top)) { stack.pop(); ip++; <span class="k">continue</span>; }
+  <span class="k">const</span> ps = tbl.cell(top, look);
+  <span class="k">if</span> (ps.length !== 1) <span class="k">break</span>;                 <span class="c">// syntax error</span>
+  <span class="k">const</span> p = ps[0];
+  stack.pop();
+  <span class="k">for</span> (<span class="k">let</span> k = p.rhs.length - 1; k &gt;= 0; k--) stack.push(p.rhs[k]);
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Push the RHS in reverse</span>
+    <p><code>A → X₁ X₂ X₃</code>: push <code>X₃</code>, then <code>X₂</code>,
+    then <code>X₁</code>, so <code>X₁</code> is on top and gets processed first.
+    The stack always holds "the rest of the sentential form, left end up" — the
+    same object recursive descent kept implicitly in its call frames
+    (Module 19).</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Build the parse tree / drive semantic actions during the walk — Module 26 (and Part V).</li>
+        <li>Recover from a blank cell and keep parsing — Module 27 (panic mode, FOLLOW sync sets).</li>
+        <li>Resolve a conflict by policy (prefer the shift for dangling else) — a hand edit to the cell, formalised in Module 35 for LR.</li>
+        <li>Handle LL(2)+ — a single lookahead column only (Module 29).</li>
+        <li>Parse anything an LR grammar can but LL can't — Part IV.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Build <code>M[A][t]</code> for any grammar from its PREDICT sets.</li>
+        <li>Decide LL(1) and name every conflicted cell (nonterminal, token, both productions).</li>
+        <li>Place FOLLOW-driven cells for nullable productions correctly.</li>
+        <li>Distinguish a blank cell (error) from an explicit <code>epsilon</code> cell.</li>
+        <li>Run the table over an input with an explicit stack, to <code>ACCEPT</code>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 25-ll1-table
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>table (cells = production index; . = blank, ! = conflict):
+        +   *   (   )   id  num $
+  E     .   .   0   .   0   0   .
+  Ep    1   .   .   2   .   .   2
+  ...
+VERDICT: LL(1) = YES   every cell has at most one production
+
+########## fixtures/danglingelse.grammar
+  M[Sp][else] wants:
+      (2) Sp -&gt; else S
+      (3) Sp -&gt; epsilon</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out LL1TableTest    # OK 19 passed
+node js/ll1table.test.mjs          # OK 19 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b>A nullable production is missing from the table</b> — fill from
+    <code>PREDICT</code> (which includes <code>FOLLOW</code> for nullable
+    <code>α</code>), not <code>FIRST</code> alone.<br>
+    <b><code>$</code> has no column</b> — add it.<br>
+    <b>Conflict silently lost</b> — you overwrote the cell; keep a list and
+    check <code>size &gt; 1</code>.<br>
+    <b>Parse loops forever</b> — you pushed the RHS in the wrong order, or
+    didn't pop <code>A</code> before pushing.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> For the expression table, what is <code>M[F][+]</code>, and what
+  does the parser do when it lands there? <b>(2)</b> The dangling-else conflict
+  cell <code>M[Sp][else]</code> holds <code>Sp → else S</code> and
+  <code>Sp → ε</code>. If you had to keep <em>one</em>, which, and what
+  behaviour does that give?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> <code>M[F][+]</code> is blank. If the parser is expanding
+    <code>F</code> and sees <code>+</code>, it's a syntax error — no factor can
+    start with <code>+</code>. (This happens e.g. on input <code>id + + id</code>
+    after the first <code>+</code> is consumed.)</p>
+    <p><b>(2)</b> Keep <code>Sp → else S</code>. That means: whenever an
+    <code>else</code> is available, attach it to the nearest unmatched
+    <code>if</code>. This is the conventional resolution — "else binds to the
+    closest if" — and it's what C, Java, and friends do. Keeping
+    <code>Sp → ε</code> instead would make <code>else</code> attach to the
+    <em>outermost</em> if, which nobody wants.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Is the table just the PREDICT sets in a different shape?</summary>
+    <p>Essentially yes — it's PREDICT sets transposed into a
+    (nonterminal × token) grid. The value the table adds is the
+    <em>collision check</em>: filling the grid surfaces exactly which cell two
+    productions fight over, which the per-rule PREDICT view can also show but the
+    grid makes unmissable.</p>
+  </details>
+
+  <details>
+    <summary>Why is a blank cell an error and not "do nothing"?</summary>
+    <p>"Do nothing" would leave the nonterminal on the stack unexpanded and the
+    parser stuck. A blank cell means the grammar has no way to derive the
+    current token from the current nonterminal — the input is not in the
+    language. The parser reports the position and (Module 27) tries to
+    recover.</p>
+  </details>
+
+  <details>
+    <summary>Recursive descent (Module 19) had no table. What changed?</summary>
+    <p>Nothing, conceptually. Recursive descent encodes <code>M[A][t]</code> as
+    the <code>if</code>/<code>switch</code> statements inside
+    <code>parseA</code>, and the stack as the call stack. The table makes the
+    same information data instead of code — which is what a parser
+    <em>generator</em> emits, and what Module 26 executes.</p>
+  </details>
+
+  <details>
+    <summary>Can I edit a conflicted cell by hand to force a choice?</summary>
+    <p>Yes, and real tools do — yacc/Bison resolve shift-reduce conflicts by a
+    default rule and let you override with precedence declarations (Module 35).
+    For LL(1) you'd just pick one production for the cell and document it. It's
+    no longer "LL(1)" in the pure sense, but it parses.</p>
+  </details>
+
+  <details>
+    <summary>How big do these tables get for a real language?</summary>
+    <p>Rows = nonterminals (dozens to low hundreds), columns = tokens (dozens).
+    So thousands of cells, mostly blank. Stored sparsely. LR tables (Part IV)
+    are much larger — thousands of states — which is why they're always
+    generated, never hand-written.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p><b>Module 26 — Table-Driven Predictive Parsing</b> takes the trace at the
+  end of this module and makes it the real thing: an explicit stack, the table,
+  a loop, and a parse tree built on the side. It proves the table plus a stack
+  reproduces recursive descent exactly — same leftmost derivation, no recursion,
+  no per-grammar code. Then <b>Module 27</b> adds error recovery so a blank cell
+  doesn't end the parse.</p>
+</section>
+
+<nav class="pager">
+  <a href="../24-left-factoring/tutorial.html"><span class="dir">Previous</span>← Module 24 · Left Factoring</a>
+  <a href="../26-table-driven-parsing/tutorial.html"><span class="dir">Next</span>Module 26 · Table-Driven Predictive Parsing →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 25 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>25-ll1-table/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

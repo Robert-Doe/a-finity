@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Java &amp; JS Setup — Prerequisites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B5BA5;--accent-wash:#E9EDF7}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Prerequisites · P4</p>
+  <h1>Java &amp; JS <em>Setup</em></h1>
+  <p class="thesis">No build tool, no package manager, no framework. Two
+  compilers you almost certainly already have, one 40-line test helper we wrote,
+  and a directory layout that is identical for all 48 modules.</p>
+</header>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">01</span><h2>What you need</h2></div>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Tool</th><th>Minimum</th><th>Check</th><th>Verified for this course</th></tr></thead>
+    <tbody>
+      <tr><td>JDK (<code>javac</code> + <code>java</code>)</td><td>17</td><td><code>javac -version</code></td><td>OpenJDK 24</td></tr>
+      <tr><td>Node.js</td><td>20</td><td><code>node --version</code></td><td>v22.14.0</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>That is the complete list. No Maven, Gradle, npm, TypeScript, JUnit, Jest.
+  If a module ever needs something else, that will be a headline in its
+  tutorial, not a silent dependency.</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">02</span><h2>Every module has this shape</h2></div>
+  <div class="diagram"><pre>NN-module-name/
+├─ java/            every .java file, flat
+│  ├─ Assert.java       the test helper (identical copy in every module)
+│  ├─ &lt;Thing&gt;.java      the module's library code
+│  ├─ Main.java         the runnable demo
+│  └─ &lt;Thing&gt;Test.java  the tests
+├─ js/              every .mjs file, flat
+│  ├─ assert.mjs
+│  ├─ &lt;thing&gt;.mjs
+│  ├─ main.mjs
+│  └─ &lt;thing&gt;.test.mjs
+├─ fixtures/        input files — BOTH languages read the same ones
+├─ expected/        golden output, committed; the tutorial pastes it verbatim
+├─ run.md           exact commands + expected output
+├─ DECISIONS.md     line-by-line "why" for the source
+└─ tutorial.html    the lesson</pre></div>
+  <p>The <code>Assert.java</code> / <code>assert.mjs</code> in each module are
+  byte-identical copies of the canonical pair in
+  <code>prerequisites/assert/</code>. Copying beats a shared import path here:
+  every module stays runnable on its own with one plain command.</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">03</span><h2>The four commands</h2></div>
+  <p>Run these from inside a module directory. PowerShell and bash are the same
+  here.</p>
+  <div class="runit">
+    <h4>compile + run the demo — Java</h4>
+<pre><code>javac -d java/out java/*.java
+java -cp java/out Main fixtures/inputs.txt</code></pre>
+    <h4>run the demo — JavaScript</h4>
+<pre><code>node js/main.mjs fixtures/inputs.txt</code></pre>
+    <h4>run the tests — Java, then JavaScript</h4>
+<pre><code>java -cp java/out &lt;Thing&gt;Test
+node js/&lt;thing&gt;.test.mjs</code></pre>
+  </div>
+  <p>A passing test run ends with <code class="exp">OK   N passed</code> and exit
+  code 0. A failure prints each bad assertion and exits 1.</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">04</span><h2>The test helper, in full</h2></div>
+  <p>This is the entire "framework." You are meant to read it once and never
+  think about it again.</p>
+
+  <div class="split">
+    <figure>
+      <figcaption>prerequisites/assert/Assert.java</figcaption>
+<pre><code><span class="k">public final class</span> Assert {
+  <span class="k">static int</span> passed, failed;
+
+  <span class="k">static void</span> that(<span class="k">boolean</span> c, String label) {
+    <span class="k">if</span> (c) passed++;
+    <span class="k">else</span> { failed++; System.out.println(<span class="y">"  FAIL  "</span> + label); }
+  }
+  <span class="k">static void</span> equals(Object a, Object e, String label) {
+    <span class="k">boolean</span> ok = a == <span class="k">null</span> ? e == <span class="k">null</span> : a.equals(e);
+    <span class="k">if</span> (ok) passed++;
+    <span class="k">else</span> {
+      failed++;
+      System.out.println(<span class="y">"  FAIL  "</span> + label);
+      System.out.println(<span class="y">"        expected: "</span> + e);
+      System.out.println(<span class="y">"        actual  : "</span> + a);
+    }
+  }
+  <span class="k">static void</span> summary() {
+    System.out.println(failed == <span class="y">0</span>
+      ? <span class="y">"OK   "</span> + passed + <span class="y">" passed"</span>
+      : <span class="y">"FAIL "</span> + failed + <span class="y">" failed, "</span> + passed + <span class="y">" passed"</span>);
+    <span class="k">if</span> (failed != <span class="y">0</span>) System.exit(<span class="y">1</span>);
+  }
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>prerequisites/assert/assert.mjs</figcaption>
+<pre><code><span class="k">let</span> passed = <span class="y">0</span>, failed = <span class="y">0</span>;
+
+<span class="k">export function</span> that(c, label) {
+  <span class="k">if</span> (c) { passed++; <span class="k">return</span>; }
+  failed++; console.log(<span class="y">"  FAIL  "</span> + label);
+}
+<span class="k">export function</span> equals(a, e, label) {
+  <span class="k">const</span> A = <span class="k">typeof</span> a === <span class="y">"string"</span> ? a : JSON.stringify(a);
+  <span class="k">const</span> E = <span class="k">typeof</span> e === <span class="y">"string"</span> ? e : JSON.stringify(e);
+  <span class="k">if</span> (A === E) { passed++; <span class="k">return</span>; }
+  failed++;
+  console.log(<span class="y">"  FAIL  "</span> + label);
+  console.log(<span class="y">"        expected: "</span> + E);
+  console.log(<span class="y">"        actual  : "</span> + A);
+}
+<span class="k">export function</span> summary() {
+  console.log(failed === <span class="y">0</span>
+    ? <span class="y">"OK   "</span> + passed + <span class="y">" passed"</span>
+    : <span class="y">"FAIL "</span> + failed + <span class="y">" failed, "</span> + passed + <span class="y">" passed"</span>);
+  <span class="k">if</span> (failed !== <span class="y">0</span>) process.exit(<span class="y">1</span>);
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">If <code>javac java/*.java</code> says "cannot find symbol Assert"</span>
+    <p>You compiled one file instead of all of them. Always compile the whole
+    directory: <code>javac -d java/out java/*.java</code>. The glob is the point.</p>
+  </div>
+</section>
+
+<nav class="pager">
+  <a href="the-cursor-pattern.html"><span class="dir">Back</span>← The Cursor Pattern</a>
+  <a href="../01-syntax-vs-semantics/tutorial.html"><span class="dir">Start the course</span>Module 1 · Syntax vs. Semantics →</a>
+</nav>
+
+</div>
+</body>
+</html>

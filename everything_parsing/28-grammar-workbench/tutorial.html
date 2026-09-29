@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 28 — Grammar Workbench | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B3B8F;--accent-wash:#E7E7F5;--accent-line:#C3C3E4}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 28 · Part III — Top-Down Parsing · <b>Capstone B</b></p>
+  <h1>The Grammar<em>Workbench</em></h1>
+  <p class="thesis">Hand it a language's grammar <b>exactly as the spec writes
+  it</b>, in EBNF, and it tells you whether a one-token-lookahead parser can
+  handle it. If not, it names the rule, the token, and the <b>chain of
+  derivations</b> that causes each conflict. Once the grammar is clean, it
+  builds the LL(1) table and <b>parses real Ajoda programs</b> using the tokens
+  Capstone A produced.</p>
+
+  <div class="headline">
+    <span class="lbl">One real conflict, found and fixed</span>
+    <p>Ajoda's grammar as specified: 24 EBNF rules → 82 BNF productions →
+    <span class="hi">1 conflict: Statement on IDENT</span>. Assignment and
+    expression statements both start with a name. Fold assignment into
+    <code>ExprStmt</code> and it's LL(1). <code>factorial.ajoda</code> then parses
+    in 176 expansions; a missing <code>;</code> is caught at <code>3:5</code>.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../08-bnf-ebnf-abnf/tutorial.html">EBNF notation (Module 8)</a></li>
+    <li><a href="../20-predictive-condition/tutorial.html">PREDICT sets and the LL(1) condition (Module 20)</a></li>
+    <li><a href="../23-left-recursion-elimination/tutorial.html">left-recursion removal (Module 23)</a></li>
+    <li><a href="../26-table-driven-parsing/tutorial.html">table-driven parsing (Module 26)</a></li>
+    <li><a href="../16-scanner-generator/tutorial.html">the scanner generator whose tokens we parse (Module 16)</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — a building inspector with the blueprints</h2></div>
+
+  <div class="picture">
+    <p>An architect hands over blueprints drawn in the office's usual shorthand:
+    "repeat this window along the wall," "optional balcony here." The inspector
+    can't sign off on shorthand, so the first job is to <b>expand it</b> into
+    every concrete piece, labelling each one with the page it came from.</p>
+    <p>Then the real check: at every doorway, can a visitor tell which room
+    they're entering by looking <b>one step ahead</b>? If two rooms share the
+    same doorway, the inspector doesn't just say "fails." They walk you through
+    it: <em>"this door leads to the assignment room, and this other corridor
+    winds through eleven hallways and ends at the same door."</em></p>
+    <p>Once the plan passes, the inspector hands you a <b>floor map</b>, and you
+    walk an actual visitor (a real program) through the building to prove
+    every step has exactly one way forward.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Inspector</th><th>Workbench</th></tr></thead>
+    <tbody>
+      <tr><td>shorthand on the blueprints</td><td>EBNF: <code>{ }</code>, <code>[ ]</code>, <code>( | )</code></td></tr>
+      <tr><td>expand it, label each piece with its page</td><td>desugar to BNF; helpers named <code>Rule_repN</code>, <code>Rule_optN</code></td></tr>
+      <tr><td>"can a visitor tell, one step ahead?"</td><td>are the PREDICT sets of each nonterminal disjoint?</td></tr>
+      <tr><td>"this corridor ends at the same door"</td><td>the derivation chain from a production to the shared token</td></tr>
+      <tr><td>floor map</td><td>the LL(1) table</td></tr>
+      <tr><td>walk a real visitor through</td><td>parse Module 16's token stream with the table</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Read the EBNF.</b> A rule starts at <code>Name ::=</code> and
+        runs until the next one, so alternatives can continue on the next line
+        with a leading <code>|</code>. <code>"quoted"</code> text is a literal
+        token; an <code>UPPER_CASE</code> name nobody defines is a token class
+        from the scanner; any other undefined name is an error.</li>
+      <li><b>Desugar.</b> Each bracket becomes a helper nonterminal named after
+        its rule:
+        <code>{ X }</code> → <code>R_repN → X R_repN | ε</code>,
+        <code>[ X ]</code> → <code>R_optN → X | ε</code>,
+        <code>( X | Y )</code> → <code>R_grpN → X | Y</code>. A group with one
+        branch is just inlined. Repetition is <em>right</em>-recursive on
+        purpose, so desugaring never creates left recursion.</li>
+      <li><b>Check for left recursion</b> (Module 23). If present, remove it
+        with Paull's algorithm and continue on the rewritten grammar.</li>
+      <li><b>Compute PREDICT</b> for every production (Modules 20–22). Group by
+        nonterminal and lookahead; any lookahead claimed by two productions is a
+        conflict.</li>
+      <li><b>Explain each conflict.</b> For each production involved, find a
+        chain of leftmost derivations that reaches the token, or report that
+        the production can vanish and the token is in FOLLOW.</li>
+      <li><b>If there are no conflicts,</b> build the table (Module 25) and run
+        the table-driven parser (Module 26) on token files written by Module 16.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Desugaring one line</h3>
+  <div class="diagram"><pre>  Term ::= Factor { ( "+" | "-" ) Factor }
+
+  Term       -> Factor Term_rep1
+  Term_rep1  -> Term_grp2 Factor Term_rep1 | epsilon      { ... }
+  Term_grp2  -> "+" | "-"                                   ( ... )</pre></div>
+
+  <h3>The conflict, traced</h3>
+  <div class="diagram"><pre>  Statement on IDENT:
+    [Statement -> AssignStmt]  via Statement -> AssignStmt -> IDENT
+    [Statement -> ExprStmt]    via Statement -> ExprStmt -> Expression -> LogicalOr
+                                   -> LogicalAnd -> Equality -> Comparison -> Term
+                                   -> Factor -> Unary -> Call -> Primary -> IDENT
+
+  x = 1;   and   x + 1;   look identical until the second token.</pre></div>
+
+  <h3>The repair</h3>
+  <div class="diagram"><pre>  before:  Statement  ::= LetStmt | AssignStmt | ... | ExprStmt
+           AssignStmt ::= IDENT "=" Expression ";"
+           ExprStmt   ::= Expression ";"
+
+  after:   Statement  ::= LetStmt | ... | ExprStmt
+           ExprStmt   ::= Expression [ "=" Expression ] ";"
+
+  The parser reads an expression first and decides it was an assignment target
+  when it sees "=". Checking that the left side is actually assignable becomes
+  semantic analysis's job.</pre></div>
+
+  <h3>The first steps of parsing <code>factorial.ajoda</code></h3>
+  <div class="diagram"><pre>  top of stack          lookahead   action
+  Program               "fn"        Program -> Program_rep1
+  Program_rep1          "fn"        Program_rep1 -> FunctionDecl Program_rep1
+  FunctionDecl          "fn"        FunctionDecl -> "fn" IDENT "(" FunctionDecl_opt1 ")" "->" Type Block
+  "fn"                  "fn"        match
+  IDENT                 IDENT       match
+  ...
+  ACCEPTED: 176 expansions, 41 matches, stack depth up to 16</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Lowering a bracket to a helper</h3>
+<pre><code><span class="k">const</span> name = fresh(owner, it.k);              <span class="c">// e.g. Term_rep1</span>
+addNt(name, owner);                             <span class="c">// origin: Term_rep1 came from Term</span>
+<span class="k">const</span> alts = it.body.seqs.map(s =&gt; lowerSeq(s, owner));
+<span class="k">if</span> (it.k === <span class="y">"rep"</span>) {
+  <span class="k">for</span> (<span class="k">const</span> a <span class="k">of</span> alts) bodies.get(name).push([...a, name]);   <span class="c">// X R_rep</span>
+  bodies.get(name).push([]);                                        <span class="c">// | epsilon</span>
+} <span class="k">else if</span> (it.k === <span class="y">"opt"</span>) {
+  <span class="k">for</span> (<span class="k">const</span> a <span class="k">of</span> alts) bodies.get(name).push(a);
+  bodies.get(name).push([]);
+} <span class="k">else</span> {
+  <span class="k">for</span> (<span class="k">const</span> a <span class="k">of</span> alts) bodies.get(name).push(a);
+}</code></pre>
+
+  <h3>Explaining a conflict</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Workbench.java</figcaption>
+<pre><code><span class="k">for</span> (String sym : seq) {
+  <span class="k">if</span> (sym.equals(t)) <span class="k">return</span> List.of(t);
+  <span class="k">if</span> (g.isNonterminal(sym) &amp;&amp; !seen.contains(sym)
+      &amp;&amp; pr.firstOf(sym).contains(t)) {
+    seen.add(sym);
+    <span class="k">for</span> (var q : g.productionsFor(sym)) {
+      <span class="k">if</span> (!pr.firstOfSeq(q.rhs()).contains(t)) <span class="k">continue</span>;
+      var rest = firstChain(g, pr, q.rhs(), t, seen);
+      <span class="k">if</span> (rest != <span class="k">null</span>) { rest.add(<span class="y">0</span>, sym); <span class="k">return</span> rest; }
+    }
+  }
+  <span class="k">if</span> (!pr.firstOf(sym).contains(EPS)) <span class="k">return null</span>;
+}
+<span class="k">return null</span>;</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/workbench.mjs</figcaption>
+<pre><code><span class="k">for</span> (<span class="k">const</span> sym <span class="k">of</span> seq) {
+  <span class="k">if</span> (sym === t) <span class="k">return</span> [t];
+  <span class="k">if</span> (g.isNonterminal(sym) &amp;&amp; !seen.has(sym)
+      &amp;&amp; pr.firstOf(sym).has(t)) {
+    seen.add(sym);
+    <span class="k">for</span> (<span class="k">const</span> q <span class="k">of</span> g.productionsFor(sym)) {
+      <span class="k">if</span> (!pr.firstOfSeq(q.rhs).has(t)) <span class="k">continue</span>;
+      <span class="k">const</span> rest = firstChain(g, pr, q.rhs, t, seen);
+      <span class="k">if</span> (rest !== <span class="k">null</span>) <span class="k">return</span> [sym, ...rest];
+    }
+  }
+  <span class="k">if</span> (!pr.firstOf(sym).has(EPS)) <span class="k">return null</span>;
+}
+<span class="k">return null</span>;</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Why walk past nullable symbols?</span>
+    <p>In <code>A → B C</code>, the token can come from <code>C</code> only
+    if <code>B</code> can vanish. The loop keeps going while the current symbol
+    is nullable and stops at the first one that isn't, which is exactly the
+    FIRST-of-a-sequence rule from Module 21, run backwards to recover a path
+    instead of a set.</p>
+  </div>
+
+  <div class="callout crazy">
+    <span class="ct">Crazy detail — the token file is the interface</span>
+    <p>This module never imports the scanner. It reads
+    <code>fixtures/*.tokens</code>, plain <code>line:col KIND lexeme</code>
+    lines that Module 16 wrote. Keywords and operators become quoted terminals
+    (<code>"fn"</code>, <code>"&lt;="</code>); <code>IDENT</code>,
+    <code>INT_LIT</code> and <code>FLOAT_LIT</code> stay as token classes. That
+    one mapping, <code>terminalOf</code>, is the entire contract between the
+    two capstones.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Fix a conflict automatically. Left factoring can't help here: the two productions start with <em>different</em> nonterminals.</li>
+        <li>Build a syntax tree. The parser accepts or rejects; trees come with syntax-directed translation (Part V).</li>
+        <li>Recover from a syntax error and continue (Module 27's technique, not wired in here).</li>
+        <li>Use more than one token of lookahead (Module 29).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Read a real language's grammar in EBNF, as written.</li>
+        <li>Desugar brackets into named, traceable helper rules.</li>
+        <li>Detect and remove left recursion.</li>
+        <li>Find every LL(1) conflict and explain it as a derivation chain.</li>
+        <li>Build the table and parse real programs, reporting errors at <code>line:col</code>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 28-grammar-workbench
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>grammar: fixtures/ajoda.ebnf
+  24 EBNF rules -&gt; 82 BNF productions | 24 rules + 21 helpers = 45 nonterminals | 37 terminals (3 token classes)
+  ...
+  <span class="exp">LL(1): NO, 1 conflict</span>
+    Statement on IDENT:
+      [Statement -&gt; AssignStmt]  via Statement -&gt; AssignStmt -&gt; IDENT
+      [Statement -&gt; ExprStmt]  via Statement -&gt; ExprStmt -&gt; Expression -&gt; ... -&gt; Primary -&gt; IDENT
+
+grammar: fixtures/ajoda-fixed.ebnf
+  ...
+  <span class="exp">LL(1): YES  table 45 x 38, 267 of 1710 cells used</span>
+
+parse fixtures/missing-semi.tokens (23 tokens from Module 16):
+  REJECTED at 3:5: in Call, expected one of "(" ")" "," "=" ";" ... but found "return"</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out WorkbenchTest    # OK 18 passed
+node js/workbench.test.mjs         # OK 18 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>'Foo' is not defined</code></b>: a rule name is misspelled, or
+    a token class isn't written in <code>UPPER_CASE</code>.<br>
+    <b>A rule swallows the next one</b>: every rule must start with
+    <code>Name ::=</code> on its own line position; continuation lines start
+    with <code>|</code>.<br>
+    <b>Every keyword is a parse error</b>: the token file uses different
+    spellings than the grammar's quoted literals. Regenerate it with Module 16.<br>
+    <b>The error names a helper you don't recognize</b>: check the
+    <code>helpers:</code> list; each one names the bracket it came from.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> The repaired grammar accepts <code>1 + 2 = 3;</code>. Is that
+  a bug in the parser? Where should it be rejected? <b>(2)</b> Ajoda's
+  <code>if</code> has an optional <code>else</code>, yet the workbench finds no
+  dangling-else conflict. Why not? What single change to the grammar would
+  create one?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Not a bug: the grammar now says "an expression, optionally
+    followed by <code>=</code> and another expression." Whether the left side
+    can be assigned to is a question about <em>meaning</em>, not shape, so
+    semantic analysis rejects it ("left side of = must be a variable"). Many
+    real languages parse assignment exactly this way.</p>
+    <p><b>(2)</b> Ajoda requires braces: the branch after <code>if (...)</code>
+    is a <code>Block</code>, so an <code>else</code> can only follow a closing
+    <code>}</code> that belongs to exactly one <code>if</code>. Nothing ends in
+    a bare <code>IfStmt</code> that another <code>else</code> could attach to.
+    Allow a single <code>Statement</code> as the branch
+    (<code>"if" "(" Expression ")" Statement [ "else" Statement ]</code>) and
+    <code>"else"</code> lands in both PREDICT sets of <code>IfStmt_opt1</code>:
+    the classic conflict.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why desugar <code>{ X }</code> to right recursion instead of left?</summary>
+    <p><code>R → X R | ε</code> is LL-friendly; <code>R → R X | ε</code> is
+    left-recursive and would force a Paull pass on every repetition. Both
+    describe the same strings. Associativity is decided later, when the tree is
+    built, not by which way the helper recurses.</p>
+  </details>
+
+  <details>
+    <summary>Why not let the tool fix the conflict itself?</summary>
+    <p>Because the right fix depends on what the language <em>means</em>.
+    Folding assignment into expressions is one choice; adding a second token of
+    lookahead is another; making <code>=</code> an expression operator is a
+    third. Each has consequences for semantic analysis. A tool that picks one
+    silently hides a design decision.</p>
+  </details>
+
+  <details>
+    <summary>45 nonterminals from 24 rules. Isn't that a lot of helpers?</summary>
+    <p>Every <code>{ }</code>, <code>[ ]</code> and multi-branch
+    <code>( )</code> costs one. Hand-written recursive descent hides them in
+    loops and <code>if</code>s; a table-driven parser needs them spelled out.
+    Naming them after their rule is what keeps the error messages readable.</p>
+  </details>
+
+  <details>
+    <summary>The missing-<code>;</code> error lists 18 expected tokens. Can it be friendlier?</summary>
+    <p>Yes. The list is honest: after <code>x + 1</code> any operator could
+    continue the expression. A friendlier message picks the likeliest fix
+    ("missing <code>;</code>?") by checking whether inserting one token would
+    let the parse continue. That's the error-repair idea from Module 27 and
+    Appendix X9.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p><b>Module 29 — LL(k), LL(*), and Backtracking RD</b> closes Part III by
+  asking what more than one token of lookahead buys you. Ajoda's original
+  conflict is a perfect test: two tokens (<code>IDENT "="</code>) would have
+  resolved it without changing the grammar. Then Part IV starts over from the
+  bottom-up direction: LR parsing, a strictly larger grammar class.</p>
+</section>
+
+<nav class="pager">
+  <a href="../27-ll1-error-recovery/tutorial.html"><span class="dir">Previous</span>← Module 27 · LL(1) Error Recovery</a>
+  <a href="../29-llk-adaptive/tutorial.html"><span class="dir">Next</span>Module 29 · LL(k), LL(*) &amp; Backtracking RD →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 28 · Capstone B: Grammar Workbench ·
+verified against OpenJDK 24 and Node v22.14.0. All output real, from
+<code>28-grammar-workbench/</code>. See <a href="DECISIONS.md">DECISIONS.md</a>
+and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 19 — Recursive-Descent Parsing | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#1D5B7A;--accent-wash:#E1EDF3;--accent-line:#B3D0DE}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 19 · Part III — Top-Down Parsing</p>
+  <h1>Recursive-Descent <em>Parsing</em></h1>
+  <p class="thesis">Turn a grammar into code the most direct way there is:
+  <b>one function per nonterminal</b>. The function for <code>E</code> calls the
+  functions for whatever is on <code>E</code>'s right-hand side. Run it on a
+  token stream and it walks a parse tree top-down, left-to-right — and the chain
+  of pending function calls <em>is</em> a leftmost derivation, the exact object
+  from Module 5.</p>
+
+  <div class="headline">
+    <span class="lbl">The payoff</span>
+    <p>The parser fires productions in this order:
+    <code>E→T E'</code>, <code>T→F T'</code>, <code>F→num</code>, … Feed that
+    list, unchanged, into a leftmost-derivation replayer and it produces
+    <span class="hi">E ⇒ T E' ⇒ F T' E' ⇒ num T' E' ⇒ …</span> ending exactly at
+    the input. Same list. The stack was the derivation all along.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../04-cfg-formal-definition/tutorial.html">CFGs: (N, Σ, P, S) and the derivation relation ⇒ (Module 4)</a></li>
+    <li><a href="../05-derivations-parse-trees/tutorial.html">leftmost derivations &amp; parse trees (Module 5)</a></li>
+    <li><a href="../06-ambiguity-disambiguation/tutorial.html">precedence/associativity by grammar shape (Module 6)</a></li>
+    <li><a href="../08-bnf-ebnf-abnf/tutorial.html">EBNF <code>{ }</code> = "zero or more" (Module 8)</a></li>
+    <li><a href="../prerequisites/the-cursor-pattern.html">the cursor: peek / at / expect</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the org chart that answers the phone</h2></div>
+
+  <div class="picture">
+    <p>A company has one department per <em>kind of thing it does</em>. A request
+    comes in the front door. Reception hands it to the <b>Expression</b>
+    department. Expression can't finish it alone — an expression is "a term,
+    then maybe some <code>+ term</code>s" — so it calls the <b>Term</b>
+    department for the first piece and keeps the phone line open. Term is "a
+    factor, then maybe some <code>* factor</code>s", so it calls <b>Factor</b>.
+    Factor looks at what's actually in front of it: a number? a name? an open
+    paren? If it's an open paren, Factor calls <b>Expression</b> right back —
+    recursion — and waits for the matching close paren.</p>
+    <p>Every department is a function. Each one consumes the tokens it's
+    responsible for and returns its piece of the tree. The <b>stack of open
+    phone calls</b> at any instant — Expression waiting on Term waiting on
+    Factor waiting on Expression — spells out exactly which part of the grammar
+    you're inside. That stack, snapshotted step by step, is the leftmost
+    derivation.</p>
+    <p>There's one rule the org chart can't survive: a department that calls
+    <em>itself</em> as its very first action, before doing any work. "Expression
+    is an expression, plus a term" — Expression phones Expression, which phones
+    Expression, forever. That's <b>left recursion</b>, and §05 is about why it's
+    fatal here and what to do instead.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Org chart</th><th>Parser</th></tr></thead>
+    <tbody>
+      <tr><td>one department per kind of work</td><td>one function per nonterminal (<code>parseE</code>, <code>parseT</code>, <code>parseF</code>)</td></tr>
+      <tr><td>a department calls the ones it depends on</td><td>the function body calls the functions for its RHS symbols</td></tr>
+      <tr><td>Factor checks what's in front of it</td><td><code>at("(")</code> / <code>at("num")</code> / <code>at("id")</code> picks the alternative</td></tr>
+      <tr><td>open paren → call Expression again</td><td><code>F -> ( E )</code> — direct recursion, the "context-free" in CFG</td></tr>
+      <tr><td>the stack of open calls</td><td>the leftmost derivation, one sentential form per frame</td></tr>
+      <tr><td>a department that phones itself first, forever</td><td>left recursion — infinite recursion, zero progress (§05)</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <p>The grammar (already free of left recursion — Module 23 produces this
+    shape mechanically):</p>
+    <pre><code>E  -> T E'
+E' -> + T E'  |  epsilon
+T  -> F T'
+T' -> * F T'  |  epsilon
+F  -> ( E )   |  num  |  id</code></pre>
+    <ol>
+      <li><b>Lex</b> the source into a position-tagged token stream ending in
+        <code>EOF</code>.</li>
+      <li>Call <code>parseE()</code>. It logs <code>E -> T E'</code>, then calls
+        <code>parseT()</code>, then <code>parseEprime()</code>.</li>
+      <li><code>parseT()</code> logs <code>T -> F T'</code>, calls
+        <code>parseF()</code> then <code>parseTprime()</code>.</li>
+      <li><code>parseF()</code> looks at the current token: <code>(</code> →
+        <code>F -> ( E )</code> (and recurse into <code>parseE</code>);
+        <code>num</code> → <code>F -> num</code>; <code>id</code> →
+        <code>F -> id</code>; anything else → <b>syntax error</b> at the token's
+        position.</li>
+      <li><code>parseEprime()</code> / <code>parseTprime()</code>: if the next
+        token is <code>+</code> / <code>*</code>, take the recursive
+        alternative; otherwise take <code>epsilon</code> and return.</li>
+      <li><code>expect(kind)</code> consumes a terminal or throws. Every method
+        appends its production to <code>rules</code> <em>before</em> recursing,
+        so <code>rules</code> comes out in leftmost order.</li>
+      <li>Back at the top, <code>expect("EOF")</code> — a complete expression
+        must consume every token (this is what rejects <code>1 2</code>).</li>
+      <li><code>Derivation.replay(rules)</code> starts at <code>[E]</code>,
+        applies each production to the leftmost nonterminal, and must land on
+        the token-kind string. If any production doesn't expand the leftmost
+        nonterminal, it throws — the parse wasn't leftmost.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>Call stack ↔ leftmost derivation, for <code>1 + 2 * 3</code></h3>
+  <div class="diagram"><pre>  call made            production logged     sentential form after it
+  ─────────────────    ──────────────────    ───────────────────────────
+  parseE               E -> T E'             T E'
+   parseT              T -> F T'             F T' E'
+    parseF  (sees num) F -> num              num T' E'
+    parseT'  (sees +)  T' -> epsilon         num E'
+   parseE'  (sees +)   E' -> + T E'          num + T E'
+    parseT             T -> F T'             num + F T' E'
+     parseF (sees num) F -> num              num + num T' E'
+     parseT' (sees *)  T' -> * F T'          num + num * F T' E'
+      parseF (sees num)F -> num              num + num * num T' E'
+      parseT'(sees EOF)T' -> epsilon         num + num * num E'
+   parseE' (sees EOF)  E' -> epsilon         num + num * num      ← = token kinds
+
+  the right column, read top to bottom, is the leftmost derivation.</pre></div>
+
+  <h3>The concrete tree — <code>*</code> is deeper than <code>+</code></h3>
+  <div class="diagram"><pre>  E
+  +- T                         "1"  lives under the FIRST T
+  |  +- F
+  |  |  +- num (1)
+  |  +- T'
+  |     +- epsilon
+  +- E'
+     +- +
+     +- T                      "2 * 3" is one T, built by  T' -> * F T'
+     |  +- F
+     |  |  +- num (2)
+     |  +- T'
+     |     +- *
+     |     +- F
+     |     |  +- num (3)
+     |     +- T'
+     |        +- epsilon
+     +- E'
+        +- epsilon</pre></div>
+  <p>Because <code>*</code> can only be introduced by <code>T'</code>, and
+  <code>T'</code> is reached only <em>through</em> <code>T</code> which is
+  <em>below</em> <code>E'</code>, every <code>*</code> ends up deeper in the tree
+  than every <code>+</code>. Precedence is structural — exactly the Module 6
+  idea, now enforced by the shape of the recursion.</p>
+
+  <h3>Right lean — <code>a + b + c</code></h3>
+  <div class="diagram"><pre>  E' -> + T E'  is RIGHT-recursive, so:
+
+     +(a, +(b, c))          not   +(+(a, b), c)
+
+  the concrete tree nests the second '+' INSIDE the first one's E'.
+  fine for a language where + is associative; wrong if you need left folding
+  for evaluation order or error messages. Fixes: build the AST with a left
+  fold (Module 39), or write E' as a loop (§04).</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>One method per nonterminal</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/RecursiveDescent.java</figcaption>
+<pre><code><span class="c">// E -> T E'</span>
+Node parseE() {
+  rules.add(<span class="y">"E -&gt; T E'"</span>);          <span class="c">// log BEFORE recursing → leftmost order</span>
+  Node n = <span class="k">new</span> Node(<span class="y">"E"</span>);
+  n.add(parseT());
+  n.add(parseEprime());
+  <span class="k">return</span> n;
+}
+
+<span class="c">// E' -> + T E'  |  epsilon</span>
+Node parseEprime() {
+  Node n = <span class="k">new</span> Node(<span class="y">"E'"</span>);
+  <span class="k">if</span> (at(<span class="y">"+"</span>)) {                    <span class="c">// lookahead decides the alternative</span>
+    rules.add(<span class="y">"E' -&gt; + T E'"</span>);
+    n.add(term(expect(<span class="y">"+"</span>)));
+    n.add(parseT());
+    n.add(parseEprime());            <span class="c">// right recursion</span>
+  } <span class="k">else</span> {
+    rules.add(<span class="y">"E' -&gt; epsilon"</span>);
+    n.add(<span class="k">new</span> Node(<span class="y">"epsilon"</span>));
+  }
+  <span class="k">return</span> n;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/recursivedescent.mjs</figcaption>
+<pre><code><span class="c">// E -> T E'</span>
+<span class="k">function</span> parseE() {
+  rules.push(<span class="y">"E -&gt; T E'"</span>);
+  <span class="k">const</span> n = node(<span class="y">"E"</span>);
+  n.kids.push(parseT());
+  n.kids.push(parseEprime());
+  <span class="k">return</span> n;
+}
+
+<span class="c">// E' -> + T E'  |  epsilon</span>
+<span class="k">function</span> parseEprime() {
+  <span class="k">const</span> n = node(<span class="y">"E'"</span>);
+  <span class="k">if</span> (at(<span class="y">"+"</span>)) {
+    rules.push(<span class="y">"E' -&gt; + T E'"</span>);
+    n.kids.push(term(expect(<span class="y">"+"</span>)));
+    n.kids.push(parseT());
+    n.kids.push(parseEprime());
+  } <span class="k">else</span> {
+    rules.push(<span class="y">"E' -&gt; epsilon"</span>);
+    n.kids.push(node(<span class="y">"epsilon"</span>));
+  }
+  <span class="k">return</span> n;
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>The one helper that reports errors</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/RecursiveDescent.java</figcaption>
+<pre><code>Lexer.Token expect(String kind) {
+  <span class="k">if</span> (!at(kind)) {
+    Lexer.Token t = peek();
+    <span class="k">throw new</span> SyntaxError(
+      <span class="y">"expected "</span> + kind + <span class="y">" but saw "</span> + describe(t), t.pos());
+  }
+  <span class="k">return</span> toks.get(p++);
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/recursivedescent.mjs</figcaption>
+<pre><code><span class="k">function</span> expect(kind) {
+  <span class="k">if</span> (!at(kind)) {
+    <span class="k">const</span> t = peek();
+    <span class="k">throw new</span> SyntaxError_(
+      <span class="y">`expected ${kind} but saw ${describe(t)}`</span>, t.pos);
+  }
+  <span class="k">return</span> toks[p++];
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">The loop form of <code>E'</code> — what hand-written parsers actually do</span>
+<pre><code>Node e = parseT();
+<span class="k">while</span> (at(<span class="y">"+"</span>)) { expect(<span class="y">"+"</span>); e = plus(e, parseT()); }   <span class="c">// LEFT-leaning</span>
+<span class="k">return</span> e;</code></pre>
+    <p>This is precisely EBNF's <code>E -> T { + T }</code> from Module 8.
+    <code>{ … }</code> means "loop", and a loop and a right-recursive
+    <code>epsilon</code> rule accept the identical language. The loop version
+    folds left as it goes, so it gets associativity <em>right</em> for free —
+    which is why real recursive-descent parsers are written this way and the
+    pure-grammar <code>E'</code> form is mostly a teaching device that lines up
+    1:1 with the productions.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+
+  <div class="callout crazy">
+    <span class="ct">Left recursion is fatal — not a bug, a theorem</span>
+    <p>Try to parse Module 6's <code>E -> E + T</code> directly:
+    <code>parseE()</code>'s first statement is <code>parseE()</code>, with the
+    cursor <em>unmoved</em>. No token is consumed between the calls, so the
+    recursion never bottoms out: <code>StackOverflowError</code>, zero progress.
+    <b>Every</b> top-down parser has this limitation — the input is consumed
+    left to right and a left-recursive rule asks you to recognise the big thing
+    before its first token. Module 23 gives the mechanical fix (Paull's
+    algorithm); Module 29 covers what bounded backtracking and ANTLR-style
+    adaptive prediction buy you.</p>
+  </div>
+
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Left-recursive grammars (Module 23 transforms them away).</li>
+        <li>Alternatives whose first tokens overlap — needs <b>left factoring</b> (Module 24).</li>
+        <li>Decide "is this grammar even parsable this way?" without eyeballing — needs FIRST/FOLLOW (Modules 21–22) and the LL(1) table (Module 25).</li>
+        <li>Recover from an error and keep parsing — Module 27 (panic mode with FOLLOW sync sets).</li>
+        <li>Left-associative trees directly (loop form or AST lowering, Module 39).</li>
+        <li>More than one token of lookahead — Module 29 (LL(k), LL(*)).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Parse any non-left-recursive grammar with disjoint per-alternative FIRST sets, by hand, in either language.</li>
+        <li>Build the full concrete syntax tree.</li>
+        <li>Emit the leftmost derivation as an ordered production list — and prove it's leftmost.</li>
+        <li>Enforce precedence and associativity through grammar shape.</li>
+        <li>Report the first syntax error with an exact source position.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript</h4>
+<pre><code>cd 19-recursive-descent
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt, real output)</h4>
+<pre><code>--- 1 + 2 * 3 ---
+  tokens:  num(1) + num(2) * num(3) EOF
+  productions fired, in order (top of the list = first call):
+      E -&gt; T E'
+      T -&gt; F T'
+      F -&gt; num
+      T' -&gt; epsilon
+      E' -&gt; + T E'
+      ...
+  same list, replayed as a leftmost derivation:
+      E
+      =&gt;  T E'                     (E -&gt; T E')
+      =&gt;  F T' E'                  (T -&gt; F T')
+      =&gt;  num T' E'                (F -&gt; num)
+      ...
+      =&gt;  num + num * num          (E' -&gt; epsilon)
+  derived sentence: num + num * num
+  token kinds     : num + num * num
+  match? true
+
+--- 1 + ---
+  SYNTAX ERROR at position 3: expected '(', num, or id to start a factor but saw end of input
+--- (1 + 2 ---
+  SYNTAX ERROR at position 6: expected ) but saw end of input
+--- 1 2 ---
+  SYNTAX ERROR at position 2: expected EOF but saw '2'</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out RecursiveDescentTest    # OK 21 passed
+node js/recursivedescent.test.mjs          # OK 21 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>StackOverflowError</code> / <code>RangeError</code></b> — a
+    left-recursive rule. Recursive descent needs the non-left-recursive form
+    (Module 23).<br>
+    <b><code>replay</code> throws "not leftmost"</b> — a method recursed before
+    logging its production. Log first, then recurse.<br>
+    <b><code>1 2</code> parses without error</b> — you forgot
+    <code>expect("EOF")</code> after <code>parseE()</code>.<br>
+    <b>Error position is always 0</b> — read <code>peek().pos</code> at the
+    moment <code>expect</code> fails, not the start token.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> Add unary minus: <code>F -> - F | ( E ) | num | id</code>. Does
+  recursive descent handle this new rule? Is it left-recursive? <b>(2)</b> Now
+  add exponentiation <code>^</code>, which is <em>right</em>-associative and
+  binds tighter than <code>*</code>. Write the two productions
+  (<code>P</code> = "power") and say where they slot in.</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Yes — <code>F -> - F</code> is <em>right</em>-recursive: the
+    <code>-</code> token is consumed <em>before</em> the recursive
+    <code>parseF()</code> call, so the cursor advances and the recursion
+    terminates. <code>--x</code> parses as <code>-(-(x))</code>. Only
+    <em>left</em> recursion (recursing with the cursor unmoved) breaks.</p>
+    <p><b>(2)</b> <code>F -> P T2'</code>-style isn't needed; insert a level
+    between <code>T'</code>'s factor and <code>F</code>:
+    <code>T' -> * P T' | epsilon</code>, <code>P -> F P'</code>,
+    <code>P' -> ^ P | epsilon</code>. The recursive alternative
+    <code>^ P</code> (not <code>^ F P'</code>) recurses on the whole power, so
+    <code>2 ^ 3 ^ 2</code> nests right = <code>2 ^ (3 ^ 2)</code>. Right
+    associativity falls straight out of recursing on the higher-level
+    nonterminal instead of threading a prime.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Is the "call stack is the leftmost derivation" thing exact, or just a metaphor?</summary>
+    <p>Exact. Each nonterminal method, when it commits to a production, is
+    performing one leftmost derivation step — it expands the leftmost
+    not-yet-expanded nonterminal (itself) and then recurses left-to-right into
+    the result. Snapshot the "sentence so far + pending symbols" at each commit
+    and you get precisely the sentential forms of the leftmost derivation. The
+    module's <code>Derivation.replay</code> reconstructs them from the
+    production list and the test suite checks the endpoint.</p>
+  </details>
+
+  <details>
+    <summary>Why <code>E'</code> and <code>T'</code> instead of just writing loops?</summary>
+    <p>The primed-nonterminal form maps 1:1 onto grammar productions, which is
+    what makes the derivation correspondence legible. Production parsers use the
+    loop form (<code>E -> T { + T }</code>) because it's shorter and folds left.
+    They accept the same language — Module 8's EBNF↔BNF equivalence.</p>
+  </details>
+
+  <details>
+    <summary>What decides which alternative <code>parseF</code> takes?</summary>
+    <p>The single current token. <code>(</code> → <code>( E )</code>,
+    <code>num</code> → <code>num</code>, <code>id</code> → <code>id</code>. This
+    works because those three sets don't overlap — the <b>predictive parsing
+    condition</b>, made formal in Module 20. When the sets <em>do</em> overlap
+    you either left-factor (Module 24) or you're not LL(1) (Module 25).</p>
+  </details>
+
+  <details>
+    <summary>The parser stops at the first error. Real compilers report many.</summary>
+    <p>Right — this one throws and unwinds. Module 27 adds panic-mode recovery:
+    on an error, discard tokens until one in a <em>synchronizing set</em>
+    (computed from FOLLOW), then resume. Same idea as the lexer's recovery in
+    Module 17, one layer up.</p>
+  </details>
+
+  <details>
+    <summary>Is recursive descent used in real compilers, or is it a toy?</summary>
+    <p>Very real. GCC, Clang, the V8 and SpiderMonkey JS engines, the Go
+    compiler, and rustc all use hand-written recursive-descent parsers — for
+    speed, for error-message control, and for handling the parts of real
+    languages that aren't cleanly context-free. The table-driven methods in
+    Modules 25–36 are what parser <em>generators</em> emit.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>We chose alternatives by eyeballing the grammar — "<code>E'</code> takes
+  <code>+ T E'</code> iff the next token is <code>+</code>." <b>Module 20 — The
+  Predictive Parsing Condition</b> makes that precise: backtrack-free recursive
+  descent is possible <em>exactly when</em> the alternatives of every rule have
+  pairwise-disjoint FIRST sets (with a FOLLOW-set side condition for nullable
+  rules). Then Modules 21–22 compute FIRST and FOLLOW as fixed points, and
+  Modules 23–24 mechanically reshape grammars that don't yet fit.</p>
+</section>
+
+<nav class="pager">
+  <a href="../18-practical-lexemes/tutorial.html"><span class="dir">Previous</span>← Module 18 · Practical Lexemes</a>
+  <a href="../20-predictive-condition/tutorial.html"><span class="dir">Next</span>Module 20 · The Predictive Parsing Condition →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 19 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>19-recursive-descent/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

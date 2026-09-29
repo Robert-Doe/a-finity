@@ -1,0 +1,9 @@
+# The dangling else. X -> else S | epsilon.
+#   FIRST(else S) = {else}
+#   FOLLOW(X)     = {else, $}   (because S X sits inside  S -> if b then S X)
+# The token 'else' is in BOTH predict sets -> a nullable/FOLLOW conflict.
+# Not LL(1) as written; real parsers resolve it by always taking  X -> else S
+# (else binds to the nearest if).
+%start S
+S -> if b then S X | other
+X -> else S | epsilon

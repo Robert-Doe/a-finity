@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sets, Relations &amp; Fixed Points — Prerequisites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B5BA5;--accent-wash:#E9EDF7}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Prerequisites · P7</p>
+  <h1>Sets, Relations &amp;<em>Fixed Points</em></h1>
+  <p class="thesis">FIRST sets, FOLLOW sets, nullable, ε-closure, the LR item
+  sets — half the algorithms in this course have the same shape: <b>start
+  small, keep adding what the rules force, stop when nothing changes.</b> That
+  shape is a least fixed point.</p>
+</header>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">01</span><h2>Sets, quickly</h2></div>
+  <div class="mechanism">
+    <ul>
+      <li><b>Set</b> — an unordered collection with no duplicates.
+        <code>{a, b} = {b, a, b}</code>.</li>
+      <li><code>x ∈ S</code> — membership. <code>S ⊆ T</code> — every element of
+        <code>S</code> is in <code>T</code>.</li>
+      <li><code>∅</code> — the empty set. <code>|S|</code> — its size.</li>
+      <li><b>Union</b> <code>S ∪ T</code>, <b>intersection</b> <code>S ∩ T</code>,
+        <b>difference</b> <code>S \ T</code>.</li>
+      <li><b>Power set</b> <code>𝒫(S)</code> — the set of all subsets of
+        <code>S</code>. If <code>|S| = n</code> then <code>|𝒫(S)| = 2ⁿ</code> —
+        the reason the subset construction (Module 13) can blow up.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">02</span><h2>Relations and closures</h2></div>
+  <p>A <b>relation</b> <code>R</code> on a set is a set of pairs. "<code>a</code>
+  can reach <code>b</code> in one step." The <b>transitive closure</b>
+  <code>R⁺</code> adds every pair reachable in one <em>or more</em> steps; the
+  <b>reflexive-transitive closure</b> <code>R*</code> also adds
+  <code>(a, a)</code> for every <code>a</code> (zero steps).</p>
+  <p><code>⇒</code> is a relation on sentential forms; <code>⇒*</code> is its
+  reflexive-transitive closure. <b>ε-closure</b> of an NFA state is the
+  reflexive-transitive closure of "reachable by an ε-transition."</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">03</span><h2>Least fixed points — the iteration pattern</h2></div>
+  <div class="mechanism">
+    <p>Given a monotone function <code>F</code> on sets (adding to the input
+    never removes from the output), the <b>least fixed point</b> is the smallest
+    <code>X</code> with <code>F(X) = X</code>. You compute it by iterating:</p>
+<pre><code>X = ∅
+<span class="k">repeat</span>
+    X' = F(X)
+    <span class="k">if</span> X' == X: <span class="k">return</span> X      <span class="c">// nothing changed — fixed point reached</span>
+    X = X'</code></pre>
+    <p>It terminates whenever the universe is finite (each pass adds at least
+    one element, or stops). Every FIRST/FOLLOW/nullable computation in Part III
+    is this loop with a specific <code>F</code>.</p>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Why "least"</span>
+    <p><code>X = everything</code> is often also a fixed point, but it's wrong —
+    it claims more than the rules force. Starting from <code>∅</code> and only
+    adding what a rule <em>requires</em> gives the least one, which is the
+    answer you want: "exactly the tokens that really can appear here," not "all
+    tokens, to be safe."</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">04</span><h2>Pigeonhole</h2></div>
+  <p><code>n + 1</code> items in <code>n</code> boxes ⇒ some box has ≥ 2. Used in
+  Module 7: a run of <code>p</code> symbols through a <code>p</code>-state
+  automaton revisits a state, creating a pumpable loop.</p>
+</section>
+
+<nav class="pager">
+  <a href="automata-basics.html"><span class="dir">Back</span>← Automata Basics</a>
+  <a href="index.html"><span class="dir">Up</span>All prerequisites →</a>
+</nav>
+
+</div>
+</body>
+</html>

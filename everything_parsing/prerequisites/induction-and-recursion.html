@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Induction &amp; Recursion — Prerequisites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#3B5BA5;--accent-wash:#E9EDF7}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Prerequisites · P9</p>
+  <h1>Induction &amp; <em>Recursion</em></h1>
+  <p class="thesis">A recursive function and an inductive proof are the same
+  shape: handle the base case, then handle a step assuming the smaller cases
+  already work. Half this course is one or the other.</p>
+</header>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">01</span><h2>Structural recursion</h2></div>
+  <div class="mechanism">
+    <p>A function is <b>structurally recursive</b> over a tree if every recursive
+    call is on a <em>strictly smaller</em> subtree. Then it always terminates —
+    the tree is finite, so the calls bottom out at leaves.</p>
+<pre><code>Result walk(Node n) {
+  <span class="k">if</span> (n is a leaf) <span class="k">return</span> base(n);           <span class="c">// base case</span>
+  <span class="k">return</span> combine(n, walk(n.left), walk(n.right)); <span class="c">// step: children first</span>
+}</code></pre>
+    <p>Module 3's regex evaluator, Module 5's tree walk, Module 12's Thompson
+    construction — all this shape.</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">02</span><h2>Structural induction</h2></div>
+  <div class="mechanism">
+    <p>To prove a property <code>P</code> holds for every tree:</p>
+    <ol>
+      <li><b>Base case:</b> prove <code>P(leaf)</code> for each kind of leaf.</li>
+      <li><b>Inductive step:</b> for each internal node kind, prove
+        <code>P(node)</code> <em>assuming</em> <code>P</code> already holds for
+        each child (the "inductive hypothesis").</li>
+    </ol>
+    <p>Since every tree is built from leaves by finitely many node applications,
+    the two cases together cover all trees.</p>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Example — the Thompson bound (Module 12)</span>
+    <p><b>P(r):</b> "the NFA for a regex <code>r</code> with <code>k</code> nodes
+    has ≤ <code>2k</code> states."<br>
+    <b>Base:</b> a Char has 1 node, 2 states. <code>2 ≤ 2·1</code>. ✓<br>
+    <b>Step (Concat):</b> <code>l</code> has <code>a</code> nodes (≤ 2a states by
+    hypothesis), <code>r</code> has <code>b</code> (≤ 2b). Concat adds 1 node, 0
+    states. New: <code>1+a+b</code> nodes, <code>≤ 2a+2b</code> states, and
+    <code>2a+2b ≤ 2(1+a+b)</code>. ✓<br>
+    <b>Step (Star):</b> 1 new node, 2 new states: <code>≤ 2a + 2 = 2(a+1)</code>. ✓</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">03</span><h2>Induction on a number / a string length</h2></div>
+  <p>Same idea, "smaller" = "fewer": prove <code>P(0)</code>, then
+  <code>P(n)</code> assuming <code>P(n-1)</code>. Or, for strings, induct on the
+  length. The pumping-lemma arguments (Module 7) and the fixed-point
+  computations (FIRST/FOLLOW, Module 17) both rely on this.</p>
+</section>
+
+<section class="sec">
+  <div class="sechead"><span class="secnum">04</span><h2>The one thing that goes wrong</h2></div>
+  <div class="callout watch">
+    <span class="ct">Non-well-founded recursion</span>
+    <p>If a recursive call is <em>not</em> on something strictly smaller, the
+    function may not terminate and the induction is invalid. A grammar rule
+    <code>A → A b</code> (left recursion) turns a "structural" descent into an
+    infinite one — that's why Module 16 exists. A PEG rule that can match the
+    empty string inside a <code>*</code> loops similarly — hence the
+    "consumed ≥ 1" guards you'll see.</p>
+  </div>
+</section>
+
+<nav class="pager">
+  <a href="index.html"><span class="dir">Back</span>← All prerequisites</a>
+  <a href="trees.html"><span class="dir">Related</span>Trees →</a>
+</nav>
+
+</div>
+</body>
+</html>

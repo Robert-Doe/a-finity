@@ -1,0 +1,31 @@
+=== Module 04 - Context-Free Grammars ===
+
+grammar: fixtures/anbn.grammar
+  nonterminals: S
+  terminals   : a b
+  start       : S
+  productions :
+    (0) S -> a S b
+    (1) S -> epsilon
+
+leftmost derivation of a a b b  [choices: 0 0 1]
+    S
+=>  a S b           (0) S -> a S b
+=>  a a S b b       (0) S -> a S b
+=>  a a b b         (1) S -> epsilon
+    4 sentential forms, 3 steps
+
+language up to length 6:
+    len 0: epsilon
+    len 2: a b
+    len 4: a a b b
+    len 6: a a a b b b
+    4 strings of length <= 6 -- raise the bound and the list always grows (the grammar is infinite)
+
+membership (bounded derivation search):
+    a a b b       DERIVABLE      (S =>* a a b b in 3 steps)
+    a a b         NOT DERIVABLE  (searched every sentential form with <= 3 terminal symbols)
+    b a           NOT DERIVABLE  (searched every sentential form with <= 2 terminal symbols)
+    ""            DERIVABLE      (S =>* "" in 1 step)
+
+summary: productions=2  language=infinite  testsDerivable=2/4

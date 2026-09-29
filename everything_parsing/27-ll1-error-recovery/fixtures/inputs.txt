@@ -1,0 +1,8 @@
+# Token streams with deliberate errors. Recovery should report each and keep going.
+id + id * id
+id + * id
+id id + id
+( id + )
++ id
+id * * num + id
+( id + id

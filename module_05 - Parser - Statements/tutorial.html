@@ -1,0 +1,718 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 05 — Parser: Statements | Bob's Compiler Course</title>
+<style>
+  :root {
+    --bg:        #0b0f1a;
+    --bg2:       #131929;
+    --bg3:       #1c2540;
+    --gold:      #f5c842;
+    --cyan:      #38bdf8;
+    --green:     #4ade80;
+    --red:       #f87171;
+    --purple:    #c084fc;
+    --orange:    #fb923c;
+    --text:      #e2e8f0;
+    --muted:     #94a3b8;
+    --border:    #2d3a55;
+    --radius:    10px;
+    --code-bg:   #0d1117;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.75;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 6rem;
+  }
+
+  /* ---- Navigation ---- */
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .75rem 1.25rem;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 2.5rem;
+    font-size: .95rem;
+  }
+  nav a { color: var(--cyan); text-decoration: none; font-weight: 600; }
+  nav a:hover { text-decoration: underline; }
+  nav span { color: var(--muted); }
+
+  /* ---- Module badge ---- */
+  .badge {
+    display: inline-block;
+    background: var(--gold);
+    color: #0b0f1a;
+    font-weight: 800;
+    font-size: .8rem;
+    letter-spacing: .12em;
+    padding: .3rem .8rem;
+    border-radius: 99px;
+    margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-size: 2.6rem;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--gold);
+    margin-bottom: .5rem;
+  }
+  .subtitle {
+    font-size: 1.15rem;
+    color: var(--muted);
+    margin-bottom: 3rem;
+  }
+
+  h2 {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: var(--cyan);
+    margin: 3rem 0 1rem;
+    padding-bottom: .4rem;
+    border-bottom: 2px solid var(--border);
+  }
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--gold);
+    margin: 2rem 0 .6rem;
+  }
+  h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--purple);
+    margin: 1.5rem 0 .4rem;
+  }
+
+  p { margin-bottom: 1rem; }
+
+  a { color: var(--cyan); }
+
+  /* ---- Code ---- */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    overflow-x: auto;
+    font-size: .88rem;
+    line-height: 1.6;
+    margin: 1.25rem 0;
+  }
+  code {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    color: var(--green);
+  }
+  pre code { color: var(--text); }
+
+  /* Inline code */
+  p code, li code, td code {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: .1em .4em;
+    font-size: .87em;
+    color: var(--cyan);
+  }
+
+  /* ---- Callout boxes ---- */
+  .box {
+    border-left: 4px solid var(--gold);
+    background: var(--bg2);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 1.1rem 1.4rem;
+    margin: 1.5rem 0;
+  }
+  .box.info  { border-color: var(--cyan); }
+  .box.warn  { border-color: var(--orange); }
+  .box.good  { border-color: var(--green); }
+  .box.brain { border-color: var(--purple); }
+
+  .box-title {
+    font-weight: 700;
+    font-size: .85rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: .5rem;
+  }
+  .box.info  .box-title { color: var(--cyan); }
+  .box.warn  .box-title { color: var(--orange); }
+  .box.good  .box-title { color: var(--green); }
+  .box       .box-title { color: var(--gold); }
+  .box.brain .box-title { color: var(--purple); }
+
+  /* ---- Tables ---- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.25rem 0;
+    font-size: .92rem;
+  }
+  th {
+    background: var(--bg3);
+    color: var(--gold);
+    text-align: left;
+    padding: .6rem 1rem;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: .55rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:hover td { background: var(--bg2); }
+
+  /* ---- Q&A ---- */
+  details {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin: .75rem 0;
+  }
+  summary {
+    padding: .9rem 1.2rem;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--cyan);
+    list-style: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▶  "; font-size: .75rem; }
+  details[open] summary::before { content: "▼  "; }
+  details .answer {
+    padding: .1rem 1.2rem 1rem;
+    color: var(--text);
+    border-top: 1px solid var(--border);
+  }
+
+  /* ---- Tree diagram ---- */
+  .tree {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: .85rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin: 1.25rem 0;
+    white-space: pre;
+  }
+  .kw  { color: var(--purple); }
+  .num { color: var(--orange); }
+  .id  { color: var(--cyan); }
+  .op  { color: var(--gold); }
+  .nd  { color: var(--green); }
+
+  ul, ol { padding-left: 1.6rem; margin-bottom: 1rem; }
+  li { margin-bottom: .3rem; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="../module_04%20-%20Parser%20-%20Expressions/tutorial.html">← Module 04</a>
+  <span>MODULE 05 / 16</span>
+  <a href="../module_06%20-%20Parser%20-%20Functions/tutorial.html">Module 06 →</a>
+</nav>
+
+<div class="badge">MODULE 05 / 16</div>
+<h1>Parser — Statements</h1>
+<p class="subtitle">
+  Turning a flat stream of tokens into a tree of meaning:<br>
+  if, while, return, blocks, declarations, and full programs.
+</p>
+
+<!-- ================================================================== -->
+<h2>1. Before You Start</h2>
+
+<p>In <strong>Module 04</strong> you built a parser that handles <em>expressions</em>:
+things like <code>a + b * 2</code> or <code>foo(x, y)</code>.
+Expressions are the building blocks, but a real C program is made of
+<em>statements</em> — instructions that do something: declare a variable,
+loop while a condition holds, return from a function.</p>
+
+<p>By the end of this module your parser will turn this source code:</p>
+
+<pre><code>int add(int a, int b) {
+    return a + b;
+}
+
+int main(void) {
+    int x;
+    int y;
+    x = 10;
+    y = 0;
+    while (x &gt; 0) {
+        y = y + x;
+        x = x - 1;
+    }
+    if (y &gt; 40) {
+        return y;
+    } else {
+        return 0;
+    }
+}</code></pre>
+
+<p>…into a structured tree that every later compiler pass can walk
+programmatically — no more scanning characters, no more guessing.</p>
+
+<div class="box info">
+  <div class="box-title">What you need</div>
+  Completion of Modules 01–04.  You should already understand
+  what an AST node is, how <code>node_new</code> / <code>node_print</code>
+  / <code>node_free</code> work, and how the lexer produces tokens.
+</div>
+
+<!-- ================================================================== -->
+<h2>2. The Big Analogy — The Story Analyst</h2>
+
+<p>Imagine a film crew.  The lexer was the
+<strong>Script Reader</strong> who stamped each page of the screenplay with
+a label: "DIALOGUE", "ACTION", "SCENE HEADING".  That is Module 02.</p>
+
+<p>Now meet the <strong>Story Analyst</strong>.  She takes those labelled
+pages and draws a map:</p>
+
+<blockquote style="border-left:3px solid var(--gold);padding-left:1rem;color:var(--muted);">
+  "Act 1 contains Scene 1 (which has three beats) and Scene 2 (which has
+  two beats, plus a flashback).  Scene 1 Beat 2 is a conversation inside
+  a car inside Act 1 Scene 1."
+</blockquote>
+
+<p>That map is the <strong>Abstract Syntax Tree</strong>.
+The Story Analyst does not care about the exact words — she cares about
+<em>structure</em>: what is inside what, what comes before what,
+what is optional.</p>
+
+<p>The grammar rules in <code>parser.c</code> are that analyst's checklist:
+"every scene must have a heading; every function must have a body;
+every <code>if</code> must have a condition in parentheses."
+If a page arrives out of order, she calls out the error immediately.</p>
+
+<table>
+  <tr><th>Film crew role</th><th>Compiler piece</th><th>Produces</th></tr>
+  <tr><td>Script page</td><td>Source character</td><td>raw bytes</td></tr>
+  <tr><td>Script Reader</td><td>Lexer</td><td>labelled tokens</td></tr>
+  <tr><td>Story Analyst</td><td>Parser</td><td>AST (the tree)</td></tr>
+  <tr><td>Director's shot list</td><td>Later passes</td><td>IR / machine code</td></tr>
+</table>
+
+<!-- ================================================================== -->
+<h2>3. The Parser Struct and Two-Token Lookahead</h2>
+
+<p>Here is the struct at the heart of this module:</p>
+
+<pre><code>typedef struct {
+    Lexer  lex;   /* the underlying lexer */
+    Token  cur;   /* the token we are looking at right now */
+    Token  peek;  /* the token ONE step ahead */
+} Parser;</code></pre>
+
+<h3>Why two tokens?</h3>
+
+<p>Consider this line inside a function body:</p>
+
+<pre><code>x = 10;</code></pre>
+
+<p>The first token is <code>IDENT "x"</code>.  Is this an expression
+statement (like <code>x;</code>) or an assignment?  We need to see the
+<em>second</em> token (<code>=</code>) before we can decide.</p>
+
+<p>With <code>peek</code> we can look without consuming:</p>
+
+<pre><code>if (check(p, TOK_IDENT) &amp;&amp; p-&gt;peek.type == TOK_ASSIGN) {
+    /* it is an assignment */
+}</code></pre>
+
+<p>Without <code>peek</code> we would have to consume the identifier,
+discover the <code>=</code>, then somehow "put back" the identifier —
+a painful concept called <em>backtracking</em>.  Two tokens avoids all of that.</p>
+
+<h3>Initialisation</h3>
+
+<pre><code>void parser_init(Parser *p, Lexer *lex) {
+    p-&gt;lex  = *lex;            /* copy the lexer */
+    p-&gt;cur  = lexer_next(&amp;p-&gt;lex);   /* first token */
+    p-&gt;peek = lexer_next(&amp;p-&gt;lex);   /* second token */
+}</code></pre>
+
+<p>After this call, <code>cur</code> is the first token in the file and
+<code>peek</code> is the second.  Every call to <code>advance()</code>
+shifts <code>peek</code> into <code>cur</code> and fetches a fresh token
+from the lexer into <code>peek</code>.</p>
+
+<!-- ================================================================== -->
+<h2>4. Parsing Statements One by One</h2>
+
+<p>The central dispatcher is <code>parse_stmt</code>.  Think of it as a
+<em>switchboard operator</em>: it looks at the first token and routes the
+call to the right sub-parser.</p>
+
+<pre><code>Node *parse_stmt(Parser *p) {
+    if (check(p, TOK_LBRACE))    return parse_block(p);
+    if (check(p, TOK_KW_IF))     /* ... if statement ... */
+    if (check(p, TOK_KW_WHILE))  /* ... while loop   ... */
+    if (check(p, TOK_KW_RETURN)) /* ... return stmt  ... */
+    if (check(p, TOK_KW_INT))    /* ... var decl     ... */
+    /* default: expression statement */
+}</code></pre>
+
+<h3>Blocks — <code>{ stmt* }</code></h3>
+
+<p>A block is just a list of statements wrapped in curly braces.
+We grow a dynamic array using <code>realloc</code>:</p>
+
+<pre><code>Node *parse_block(Parser *p) {
+    expect(p, TOK_LBRACE, "'{'");
+    Node *block  = node_new(AST_BLOCK, line);
+    block-&gt;args  = NULL;
+    block-&gt;nargs = 0;
+
+    while (!check(p, TOK_RBRACE) &amp;&amp; !check(p, TOK_EOF)) {
+        Node *stmt = parse_stmt(p);   /* parse one statement */
+        /* append stmt to block-&gt;args[] via realloc */
+        block-&gt;args = realloc(block-&gt;args,
+                              (block-&gt;nargs + 1) * sizeof(Node *));
+        block-&gt;args[block-&gt;nargs++] = stmt;
+    }
+
+    expect(p, TOK_RBRACE, "'}'");
+    return block;
+}</code></pre>
+
+<h3>if statements</h3>
+
+<pre><code>/* Grammar: "if" "(" expr ")" stmt ("else" stmt)? */
+int line = p-&gt;cur.line;
+advance(p);                            /* consume "if"   */
+expect(p, TOK_LPAREN, "'('");
+Node *cond = parse_expr(p);
+expect(p, TOK_RPAREN, "')'");
+Node *then_branch = parse_stmt(p);
+
+Node *else_branch = NULL;
+if (match(p, TOK_KW_ELSE)) {          /* optional else  */
+    else_branch = parse_stmt(p);
+}
+
+Node *n  = node_new(AST_IF, line);
+n-&gt;left  = cond;
+n-&gt;right = then_branch;
+n-&gt;extra = else_branch;               /* NULL if no else */</code></pre>
+
+<p>Notice <code>n->extra</code> — the third child pointer in every Node.
+For <code>AST_IF</code> it carries the optional else branch, so we do not
+need a fourth pointer field or a separate struct.</p>
+
+<h3>while loops</h3>
+
+<pre><code>/* Grammar: "while" "(" expr ")" stmt */
+advance(p);                /* consume "while" */
+expect(p, TOK_LPAREN, "'('");
+Node *cond = parse_expr(p);
+expect(p, TOK_RPAREN, "')'");
+Node *body = parse_stmt(p);
+
+Node *n  = node_new(AST_WHILE, line);
+n-&gt;left  = cond;
+n-&gt;right = body;</code></pre>
+
+<h3>return statements</h3>
+
+<pre><code>/* Grammar: "return" expr ";" */
+advance(p);             /* consume "return" */
+Node *n  = node_new(AST_RETURN, line);
+n-&gt;left  = parse_expr(p);
+expect(p, TOK_SEMICOLON, "';'");</code></pre>
+
+<h3>Variable declarations</h3>
+
+<pre><code>/* Grammar: "int" IDENT ("=" expr)? ";" */
+advance(p);             /* consume "int" */
+char *name = my_strndup(p-&gt;cur.start, p-&gt;cur.len);
+advance(p);             /* consume the identifier */
+
+Node *decl = node_new(AST_VAR_DECL, line);
+decl-&gt;sval = name;
+
+if (match(p, TOK_ASSIGN)) {
+    decl-&gt;left = parse_expr(p);    /* optional initialiser */
+}
+expect(p, TOK_SEMICOLON, "';'");</code></pre>
+
+<h3>Expression statements</h3>
+
+<p>When none of the keywords match, the statement must be an expression
+followed by a semicolon — the catch-all default:</p>
+
+<pre><code>Node *expr = parse_expr(p);
+expect(p, TOK_SEMICOLON, "';' after expression");
+Node *es   = node_new(AST_EXPR_STMT, line);
+es-&gt;left   = expr;</code></pre>
+
+<!-- ================================================================== -->
+<h2>5. Expression Parsing with Precedence</h2>
+
+<p>Expressions were covered in Module 04, but Module 05 adds
+<em>assignment</em> at the top of the precedence hierarchy.
+Here is the complete table:</p>
+
+<table>
+  <tr><th>Level</th><th>Operator(s)</th><th>Associativity</th><th>Function</th></tr>
+  <tr><td>1 (lowest)</td><td><code>=</code></td><td>Right</td><td><code>parse_expr</code></td></tr>
+  <tr><td>2</td><td><code>&amp;&amp;</code>  <code>||</code></td><td>Left</td><td><code>parse_logical</code></td></tr>
+  <tr><td>3</td><td><code>==</code> <code>!=</code> <code>&lt;</code> <code>&gt;</code> <code>&lt;=</code> <code>&gt;=</code></td><td>Left</td><td><code>parse_comparison</code></td></tr>
+  <tr><td>4</td><td><code>+</code>  <code>-</code></td><td>Left</td><td><code>parse_additive</code></td></tr>
+  <tr><td>5</td><td><code>*</code>  <code>/</code>  <code>%</code></td><td>Left</td><td><code>parse_multiplicative</code></td></tr>
+  <tr><td>6</td><td><code>-</code>  <code>!</code> (prefix)</td><td>Right</td><td><code>parse_unary</code></td></tr>
+  <tr><td>7 (highest)</td><td>literals, idents, calls, <code>(…)</code></td><td>—</td><td><code>parse_primary</code></td></tr>
+</table>
+
+<p><strong>The rule:</strong> lower-precedence functions call
+higher-precedence functions.  <code>parse_expr</code> calls
+<code>parse_logical</code>, which calls <code>parse_comparison</code>,
+and so on down to <code>parse_primary</code>.  The deepest function
+runs first, so its operators bind tightest.</p>
+
+<h3>How assignment is right-associative</h3>
+
+<p>Assignment is <em>right</em>-recursive:
+<code>parse_expr</code> calls <em>itself</em> for the right-hand side:</p>
+
+<pre><code>if (check(p, TOK_IDENT) &amp;&amp; p-&gt;peek.type == TOK_ASSIGN) {
+    char *name = my_strndup(p-&gt;cur.start, p-&gt;cur.len);
+    advance(p);  /* consume ident */
+    advance(p);  /* consume '='   */
+    Node *rhs   = parse_expr(p);   /* &lt;-- calls itself! */
+    /* ... */
+}</code></pre>
+
+<p>That means <code>a = b = 5</code> parses as <code>a = (b = 5)</code>
+(right-to-left), which is what C specifies.</p>
+
+<!-- ================================================================== -->
+<h2>6. Run It (GCC / WSL)</h2>
+
+<div class="box warn">
+  <div class="box-title">Windows users</div>
+  The Makefile uses GCC.  If you are on Windows without WSL, open
+  <strong>WSL</strong> (Windows Subsystem for Linux), navigate to
+  <code>/mnt/c/Users/&lt;you&gt;/Desktop/bob_compiler/module_05/</code>,
+  and run the commands there.  Alternatively, install
+  <a href="https://www.mingw-w64.org/">MinGW-w64</a> and use the
+  <code>mingw32-make</code> command.
+</div>
+
+<pre><code># Build the parser
+make
+
+# Parse the sample program and print the AST
+make run
+
+# Or equivalently:
+./parser sample.c</code></pre>
+
+<h3>Expected output (abbreviated)</h3>
+
+<div class="tree"><span class="nd">PROGRAM</span> (2 functions)
+  <span class="nd">FUNC</span> '<span class="id">add</span>' (2 params)
+    <span class="nd">IDENT</span> '<span class="id">a</span>'
+    <span class="nd">IDENT</span> '<span class="id">b</span>'
+    body:
+      <span class="nd">BLOCK</span> (1 stmts)
+        <span class="nd">RETURN</span>
+          <span class="nd">BINARY</span> '<span class="op">+</span>'
+            <span class="nd">IDENT</span> '<span class="id">a</span>'
+            <span class="nd">IDENT</span> '<span class="id">b</span>'
+  <span class="nd">FUNC</span> '<span class="id">main</span>' (0 params)
+    body:
+      <span class="nd">BLOCK</span> (7 stmts)
+        <span class="nd">VAR_DECL</span> '<span class="id">x</span>'
+        <span class="nd">VAR_DECL</span> '<span class="id">y</span>'
+        <span class="nd">EXPR_STMT</span>
+          <span class="nd">ASSIGN</span> '<span class="id">x</span>'
+            <span class="nd">INT</span> <span class="num">10</span>
+        <span class="nd">EXPR_STMT</span>
+          <span class="nd">ASSIGN</span> '<span class="id">y</span>'
+            <span class="nd">INT</span> <span class="num">0</span>
+        <span class="nd">WHILE</span>
+          cond:
+            <span class="nd">BINARY</span> '<span class="op">&gt;</span>'
+              <span class="nd">IDENT</span> '<span class="id">x</span>'
+              <span class="nd">INT</span> <span class="num">0</span>
+          body:
+            <span class="nd">BLOCK</span> (2 stmts)
+              <span class="nd">EXPR_STMT</span>
+                <span class="nd">ASSIGN</span> '<span class="id">y</span>'
+                  <span class="nd">BINARY</span> '<span class="op">+</span>'
+                    <span class="nd">IDENT</span> '<span class="id">y</span>'
+                    <span class="nd">IDENT</span> '<span class="id">x</span>'
+              <span class="nd">EXPR_STMT</span>
+                <span class="nd">ASSIGN</span> '<span class="id">x</span>'
+                  <span class="nd">BINARY</span> '<span class="op">-</span>'
+                    <span class="nd">IDENT</span> '<span class="id">x</span>'
+                    <span class="nd">INT</span> <span class="num">1</span>
+        <span class="nd">IF</span>
+          cond:
+            <span class="nd">BINARY</span> '<span class="op">&gt;</span>'
+              <span class="nd">IDENT</span> '<span class="id">y</span>'
+              <span class="nd">INT</span> <span class="num">40</span>
+          then:
+            <span class="nd">BLOCK</span> (1 stmts)
+              <span class="nd">RETURN</span>
+                <span class="nd">IDENT</span> '<span class="id">y</span>'
+          else:
+            <span class="nd">BLOCK</span> (1 stmts)
+              <span class="nd">RETURN</span>
+                <span class="nd">INT</span> <span class="num">0</span></div>
+
+<p>Every language construct maps cleanly to a node type.
+The tree structure mirrors the nesting of the original source code.</p>
+
+<!-- ================================================================== -->
+<h2>7. Brain Exercise — No-Brace if</h2>
+
+<div class="box brain">
+  <div class="box-title">Think About It</div>
+  <p>C allows an <code>if</code> with no braces around its body:</p>
+  <pre><code>if (x) return 5;</code></pre>
+  <p><strong>Question:</strong> does the parser in this module handle this correctly?
+  What AST does it produce?  Then ask: what happens with the famous
+  "dangling else" problem?</p>
+  <pre><code>if (a)
+    if (b)
+        return 1;
+    else
+        return 2;</code></pre>
+  <p>Which <code>if</code> does the <code>else</code> belong to?
+  Trace through <code>parse_stmt</code> by hand and see what the code decides.</p>
+</div>
+
+<p><strong>Answer:</strong></p>
+
+<p>For <code>if (x) return 5;</code> the parser calls <code>parse_stmt</code>
+after the condition.  <code>parse_stmt</code> does not require <code>{</code>
+— it handles any statement, including <code>return</code>.  So the AST is:</p>
+
+<div class="tree"><span class="nd">IF</span>
+  cond:
+    <span class="nd">IDENT</span> '<span class="id">x</span>'
+  then:
+    <span class="nd">RETURN</span>
+      <span class="nd">INT</span> <span class="num">5</span></div>
+
+<p>For the dangling else, our parser's <code>match(p, TOK_KW_ELSE)</code>
+call appears immediately after parsing the <em>inner</em> <code>parse_stmt</code>.
+Because the inner if returns and then immediately tries to match <code>else</code>,
+the <code>else</code> attaches to the <strong>inner</strong> if.  This is
+the standard C rule ("else goes with the nearest if") and our recursive
+descent implements it naturally — no special handling required.</p>
+
+<!-- ================================================================== -->
+<h2>8. Q&amp;A</h2>
+
+<details>
+<summary>Why doesn't parse_stmt check for the closing '}' itself?</summary>
+<div class="answer">
+<p><code>parse_stmt</code> parses <em>one</em> statement.  The closing
+<code>}</code> ends a <em>block</em>, not a statement.  It is
+<code>parse_block</code>'s job to watch for <code>}</code> and stop the
+loop.  If <code>parse_stmt</code> consumed the <code>}</code>, then
+<code>parse_block</code> would never see it and would loop forever.</p>
+<p>This separation of concerns keeps each function responsible for
+exactly one grammar rule, making the code much easier to read and debug.</p>
+</div>
+</details>
+
+<details>
+<summary>Why does parse_expr call itself recursively for the assignment RHS?</summary>
+<div class="answer">
+<p>We want <code>a = b = 5</code> to mean <code>a = (b = 5)</code> —
+right-to-left.  Right-recursion achieves this: when we see <code>a =</code>,
+we call <code>parse_expr</code> again for the RHS.  That call sees
+<code>b =</code>, and calls <code>parse_expr</code> <em>again</em> for
+the RHS of that, which eventually returns <code>5</code>.  The inner
+assignment (<code>b = 5</code>) completes first, then the outer one
+(<code>a = …</code>).  That is right-associativity by construction.</p>
+<p>If we used a while-loop like the other operators, we would get
+left-associativity: <code>(a = b) = 5</code>, which is invalid C because
+you can't assign to the result of an assignment.</p>
+</div>
+</details>
+
+<details>
+<summary>What happens if I write a function that returns void?</summary>
+<div class="answer">
+<p>This module only handles <code>int</code>-returning functions.
+<code>parse_func</code> calls <code>expect(p, TOK_KW_INT, "'int'")</code>
+as its first action.  If it sees <code>void</code> instead, it will print
+a parse error and exit.  Support for <code>void</code> return types would
+be added in a later module once the type system is introduced.</p>
+<p><code>void</code> inside the parameter list (as in <code>int main(void)</code>)
+<em>is</em> handled: the parser detects the single token <code>void</code>
+and produces a function with zero parameters.</p>
+</div>
+</details>
+
+<details>
+<summary>Could I write "int x = 5;" as a declaration with initialiser?</summary>
+<div class="answer">
+<p>Yes!  <code>parse_stmt</code> handles this in the variable-declaration
+branch:</p>
+<pre><code>if (match(p, TOK_ASSIGN)) {
+    decl-&gt;left = parse_expr(p);    /* parse the initialiser */
+}</code></pre>
+<p>The optional <code>= expr</code> is parsed if the token after the
+identifier is <code>=</code>.  The resulting <code>AST_VAR_DECL</code>
+node will have <code>left</code> pointing to the initialiser expression,
+rather than <code>NULL</code> for an uninitialised declaration like
+<code>int x;</code>.</p>
+</div>
+</details>
+
+<!-- ================================================================== -->
+<h2>9. What's Next</h2>
+
+<p>You have now built a parser that handles complete C functions with
+statements.  Here is what the next modules add:</p>
+
+<table>
+  <tr><th>Module</th><th>Topic</th><th>What it adds</th></tr>
+  <tr><td>06</td><td>Semantic Analysis</td><td>Type checking, variable scope, use-before-declare errors</td></tr>
+  <tr><td>07</td><td>IR Generation</td><td>Flatten the AST into three-address instructions</td></tr>
+  <tr><td>08</td><td>Control Flow</td><td>Labels and jumps for if/while</td></tr>
+  <tr><td>09+</td><td>Code Generation</td><td>Emit real x86-64 assembly</td></tr>
+</table>
+
+<div class="box good">
+  <div class="box-title">You Built This</div>
+  <p>The parser is the most conceptually rich part of a compiler.
+  Once you understand recursive descent with precedence climbing,
+  every other compiler pass feels straightforward by comparison.
+  The hard part is behind you.</p>
+</div>
+
+<nav style="margin-top:3rem">
+  <a href="../module_04%20-%20Parser%20-%20Expressions/tutorial.html">← Module 04</a>
+  <span>MODULE 05 / 16</span>
+  <a href="../module_06%20-%20Parser%20-%20Functions/tutorial.html">Module 06 →</a>
+</nav>
+
+</body>
+</html>

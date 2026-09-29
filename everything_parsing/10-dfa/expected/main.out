@@ -1,0 +1,68 @@
+=== Module 10 - DFA: Deterministic Finite Automata ===
+
+--- fixtures/ends-abb.dfa  (the regex (a|b)*abb) ---
+states: S A AB ABB    alphabet: a b
+start: S    accept: ABB
+
+transition table  ( -> start,  * accepting ):
+  state      a          b         
+  -> S        A          S         
+     A        A          AB        
+     AB       A          ABB       
+    *ABB      A          S
+
+runs:
+  "abb"    -> S A AB ABB           ACCEPT
+  "aabb"   -> S A A AB ABB         ACCEPT
+  "ab"     -> S A AB               reject
+  "abba"   -> S A AB ABB A         reject
+  ""       -> S                    reject
+
+language (length <= 5): abb, aabb, babb, aaabb, ababb, baabb, bbabb
+
+cross-check vs regex (a|b)*abb, both up to length 6:
+  DFA language == regex language:  true   (15 strings)
+
+--- fixtures/even-a.dfa  (even number of a's) ---
+states: E O    alphabet: a b
+start: E    accept: E
+
+transition table  ( -> start,  * accepting ):
+  state      a          b         
+  ->*E        O          E         
+     O        E          O
+
+runs:
+  ""       -> E                    ACCEPT
+  "a"      -> E O                  reject
+  "aa"     -> E O E                ACCEPT
+  "bab"    -> E E O O              reject
+  "abba"   -> E O O O E            ACCEPT
+
+language (length <= 5): epsilon, b, aa, bb, aab, aba, baa, bbb, aaaa, aabb, abab, abba, baab, baba, bbaa, ... (32 total)
+
+--- fixtures/a-star-b-star.dfa  (a*b*, NOT a^n b^n) ---
+states: A B DEAD    alphabet: a b
+start: A    accept: A B
+
+transition table  ( -> start,  * accepting ):
+  state      a          b         
+  ->*A        A          B         
+    *B        DEAD       B         
+     DEAD     DEAD       DEAD
+
+runs:
+  "aaab"   -> A A A A B            ACCEPT
+  "abb"    -> A A B B              ACCEPT
+  "ba"     -> A B DEAD             reject
+  "aabb"   -> A A A B B            ACCEPT
+
+language (length <= 5): epsilon, a, b, aa, ab, bb, aaa, aab, abb, bbb, aaaa, aaab, aabb, abbb, bbbb, ... (21 total)
+
+why a*b* is not { a^n b^n }:
+  accepts "aaab"? true    accepts "abb"? true    accepts "ba"? false
+  repeatOn('a'): the DFA is in the SAME state after 0 'a's and after 1 'a'
+  -> it keeps no count of a's. Module 7 proved NO dfa can accept { a^n b^n }.
+     a*b* is the closest regular over-approximation.
+
+summary: 3 DFAs simulated | DFA(ends-abb) language == regex (a|b)*abb == true | a*b* accepts "aaab" (so it is not { a^n b^n })

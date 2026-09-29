@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 12 — Function Calls &amp; the System V AMD64 Calling Convention</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #0b0f1a; --bg2: #111827; --bg3: #1a2235; --card: #141c2e; --border: #1e3a5f;
+  --gold: #f5c842; --cyan: #38bdf8; --teal: #0d9488; --red: #f87171; --green: #4ade80;
+  --purple: #a78bfa; --orange: #fb923c; --text: #e2e8f0; --muted: #7a9bbf; --code-bg: #060d1a;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Lato', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Header ── */
+.site-header {
+  background: var(--bg2);
+  border-bottom: 2px solid var(--border);
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.badge {
+  background: var(--gold);
+  color: #000;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.site-header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 900;
+  color: var(--gold);
+  line-height: 1.2;
+}
+
+.site-header .subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.2rem;
+}
+
+/* ── Layout ── */
+.page-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+/* ── Section cards ── */
+.section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.section-label {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.section h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--cyan);
+  margin-bottom: 1rem;
+  line-height: 1.25;
+}
+
+.section p { margin-bottom: 0.9rem; }
+.section p:last-child { margin-bottom: 0; }
+
+/* ── Code blocks ── */
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.2rem 1.4rem;
+  overflow-x: auto;
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin: 1rem 0;
+  color: var(--text);
+}
+
+code {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  color: var(--orange);
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* Syntax colour helpers (manual spans) */
+.kw  { color: var(--purple); }
+.cm  { color: var(--muted);  font-style: italic; }
+.str { color: var(--green);  }
+.num { color: var(--orange); }
+.fn  { color: var(--cyan);   }
+.reg { color: var(--gold);   }
+.lbl { color: var(--teal);   }
+
+/* ── Tables ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+th {
+  background: var(--bg3);
+  color: var(--gold);
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--border);
+}
+
+td {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+
+tr:nth-child(even) td { background: var(--bg3); }
+
+/* ── Call-out boxes ── */
+.callout {
+  border-left: 4px solid var(--gold);
+  background: var(--bg3);
+  border-radius: 0 6px 6px 0;
+  padding: 1rem 1.2rem;
+  margin: 1rem 0;
+}
+
+.callout.cyan  { border-color: var(--cyan);   }
+.callout.green { border-color: var(--green);  }
+.callout.red   { border-color: var(--red);    }
+.callout.teal  { border-color: var(--teal);   }
+
+.callout-title {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.callout.cyan  .callout-title { color: var(--cyan);  }
+.callout.green .callout-title { color: var(--green); }
+.callout.red   .callout-title { color: var(--red);   }
+.callout.teal  .callout-title { color: var(--teal);  }
+.callout       .callout-title { color: var(--gold);  }
+
+/* ── Q&A ── */
+.qa-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.qa-q {
+  background: var(--bg3);
+  padding: 0.9rem 1.1rem;
+  font-weight: 700;
+  color: var(--gold);
+  cursor: default;
+}
+
+.qa-a {
+  padding: 0.9rem 1.1rem;
+  color: var(--text);
+  background: var(--card);
+}
+
+/* ── Brain exercise ── */
+.brain {
+  background: var(--bg3);
+  border: 1px solid var(--teal);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.brain-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.brain h3 {
+  font-family: 'Playfair Display', serif;
+  color: var(--teal);
+  font-size: 1.2rem;
+  margin-bottom: 0.6rem;
+}
+
+/* ── Prereqs ── */
+.prereq-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.prereq-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ── Next section highlight ── */
+.next-box {
+  background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%);
+  border: 1px solid var(--teal);
+  border-radius: 10px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.next-box h3 {
+  font-family: 'Playfair Display', serif;
+  color: var(--teal);
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ── Footer nav ── */
+.footer-nav {
+  background: var(--bg2);
+  border-top: 2px solid var(--border);
+  padding: 1.2rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  margin-top: 2rem;
+}
+
+.footer-nav a {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1.1rem;
+  border-radius: 6px;
+  color: var(--cyan);
+  transition: border-color 0.2s;
+}
+
+.footer-nav a:hover {
+  border-color: var(--cyan);
+  text-decoration: none;
+}
+
+ul { padding-left: 1.4rem; }
+ul li { margin-bottom: 0.4rem; }
+
+.highlight { color: var(--gold); font-weight: 700; }
+.mono { font-family: 'Source Code Pro', monospace; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header class="site-header">
+  <div class="badge">MODULE 12 / 16</div>
+  <div>
+    <h1>Function Calls &amp; the System V AMD64 Calling Convention</h1>
+    <div class="subtitle">bob_compiler — from IR_PARAM + IR_CALL to ABI-compliant x86-64</div>
+  </div>
+</header>
+
+<div class="page-wrap">
+
+<!-- ══════════════ §00 BEFORE YOU START ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 00</div>
+  <h2>Before You Start</h2>
+  <p>This module assumes you have completed <strong>Modules 01–11</strong>. You should be comfortable with:</p>
+  <div class="prereq-list">
+    <span class="prereq-chip">Module 01 — Source &amp; Lexer</span>
+    <span class="prereq-chip">Module 02 — Token types</span>
+    <span class="prereq-chip">Module 03 — Symbol Table</span>
+    <span class="prereq-chip">Module 04 — AST nodes</span>
+    <span class="prereq-chip">Module 05 — Recursive-descent Parser</span>
+    <span class="prereq-chip">Module 06 — Semantic Analysis</span>
+    <span class="prereq-chip">Module 07 — IR design</span>
+    <span class="prereq-chip">Module 08 — IR generation</span>
+    <span class="prereq-chip">Module 09 — IR optimizer</span>
+    <span class="prereq-chip">Module 10 — Basic codegen</span>
+    <span class="prereq-chip">Module 11 — Stack frames &amp; locals</span>
+  </div>
+  <p style="margin-top:1rem">By the end of Module 12 you will understand how our IR instructions <code>IR_PARAM</code> and <code>IR_CALL</code> map to real, ABI-compliant x86-64 function calls — with the correct argument registers, return-value register, and 16-byte stack alignment.</p>
+</section>
+
+<!-- ══════════════ §01 THE ANALOGY ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 01</div>
+  <h2>The Analogy: Casting Director</h2>
+
+  <p>Imagine a film set where every <strong>actor has a fixed role in every scene</strong>. There is no improv: the casting sheet is law.</p>
+
+  <div class="callout">
+    <div class="callout-title">The Casting Sheet</div>
+    <p>In each function-call "scene," the <span class="highlight">Casting Director</span> (the calling convention) assigns:</p>
+    <ul>
+      <li><span class="highlight">rdi</span> — Lead Actor (argument 0)</li>
+      <li><span class="highlight">rsi</span> — Supporting Actor (argument 1)</li>
+      <li><span class="highlight">rdx</span> — Antagonist (argument 2)</li>
+      <li><span class="highlight">rcx</span> — Comic Relief (argument 3)</li>
+      <li><span class="highlight">r8</span>  — Cameo #1 (argument 4)</li>
+      <li><span class="highlight">r9</span>  — Cameo #2 (argument 5)</li>
+      <li><span class="highlight">rax</span> — The Director's Cut (return value)</li>
+    </ul>
+  </div>
+
+  <p>If you put the wrong actor in the wrong role — say you load argument 1 into <code>rdx</code> instead of <code>rsi</code> — the callee reads garbage. It cannot tell that you made a mistake; it just picks up whatever is in <code>rsi</code>. The scene plays out wrong, the movie is ruined, and the credits say "stack corruption."</p>
+
+  <p>The calling convention is the guarantee that <em>both sides of the call agree</em> on who plays which role. The System V AMD64 ABI is that casting sheet for all 64-bit Linux (and macOS) C programs.</p>
+
+  <div class="callout red">
+    <div class="callout-title">Break It and You Get</div>
+    <p>Mismatched register assignments → wrong argument values → undefined behavior → segfault or silent wrong answer. The CPU never detects the error; only the wrong output tells you something went awry.</p>
+  </div>
+</section>
+
+<!-- ══════════════ §02 REGISTER MAP ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 02</div>
+  <h2>The System V AMD64 Register Map</h2>
+
+  <p>Here is the full argument-and-return register table you need to memorise:</p>
+
+  <table>
+    <tr><th>Register</th><th>Role</th><th>Save class</th></tr>
+    <tr><td><code class="reg">rdi</code></td><td>Integer argument 0</td><td>Caller-saved</td></tr>
+    <tr><td><code class="reg">rsi</code></td><td>Integer argument 1</td><td>Caller-saved</td></tr>
+    <tr><td><code class="reg">rdx</code></td><td>Integer argument 2</td><td>Caller-saved</td></tr>
+    <tr><td><code class="reg">rcx</code></td><td>Integer argument 3</td><td>Caller-saved</td></tr>
+    <tr><td><code class="reg">r8</code></td><td>Integer argument 4</td><td>Caller-saved</td></tr>
+    <tr><td><code class="reg">r9</code></td><td>Integer argument 5</td><td>Caller-saved</td></tr>
+    <tr><td><code class="reg">rax</code></td><td>Return value</td><td>Caller-saved</td></tr>
+  </table>
+
+  <p>There are two classes of general-purpose register in the ABI:</p>
+
+  <div class="callout cyan">
+    <div class="callout-title">Caller-Saved Registers</div>
+    <p><code>rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11</code></p>
+    <p>The <em>callee</em> is free to overwrite these at any time. If the <em>caller</em> needs the values across a call, it must save them itself (on the stack) before the call and reload them after.</p>
+  </div>
+
+  <div class="callout green">
+    <div class="callout-title">Callee-Saved Registers</div>
+    <p><code>rbx, r12, r13, r14, r15, rbp, rsp</code></p>
+    <p>The <em>callee</em> promises to restore these before returning. If a function wants to use <code>rbx</code>, it must <code>push rbx</code> at the top and <code>pop rbx</code> before <code>ret</code>. The caller can leave values in these registers across any function call.</p>
+  </div>
+
+  <p>In Module 12, our code generator only needs to use the argument registers and <code>rax</code> — it loads arguments from stack slots into <code>rdi/rsi/rdx</code>, emits <code>call</code>, and stores <code>rax</code> into the destination slot. The callee-saved registers matter more in Module 13 (Register Allocator), where we start keeping live values in registers across calls.</p>
+</section>
+
+<!-- ══════════════ §03 STACK FRAME ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 03</div>
+  <h2>Stack Frame Layout</h2>
+
+  <p>Every function we compile uses a standard frame layout. Here is an ASCII diagram showing what the stack looks like <em>during</em> a function's execution:</p>
+
+<pre>
+  High addresses (older frames above)
+  ┌─────────────────────────┐
+  │   ... caller's frame    │
+  ├─────────────────────────┤  ← rbp + 16  (arg 7+ if > 6 args)
+  │   return address        │  ← rbp + 8
+  ├─────────────────────────┤
+  │   saved old rbp         │  ← rbp + 0   (rbp points HERE)
+  ├─────────────────────────┤
+  │   local variable a      │  ← rbp - 8
+  ├─────────────────────────┤
+  │   local variable b      │  ← rbp - 16
+  ├─────────────────────────┤
+  │   local variable c      │  ← rbp - 24
+  ├─────────────────────────┤
+  │   (padding if needed)   │
+  └─────────────────────────┘  ← rsp  (grows downward)
+  Low addresses
+</pre>
+
+  <p><strong>Prologue sequence</strong> (what we emit at the top of every function):</p>
+
+<pre><span class="kw">push</span>    <span class="reg">rbp</span>         <span class="cm">; save caller's base pointer</span>
+<span class="kw">mov</span>     <span class="reg">rbp</span>, <span class="reg">rsp</span>   <span class="cm">; set our base pointer</span>
+<span class="kw">sub</span>     <span class="reg">rsp</span>, <span class="num">N</span>     <span class="cm">; reserve N bytes for locals (N = 8 * n_locals, 16-byte aligned)</span></pre>
+
+  <p><strong>Epilogue sequence</strong>:</p>
+
+<pre><span class="kw">add</span>     <span class="reg">rsp</span>, <span class="num">N</span>     <span class="cm">; release local storage</span>
+<span class="kw">pop</span>     <span class="reg">rbp</span>         <span class="cm">; restore caller's base pointer</span>
+<span class="kw">ret</span>                 <span class="cm">; pop return address and jump there</span></pre>
+
+  <div class="callout red">
+    <div class="callout-title">16-Byte Alignment Requirement</div>
+    <p>The System V AMD64 ABI requires that <code>rsp</code> be <strong>16-byte aligned</strong> immediately <em>before</em> any <code>call</code> instruction. A <code>call</code> pushes an 8-byte return address, so at function entry <code>rsp % 16 == 8</code>. After <code>push rbp</code>, <code>rsp % 16 == 0</code>. We must ensure our <code>sub rsp, N</code> keeps <code>rsp</code> 16-byte aligned. If N is already a multiple of 16, we are fine; otherwise we round up. Violating this rule causes a segfault inside <code>printf</code> or any SSE-heavy library function.</p>
+  </div>
+</section>
+
+<!-- ══════════════ §04 IR → ASM ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 04</div>
+  <h2>From IR_PARAM + IR_CALL to Assembly</h2>
+
+  <p>Consider a call to <code>clamp(x, lo, hi)</code> — three integer arguments. Here is the sequence of IR instructions the front end emits:</p>
+
+<pre><span class="cm">; assume x is at [rbp-8], lo at [rbp-16], hi at [rbp-24]</span>
+
+<span class="kw">IR_LOAD</span>   <span class="fn">t0</span>, <span class="str">"x"</span>     <span class="cm">; t0 = x</span>
+<span class="kw">IR_LOAD</span>   <span class="fn">t1</span>, <span class="str">"lo"</span>    <span class="cm">; t1 = lo</span>
+<span class="kw">IR_LOAD</span>   <span class="fn">t2</span>, <span class="str">"hi"</span>    <span class="cm">; t2 = hi</span>
+<span class="kw">IR_PARAM</span>  <span class="fn">t0</span>          <span class="cm">; first arg</span>
+<span class="kw">IR_PARAM</span>  <span class="fn">t1</span>          <span class="cm">; second arg</span>
+<span class="kw">IR_PARAM</span>  <span class="fn">t2</span>          <span class="cm">; third arg</span>
+<span class="kw">IR_CALL</span>   <span class="str">"clamp"</span>, <span class="fn">dst</span>=<span class="fn">t3</span>  <span class="cm">; call; result in t3</span>
+<span class="kw">IR_STORE</span>  <span class="str">"a"</span>, <span class="fn">t3</span>      <span class="cm">; a = result</span></pre>
+
+  <p>Our Module 12 code generator accumulates <code>IR_PARAM</code> instructions into a buffer. When it hits <code>IR_CALL</code>, it emits the argument loads followed by the call:</p>
+
+<pre><span class="cm">; load locals into argument registers</span>
+<span class="kw">mov</span>     <span class="reg">rax</span>, <span class="kw">qword</span> [<span class="reg">rbp</span><span class="num">-8</span>]   <span class="cm">; load t0 (x)</span>
+<span class="kw">mov</span>     <span class="reg">rdi</span>, <span class="reg">rax</span>             <span class="cm">; → arg0</span>
+<span class="kw">mov</span>     <span class="reg">rax</span>, <span class="kw">qword</span> [<span class="reg">rbp</span><span class="num">-16</span>]  <span class="cm">; load t1 (lo)</span>
+<span class="kw">mov</span>     <span class="reg">rsi</span>, <span class="reg">rax</span>             <span class="cm">; → arg1</span>
+<span class="kw">mov</span>     <span class="reg">rax</span>, <span class="kw">qword</span> [<span class="reg">rbp</span><span class="num">-24</span>]  <span class="cm">; load t2 (hi)</span>
+<span class="kw">mov</span>     <span class="reg">rdx</span>, <span class="reg">rax</span>             <span class="cm">; → arg2</span>
+
+<span class="cm">; align stack and call</span>
+<span class="kw">push</span>    <span class="reg">rax</span>                  <span class="cm">; 8-byte pad to maintain 16-byte alignment</span>
+<span class="kw">call</span>    <span class="fn">clamp</span>
+<span class="kw">pop</span>     <span class="reg">rcx</span>                  <span class="cm">; discard padding</span>
+
+<span class="cm">; capture return value</span>
+<span class="kw">mov</span>     <span class="kw">qword</span> [<span class="reg">rbp</span><span class="num">-32</span>], <span class="reg">rax</span>  <span class="cm">; store t3 → a</span></pre>
+
+  <p>Notice the structure: <strong>load from slot → move to argument register → call → move from rax → store to slot</strong>. That is the entire calling convention in four steps.</p>
+
+  <div class="callout teal">
+    <div class="callout-title">Why the padding push?</div>
+    <p>At the point of our <code>call</code> we have already done <code>push rbp</code> (−8) and <code>sub rsp, N</code>. The padding <code>push rax</code> adds another −8 so that <code>rsp % 16 == 0</code> immediately before <code>call</code> pushes the return address. The <code>pop rcx</code> after restores the balance. The value of <code>rax</code> is overwritten by <code>call</code>'s return, so it is safe to use as throwaway padding.</p>
+  </div>
+</section>
+
+<!-- ══════════════ §05 RUN IT ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 05</div>
+  <h2>Run It on GCC / WSL</h2>
+
+  <p>Build and run the compiler on the <code>clamp</code> sample:</p>
+
+<pre><span class="cm">$ </span><span class="fn">make run</span>
+gcc -Wall -Wextra -Werror -std=c11 -c source.c   -o source.o
+gcc -Wall -Wextra -Werror -std=c11 -c lexer.c    -o lexer.o
+<span class="cm">... (remaining objects) ...</span>
+gcc -Wall -Wextra -Werror -std=c11 -o call_demo source.o lexer.o ... main.o
+./call_demo sample.c -o sample12.asm &amp;&amp; cat sample12.asm
+
+=== Register allocation for 'clamp' ===
+  (no register allocator in module 12 — all on stack)
+
+=== Register allocation for 'main' ===
+  (no register allocator in module 12 — all on stack)
+
+; Generated by bob_compiler module 12 — function calls
+bits 64
+default rel
+
+section .text
+
+global clamp
+clamp:
+    push    rbp
+    mov     rbp, rsp
+    sub     rsp, 48
+    mov     qword [rbp-8],  rdi
+    mov     qword [rbp-16], rsi
+    mov     qword [rbp-24], rdx
+    ...
+    ret
+
+global main
+main:
+    push    rbp
+    mov     rbp, rsp
+    sub     rsp, 48
+    ...
+    call    clamp
+    ...
+    ret</pre>
+
+  <p>Then assemble, link, and run to see the exit code:</p>
+
+<pre><span class="cm">$ </span><span class="fn">make assemble</span>
+nasm -f elf64 sample12.asm -o sample12.o
+gcc -no-pie sample12.o -o sample12_bin
+./sample12_bin
+echo "exit: $?"
+<span class="green">exit: 15</span></pre>
+
+  <div class="callout green">
+    <div class="callout-title">Why 15?</div>
+    <p><code>clamp(0-3, 0, 10)</code> → clamps −3 to 0 → <code>a = 0</code><br>
+       <code>clamp(15, 0, 10)</code> → clamps 15 to 10 → <code>b = 10</code><br>
+       <code>clamp(5, 0, 10)</code> → 5 is within range → <code>c = 5</code><br>
+       <code>return a + b + c</code> = <strong>0 + 10 + 5 = 15</strong></p>
+  </div>
+</section>
+
+<!-- ══════════════ §06 BRAIN EXERCISE ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 06</div>
+  <h2>Brain Exercise</h2>
+
+  <div class="brain">
+    <div class="brain-icon">🧠</div>
+    <h3>The Seventh Argument</h3>
+    <p>Our <code>clamp</code> function takes 3 arguments — they fit comfortably in <code>rdi</code>, <code>rsi</code>, <code>rdx</code>.</p>
+    <p style="margin-top:0.7rem"><strong>Question:</strong> What if you called a C function with 7 arguments? The first 6 go in the six argument registers — but where does the 7th argument go?</p>
+
+    <details style="margin-top:1rem">
+      <summary style="cursor:pointer; color:var(--gold); font-weight:700">Reveal the Answer</summary>
+      <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid var(--border)">
+        <p>The 7th argument (and any beyond) is <strong>pushed on the stack</strong> by the caller, in <em>right-to-left order</em> (so argument 7 is pushed first if there are more). The callee finds it at <code>[rbp+16]</code> (argument 6 would be at <code>[rbp+16]</code>, argument 7 at <code>[rbp+24]</code>, etc. — above the return address and saved rbp).</p>
+        <p style="margin-top:0.6rem">We do <em>not</em> implement stack-passed arguments in Module 12. Supporting them requires the caller to compute how many bytes of stack args to push, align the stack correctly accounting for those pushes, and have the callee know their offsets above <code>rbp</code>. GCC handles this automatically. We skip it here for clarity.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ══════════════ §07 Q&A ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 07</div>
+  <h2>Q &amp; A</h2>
+
+  <div class="qa-block">
+    <div class="qa-q">Q: Why does rsp need to be 16-byte aligned before a call?</div>
+    <div class="qa-a">The x86-64 System V ABI mandates 16-byte stack alignment at every <code>call</code> instruction. SSE and AVX instructions (used internally by many standard library functions, including <code>printf</code>) require 16-byte alignment for their memory operands. If <code>rsp</code> is misaligned by even 8 bytes when a callee executes a 128-bit <code>movaps</code> or similar instruction, the CPU raises a general-protection fault — which Linux turns into a segfault. The bug can be maddeningly hard to find because the crash happens deep inside <code>printf</code>, not at the misaligned <code>call</code>.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q: What is a "callee-saved" register?</div>
+    <div class="qa-a">A callee-saved (or "non-volatile") register is one that a function (the <em>callee</em>) must preserve across its execution. If the callee wants to use <code>rbx</code>, it must <code>push rbx</code> at the start and <code>pop rbx</code> before <code>ret</code>. The caller is therefore guaranteed that <code>rbx</code>, <code>r12</code>–<code>r15</code>, <code>rbp</code>, and <code>rsp</code> hold the same values after a call as they did before. Caller-saved registers (<code>rax</code>, <code>rcx</code>, <code>rdx</code>, <code>rsi</code>, <code>rdi</code>, <code>r8</code>–<code>r11</code>) may be freely clobbered by the callee — the caller must save them itself if it needs them later.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q: Why do we save incoming parameters to stack slots immediately on function entry?</div>
+    <div class="qa-a">Because <code>rdi</code>, <code>rsi</code>, and <code>rdx</code> are caller-saved registers. The moment our function makes any nested call (even a call to <code>clamp</code> in <code>main</code>), those registers are overwritten with the new arguments. If we kept the original parameter values only in <code>rdi</code>/<code>rsi</code>/<code>rdx</code>, they would vanish on the first nested call. Writing them to named stack slots (<code>[rbp-8]</code>, <code>[rbp-16]</code>, etc.) immediately in the prologue means we can always reload them from a stable location, no matter how many nested calls the function makes.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q: Why does our compiler only support 6 arguments?</div>
+    <div class="qa-a">The System V AMD64 ABI provides exactly 6 integer argument registers: <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>rcx</code>, <code>r8</code>, <code>r9</code>. Arguments 7 and beyond must be pushed on the stack by the caller in reverse order, and the callee must access them at positive offsets from <code>rbp</code> (above the saved <code>rbp</code> and return address). Implementing this correctly requires tracking how many bytes of stack arguments exist in both the caller's codegen (to push them and align the stack) and the callee's codegen (to compute the right offsets). We omit this for clarity. Every real function we compile in the tutorial needs at most 4 arguments.</div>
+  </div>
+</section>
+
+<!-- ══════════════ §08 WHAT'S NEXT ══════════════ -->
+<section class="section">
+  <div class="section-label">Section 08</div>
+  <h2>What's Next</h2>
+
+  <div class="next-box">
+    <h3>Module 13 — Register Allocator</h3>
+    <p>Right now every temporary lives in a stack slot. Module 13 introduces a <strong>graph-coloring register allocator</strong> that assigns temporaries to real registers (<code>rbx</code>, <code>r12</code>–<code>r15</code>, <code>r10</code>) instead of stack slots. The result: far fewer memory loads and stores, and significantly faster generated code.</p>
+    <p style="margin-top:0.8rem; color:var(--muted)">Key concept coming up: <em>live ranges</em>, <em>interference graphs</em>, and <em>greedy graph coloring</em>.</p>
+  </div>
+</section>
+
+</div><!-- /.page-wrap -->
+
+<!-- ══════════════ SAMPLE PROGRAM (reference) ══════════════ -->
+<div class="page-wrap" style="padding-top:0">
+  <section class="section">
+    <div class="section-label">Reference</div>
+    <h2>Sample Program: clamp</h2>
+    <p>This is the C program used throughout Module 12. The compiler reads it, generates IR, and emits the assembly shown in Section 05.</p>
+<pre><span class="kw">int</span> <span class="fn">clamp</span>(<span class="kw">int</span> x, <span class="kw">int</span> lo, <span class="kw">int</span> hi) {
+    <span class="kw">if</span> (x &lt; lo) { <span class="kw">return</span> lo; }
+    <span class="kw">if</span> (x &gt; hi) { <span class="kw">return</span> hi; }
+    <span class="kw">return</span> x;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="kw">int</span> a; <span class="kw">int</span> b; <span class="kw">int</span> c;
+    a = <span class="fn">clamp</span>(<span class="num">0</span> - <span class="num">3</span>, <span class="num">0</span>, <span class="num">10</span>);  <span class="cm">// → clamp(-3,0,10) = 0</span>
+    b = <span class="fn">clamp</span>(<span class="num">15</span>, <span class="num">0</span>, <span class="num">10</span>);      <span class="cm">// → clamp(15,0,10) = 10</span>
+    c = <span class="fn">clamp</span>(<span class="num">5</span>, <span class="num">0</span>, <span class="num">10</span>);       <span class="cm">// → clamp(5,0,10)  = 5</span>
+    <span class="kw">return</span> a + b + c;           <span class="cm">// → 0 + 10 + 5 = 15</span>
+}</pre>
+  </section>
+</div>
+
+<!-- ══════════════ FOOTER NAV ══════════════ -->
+<nav class="footer-nav">
+  <a href="../module_11%20-%20Code%20Generation%20-%20Control%20Flow/tutorial.html">← Module 11</a>
+  <span style="color:var(--muted); font-size:0.8rem">MODULE 12 / 16 — Function Calls &amp; System V AMD64 ABI</span>
+  <a href="../module_13%20-%20Register%20Allocator%20(Graph%20Coloring)/tutorial.html">Module 13 →</a>
+</nav>
+
+</body>
+</html>

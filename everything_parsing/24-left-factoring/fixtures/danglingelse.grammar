@@ -1,0 +1,5 @@
+# Two alternatives with a long shared prefix "if b then S". Left factoring pulls
+# it out and produces exactly the grammar Modules 20/22 analysed for the
+# dangling-else conflict.
+%start S
+S -> if b then S | if b then S else S | other

@@ -1,0 +1,37 @@
+# Ajoda's complete lexical grammar, written as a token spec.
+# One directive per line:  token | discard | keywords.
+# Ties between equally long matches go to the rule declared FIRST.
+
+token    IDENT      [A-Za-z_][A-Za-z0-9_]*
+token    FLOAT_LIT  [0-9]+"."[0-9]+
+token    INT_LIT    [0-9]+
+
+token    ARROW      "->"
+token    EQ         "=="
+token    NE         "!="
+token    LE         "<="
+token    GE         ">="
+token    AND        "&&"
+token    OR         "||"
+
+token    LPAREN     \(
+token    RPAREN     \)
+token    LBRACE     "{"
+token    RBRACE     "}"
+token    COMMA      ,
+token    COLON      :
+token    SEMI       ;
+token    ASSIGN     =
+token    LT         <
+token    GT         >
+token    PLUS       \+
+token    MINUS      -
+token    STAR       \*
+token    SLASH      /
+token    PERCENT    %
+token    NOT        !
+
+discard  SPACE      [\s\t\n]+
+discard  COMMENT    "//"[^\n]*
+
+keywords IDENT      fn let if else while return true false i64 bool f64

@@ -1,0 +1,7 @@
+# Two alternatives that are genuinely equivalent: 'x B' and 'x C' where B and C
+# both just derive A again. NO finite lookahead k can distinguish them -- the
+# grammar is ambiguous. A backtracking parser explores 2^n derivations of x^n y.
+%start A
+A -> x B | x C | y
+B -> A
+C -> A

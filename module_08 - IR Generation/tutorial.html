@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 08 — IR Generation | my_compiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #0b0f1a;
+  --gold:    #f5c842;
+  --cyan:    #38bdf8;
+  --teal:    #0d9488;
+  --red:     #f87171;
+  --green:   #4ade80;
+  --purple:  #a78bfa;
+  --orange:  #fb923c;
+  --text:    #e2e8f0;
+  --muted:   #7a9bbf;
+  --code-bg: #060d1a;
+  --bg2:     #111827;
+  --bg3:     #1a2235;
+  --card:    #141c2e;
+  --border:  #1e3a5f;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lato', sans-serif;
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+/* ── Layout ── */
+.page-wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ── Top bar ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.badge {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  background: rgba(245,200,66,.10);
+  border: 1px solid var(--gold);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+.nav-links a {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 13px;
+  color: var(--cyan);
+  text-decoration: none;
+  transition: color .15s;
+}
+.nav-links a:hover { color: var(--gold); }
+
+/* ── Hero ── */
+.hero {
+  padding: 64px 0 48px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 56px;
+}
+.hero-label {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 12px;
+  letter-spacing: .18em;
+  color: var(--teal);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 900;
+  color: var(--gold);
+  line-height: 1.15;
+  margin-bottom: 20px;
+}
+.hero-sub {
+  font-size: 18px;
+  color: var(--muted);
+  max-width: 620px;
+}
+
+/* ── Section ── */
+.section {
+  margin-bottom: 72px;
+}
+.section-num {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 11px;
+  letter-spacing: .18em;
+  color: var(--teal);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.section h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--cyan);
+  margin-bottom: 24px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.section p { margin-bottom: 16px; color: var(--text); }
+.section p:last-child { margin-bottom: 0; }
+
+/* ── Code blocks ── */
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
+  overflow-x: auto;
+  margin: 20px 0;
+  line-height: 1.6;
+}
+pre code, code {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 13.5px;
+}
+code { color: var(--cyan); }
+
+/* colour tokens inside <pre> */
+.kw  { color: var(--purple); }
+.ty  { color: var(--teal); }
+.num { color: var(--orange); }
+.cm  { color: var(--muted); font-style: italic; }
+.fn  { color: var(--gold); }
+.str { color: var(--green); }
+.op  { color: var(--red); }
+.lbl { color: var(--orange); }
+.tmp { color: var(--cyan); }
+
+/* ── Cards / callouts ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px 28px;
+  margin: 24px 0;
+}
+.card-title {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 11px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.card-title.gold  { color: var(--gold); }
+.card-title.green { color: var(--green); }
+.card-title.red   { color: var(--red); }
+.card-title.purple{ color: var(--purple); }
+.card-title.orange{ color: var(--orange); }
+
+.analogy-box {
+  background: var(--bg3);
+  border-left: 4px solid var(--gold);
+  border-radius: 0 8px 8px 0;
+  padding: 20px 24px;
+  margin: 24px 0;
+  font-size: 16px;
+  font-style: italic;
+  color: var(--text);
+}
+.analogy-box strong { color: var(--gold); font-style: normal; }
+
+/* ── Op table ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 14px;
+}
+th {
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--bg3);
+  color: var(--gold);
+  font-family: 'Source Code Pro', monospace;
+  font-size: 12px;
+  letter-spacing: .08em;
+  border-bottom: 2px solid var(--border);
+}
+td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:hover td { background: rgba(30,58,95,.25); }
+td:first-child {
+  font-family: 'Source Code Pro', monospace;
+  color: var(--orange);
+  white-space: nowrap;
+}
+td:nth-child(2) {
+  font-family: 'Source Code Pro', monospace;
+  color: var(--cyan);
+  font-size: 12.5px;
+}
+td:nth-child(3) { color: var(--muted); }
+
+/* ── Q&A ── */
+.qa-item { margin-bottom: 28px; }
+.qa-q {
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.qa-q::before { content: "Q: "; color: var(--orange); }
+.qa-a { color: var(--text); padding-left: 20px; border-left: 2px solid var(--teal); }
+
+/* ── Brain exercise ── */
+.brain {
+  background: var(--bg3);
+  border: 1px solid var(--purple);
+  border-radius: 10px;
+  padding: 26px 30px;
+  margin: 24px 0;
+}
+.brain-label {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 11px;
+  letter-spacing: .15em;
+  color: var(--purple);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.brain p { margin-bottom: 12px; }
+details { margin-top: 14px; }
+summary {
+  cursor: pointer;
+  color: var(--cyan);
+  font-family: 'Source Code Pro', monospace;
+  font-size: 13px;
+  user-select: none;
+}
+summary:hover { color: var(--gold); }
+.answer {
+  margin-top: 14px;
+  padding: 16px 20px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+/* ── What's next ── */
+.next-box {
+  background: linear-gradient(135deg, #111827 0%, #0f1f38 100%);
+  border: 1px solid var(--teal);
+  border-radius: 12px;
+  padding: 32px 36px;
+}
+.next-box h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  color: var(--teal);
+  margin-bottom: 12px;
+}
+
+/* ── Footer nav ── */
+.footer-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.footer-nav a {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 13px;
+  color: var(--cyan);
+  text-decoration: none;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: border-color .15s, color .15s;
+}
+.footer-nav a:hover { border-color: var(--gold); color: var(--gold); }
+
+ul, ol { padding-left: 24px; margin-bottom: 16px; }
+li { margin-bottom: 6px; color: var(--text); }
+
+strong { color: var(--text); font-weight: 700; }
+em { color: var(--muted); }
+
+.highlight { color: var(--gold); font-weight: 700; }
+.mono { font-family: 'Source Code Pro', monospace; font-size: 13.5px; color: var(--cyan); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ TOP BAR -->
+<div class="topbar">
+  <span class="badge">MODULE 08 / 16</span>
+  <nav class="nav-links">
+    <a href="#">my_compiler</a>
+    <a href="#">Modules</a>
+    <a href="#">Source</a>
+  </nav>
+</div>
+
+<div class="page-wrap">
+
+<!-- ═══════════════════════════════════════════ HERO -->
+<header class="hero">
+  <p class="hero-label">my_compiler · Module 08</p>
+  <h1>IR Generation</h1>
+  <p class="hero-sub">
+    Turn a checked AST into a flat, ordered list of three-address-code instructions —
+    the intermediate representation every real compiler uses as its backbone.
+  </p>
+</header>
+
+<!-- ═══════════════════════════════════════════ 00 -->
+<section class="section">
+  <p class="section-num">Section 00</p>
+  <h2>Before You Start</h2>
+
+  <p>
+    This module builds directly on the work done in Modules 01–07.
+    Before reading on, make sure you are comfortable with:
+  </p>
+
+  <ul>
+    <li><strong>Module 01</strong> — Source loading (<span class="mono">source.h</span>)</li>
+    <li><strong>Module 02</strong> — Lexer and token stream (<span class="mono">lexer.h</span>, <span class="mono">token.h</span>)</li>
+    <li><strong>Module 03</strong> — Symbol table (<span class="mono">symtab.h</span>)</li>
+    <li><strong>Module 04</strong> — AST node kinds and structure (<span class="mono">ast.h</span>)</li>
+    <li><strong>Module 05</strong> — Recursive-descent parser (<span class="mono">parser.h</span>)</li>
+    <li><strong>Module 06</strong> — Semantic analysis and type checking (<span class="mono">sema.h</span>)</li>
+    <li><strong>Module 07</strong> — AST printing and debugging utilities</li>
+  </ul>
+
+  <div class="card">
+    <p class="card-title gold">What You Will Build</p>
+    <p>
+      By the end of this module you will have a working IR generator:
+      <span class="mono">irgen()</span> takes a <span class="mono">Node *program</span>
+      (already parsed and semantically checked) and returns an
+      <span class="mono">IRProg *</span> — a complete three-address-code program
+      you can print, inspect, and pass to an optimiser in Module 09.
+    </p>
+  </div>
+
+  <div class="card">
+    <p class="card-title green">Files in This Module</p>
+    <ul>
+      <li><span class="mono">ir.h</span> — <code>IROp</code>, <code>IRInstr</code>, <code>IRFunc</code>, <code>IRProg</code> types and public API</li>
+      <li><span class="mono">ir.c</span> — <code>irgen()</code>, <code>ir_print()</code>, <code>ir_free()</code> implementation</li>
+      <li><span class="mono">sample.c</span> — the test program you will compile</li>
+      <li><span class="mono">main.c</span> — driver: source → lex → parse → sema → irgen → print</li>
+      <li><span class="mono">Makefile</span> — builds the <code>irgen</code> binary</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ 01 -->
+<section class="section">
+  <p class="section-num">Section 01</p>
+  <h2>The Analogy — Storyboard Artist</h2>
+
+  <div class="analogy-box">
+    <strong>Analogy:</strong> Imagine a film production. The <em>script</em> is your C source.
+    The <em>script analyst</em> (parser + semantic checker) reads it and builds a structured
+    breakdown — the AST — capturing every dramatic intent. Now the
+    <strong>storyboard artist</strong> enters. Their job is to take that script analysis and
+    draw out <em>every single camera shot in sequence</em>. No ambiguity. No nested structure.
+    Just a flat stack of panels, each showing one atomic action: "camera pans left",
+    "actor picks up glass", "cut to close-up". That ordered stack of panels
+    <strong>is your IR</strong>.
+  </div>
+
+  <p>
+    Every panel in a storyboard corresponds to one <span class="mono">IRInstr</span>.
+    The sticky notes the artist sticks on each panel — "this shot is labelled TAKE_3",
+    "this prop is called 'the glass'" — correspond to <strong>temporary registers</strong>
+    (<span class="mono">t0</span>, <span class="mono">t1</span>, …) and
+    <strong>label names</strong> (<span class="mono">L0</span>, <span class="mono">L1</span>, …).
+  </p>
+
+  <p>
+    Just like a storyboard, the IR is:
+  </p>
+  <ul>
+    <li><strong>Flat</strong> — no nesting, no tree, just a linked list you walk top to bottom.</li>
+    <li><strong>Unambiguous</strong> — each instruction does exactly one thing.</li>
+    <li><strong>Order-preserving</strong> — you can read it left-to-right and know exactly what happens when.</li>
+    <li><strong>Machine-independent</strong> — no register names, no memory addresses; those come later.</li>
+  </ul>
+
+  <p>
+    The AST captures <em>intent</em> (what the program means). The IR captures
+    <em>sequence</em> (what the program does, step by step). Every later phase
+    — optimiser, register allocator, code generator — works on the IR, not the AST.
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════ 02 -->
+<section class="section">
+  <p class="section-num">Section 02</p>
+  <h2>The IR Instruction Set</h2>
+
+  <p>
+    The full instruction set is defined in <span class="mono">ir.h</span> as the
+    <span class="mono">IROp</span> enum. Every instruction has at most three operand
+    fields: <span class="mono">dst</span>, <span class="mono">src1</span>,
+    <span class="mono">src2</span>. Unused fields are set to
+    <span class="mono">IR_NO_TEMP</span> (the sentinel value <code>-1</code>).
+  </p>
+
+<pre><code><span class="kw">typedef</span> <span class="kw">enum</span> {
+    <span class="cm">/* Value-producing instructions ─────────────────────────── */</span>
+    <span class="op">IR_ICONST</span>,  <span class="cm">/* t_dst = ival                  load an integer constant      */</span>
+    <span class="op">IR_COPY</span>,    <span class="cm">/* t_dst = t_src1               copy one temp to another       */</span>
+
+    <span class="cm">/* Arithmetic ───────────────────────────────────────────── */</span>
+    <span class="op">IR_ADD</span>,     <span class="cm">/* t_dst = t_src1 + t_src2                                       */</span>
+    <span class="op">IR_SUB</span>,     <span class="cm">/* t_dst = t_src1 - t_src2                                       */</span>
+    <span class="op">IR_MUL</span>,     <span class="cm">/* t_dst = t_src1 * t_src2                                       */</span>
+    <span class="op">IR_DIV</span>,     <span class="cm">/* t_dst = t_src1 / t_src2                                       */</span>
+    <span class="op">IR_MOD</span>,     <span class="cm">/* t_dst = t_src1 % t_src2                                       */</span>
+    <span class="op">IR_NEG</span>,     <span class="cm">/* t_dst = -t_src1              unary negation                    */</span>
+
+    <span class="cm">/* Comparisons (result is 1 or 0) ───────────────────────── */</span>
+    <span class="op">IR_LT</span>,      <span class="cm">/* t_dst = t_src1 &lt;  t_src2                                      */</span>
+    <span class="op">IR_GT</span>,      <span class="cm">/* t_dst = t_src1 &gt;  t_src2                                      */</span>
+    <span class="op">IR_LEQ</span>,     <span class="cm">/* t_dst = t_src1 &lt;= t_src2                                      */</span>
+    <span class="op">IR_GEQ</span>,     <span class="cm">/* t_dst = t_src1 &gt;= t_src2                                      */</span>
+    <span class="op">IR_EQ</span>,      <span class="cm">/* t_dst = t_src1 == t_src2                                      */</span>
+    <span class="op">IR_NEQ</span>,     <span class="cm">/* t_dst = t_src1 != t_src2                                      */</span>
+
+    <span class="cm">/* Logical (eager — no short-circuit in Module 08) ─────── */</span>
+    <span class="op">IR_AND</span>,     <span class="cm">/* t_dst = t_src1 &amp;&amp; t_src2   both operands always evaluated     */</span>
+    <span class="op">IR_OR</span>,      <span class="cm">/* t_dst = t_src1 || t_src2                                      */</span>
+
+    <span class="cm">/* Control flow ─────────────────────────────────────────── */</span>
+    <span class="op">IR_LABEL</span>,   <span class="cm">/* LABEL name                  define a jump target               */</span>
+    <span class="op">IR_JUMP</span>,    <span class="cm">/* JUMP name                   unconditional branch               */</span>
+    <span class="op">IR_JUMPZ</span>,   <span class="cm">/* JUMPZ t_src1 name           branch to name if t_src1 == 0     */</span>
+
+    <span class="cm">/* Function calls ───────────────────────────────────────── */</span>
+    <span class="op">IR_PARAM</span>,   <span class="cm">/* PARAM t_src1               push one argument for next call    */</span>
+    <span class="op">IR_CALL</span>,    <span class="cm">/* t_dst = CALL name (nargs)   call function, capture return val  */</span>
+    <span class="op">IR_RETURN</span>,  <span class="cm">/* RETURN t_src1              return value (IR_NO_TEMP = void)   */</span>
+
+    <span class="cm">/* Local variable memory ────────────────────────────────── */</span>
+    <span class="op">IR_STORE</span>,   <span class="cm">/* STORE name = t_src1        write to named local variable       */</span>
+    <span class="op">IR_LOAD</span>,    <span class="cm">/* t_dst = LOAD name          read from named local variable      */</span>
+} <span class="ty">IROp</span>;</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>Op</th><th>Printed form</th><th>Plain English</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>IR_ICONST</td><td>t0 = ICONST 42</td><td>Load the integer literal 42 into temporary t0.</td></tr>
+      <tr><td>IR_COPY</td><td>t1 = COPY t0</td><td>Copy the value in t0 into t1.</td></tr>
+      <tr><td>IR_ADD</td><td>t2 = ADD t0 t1</td><td>Add t0 and t1, store result in t2.</td></tr>
+      <tr><td>IR_SUB</td><td>t2 = SUB t0 t1</td><td>Subtract t1 from t0.</td></tr>
+      <tr><td>IR_MUL</td><td>t2 = MUL t0 t1</td><td>Multiply t0 by t1.</td></tr>
+      <tr><td>IR_DIV</td><td>t2 = DIV t0 t1</td><td>Integer-divide t0 by t1.</td></tr>
+      <tr><td>IR_MOD</td><td>t2 = MOD t0 t1</td><td>Remainder of t0 / t1.</td></tr>
+      <tr><td>IR_NEG</td><td>t1 = NEG t0</td><td>Negate t0.</td></tr>
+      <tr><td>IR_LT</td><td>t2 = LT t0 t1</td><td>1 if t0 &lt; t1, else 0.</td></tr>
+      <tr><td>IR_GT</td><td>t2 = GT t0 t1</td><td>1 if t0 &gt; t1, else 0.</td></tr>
+      <tr><td>IR_LEQ</td><td>t2 = LEQ t0 t1</td><td>1 if t0 &lt;= t1, else 0.</td></tr>
+      <tr><td>IR_GEQ</td><td>t2 = GEQ t0 t1</td><td>1 if t0 &gt;= t1, else 0.</td></tr>
+      <tr><td>IR_EQ</td><td>t2 = EQ t0 t1</td><td>1 if t0 == t1, else 0.</td></tr>
+      <tr><td>IR_NEQ</td><td>t2 = NEQ t0 t1</td><td>1 if t0 != t1, else 0.</td></tr>
+      <tr><td>IR_AND</td><td>t2 = AND t0 t1</td><td>Logical AND of t0 and t1 (eager).</td></tr>
+      <tr><td>IR_OR</td><td>t2 = OR t0 t1</td><td>Logical OR of t0 and t1 (eager).</td></tr>
+      <tr><td>IR_LABEL</td><td>LABEL L0</td><td>Define jump target L0 at this position.</td></tr>
+      <tr><td>IR_JUMP</td><td>JUMP L0</td><td>Unconditionally branch to L0.</td></tr>
+      <tr><td>IR_JUMPZ</td><td>JUMPZ t0 L1</td><td>Branch to L1 if t0 is zero (false).</td></tr>
+      <tr><td>IR_PARAM</td><td>PARAM t0</td><td>Pass t0 as the next argument to the upcoming call.</td></tr>
+      <tr><td>IR_CALL</td><td>t3 = CALL foo (2 args)</td><td>Call function foo with the 2 preceding PARAMs; result in t3.</td></tr>
+      <tr><td>IR_RETURN</td><td>RETURN t0</td><td>Return t0 from this function. No operand = void return.</td></tr>
+      <tr><td>IR_STORE</td><td>STORE x = t0</td><td>Write t0 into local variable x.</td></tr>
+      <tr><td>IR_LOAD</td><td>t1 = LOAD x</td><td>Read local variable x into t1.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════ 03 -->
+<section class="section">
+  <p class="section-num">Section 03</p>
+  <h2>How irgen Walks the AST</h2>
+
+  <p>
+    IR generation is a recursive descent over the AST — the same idea as the parser,
+    but this time we are <em>consuming</em> a tree and <em>producing</em> a list.
+    The entry point <span class="mono">irgen()</span> iterates over the top-level
+    <span class="mono">AST_PROGRAM</span> children, calling
+    <span class="mono">gen_function()</span> for each <span class="mono">AST_FUNC</span> node.
+  </p>
+
+<pre><code><span class="cm">/* Simplified call hierarchy */</span>
+
+<span class="fn">irgen</span>(Node *program)
+  <span class="kw">for</span> each AST_FUNC child:
+    <span class="fn">gen_function</span>(IRProg *, Node *func)
+      <span class="fn">gen_stmt</span>(IRFunc *, Node *body_block)    <span class="cm">/* recurse on each statement */</span>
+        <span class="cm">/* AST_BLOCK   → recurse on each child statement */</span>
+        <span class="cm">/* AST_RETURN  → gen_expr() the return value, emit IR_RETURN */</span>
+        <span class="cm">/* AST_IF      → gen_expr() cond, emit JUMPZ + labels */</span>
+        <span class="cm">/* AST_WHILE   → emit top-of-loop LABEL, gen_expr() cond, JUMPZ, body, JUMP back */</span>
+        <span class="cm">/* AST_VAR_DECL→ increment n_locals; emit IR_STORE if there is an initialiser */</span>
+        <span class="cm">/* AST_EXPR_STMT→ gen_expr() for side-effects, discard result temp */</span>
+        <span class="cm">/* AST_ASSIGN  → gen_expr() the rhs, emit IR_STORE */</span>
+
+      <span class="fn">gen_expr</span>(IRFunc *, Node *expr)          <span class="cm">/* returns result temp number */</span>
+        <span class="cm">/* AST_INT_LIT → emit IR_ICONST, return dst */</span>
+        <span class="cm">/* AST_IDENT   → emit IR_LOAD,   return dst */</span>
+        <span class="cm">/* AST_UNARY   → gen_expr(operand), emit IR_NEG, return dst */</span>
+        <span class="cm">/* AST_BINARY  → gen_expr(left), gen_expr(right), emit IR_ADD/SUB/… */</span>
+        <span class="cm">/* AST_ASSIGN  → gen_expr(rhs), emit IR_STORE, return rhs temp */</span>
+        <span class="cm">/* AST_CALL    → gen_expr each arg + IR_PARAM, emit IR_CALL, return dst */</span></code></pre>
+
+  <p>
+    Focus on <span class="mono">AST_BINARY</span> — the workhorse for expressions:
+  </p>
+
+<pre><code><span class="kw">case</span> <span class="op">AST_BINARY</span>: {
+    <span class="cm">/* 1. Map the source operator to an IROp */</span>
+    <span class="ty">IROp</span> op;
+    <span class="kw">switch</span> (n-&gt;op) {
+        <span class="kw">case</span> TOK_PLUS:  op = <span class="op">IR_ADD</span>; <span class="kw">break</span>;
+        <span class="kw">case</span> TOK_MINUS: op = <span class="op">IR_SUB</span>; <span class="kw">break</span>;
+        <span class="kw">case</span> TOK_LT:    op = <span class="op">IR_LT</span>;  <span class="kw">break</span>;
+        <span class="cm">/* … and so on … */</span>
+    }
+    <span class="cm">/* 2. Evaluate left operand (recursive) → result in temp 'left' */</span>
+    <span class="kw">int</span> left  = <span class="fn">gen_expr</span>(f, n-&gt;args[<span class="num">0</span>]);
+    <span class="cm">/* 3. Evaluate right operand (recursive) → result in temp 'right' */</span>
+    <span class="kw">int</span> right = <span class="fn">gen_expr</span>(f, n-&gt;args[<span class="num">1</span>]);
+    <span class="cm">/* 4. Allocate a fresh destination temp */</span>
+    <span class="kw">int</span> dst   = <span class="fn">ir_new_temp</span>(f);
+    <span class="cm">/* 5. Emit the binary instruction */</span>
+    <span class="ty">IRInstr</span> *instr = <span class="fn">ir_new_instr</span>(op);
+    instr-&gt;dst  = dst;
+    instr-&gt;src1 = left;
+    instr-&gt;src2 = right;
+    <span class="fn">ir_append</span>(f, instr);
+    <span class="kw">return</span> dst;   <span class="cm">/* caller uses this temp as their src1 or src2 */</span>
+}</code></pre>
+
+  <p>
+    And the <span class="mono">AST_WHILE</span> control-flow pattern:
+  </p>
+
+<pre><code><span class="kw">case</span> <span class="op">AST_WHILE</span>: {
+    <span class="kw">int</span> loop_lbl = <span class="fn">ir_new_label</span>(f);   <span class="cm">/* e.g. 0 → "L0" */</span>
+    <span class="kw">int</span> end_lbl  = <span class="fn">ir_new_label</span>(f);   <span class="cm">/* e.g. 1 → "L1" */</span>
+
+    <span class="cm">/* ── top of loop ── */</span>
+    emit <span class="op">IR_LABEL</span> <span class="lbl">L0</span>
+
+    <span class="cm">/* ── evaluate condition ── */</span>
+    <span class="kw">int</span> cond = <span class="fn">gen_expr</span>(f, n-&gt;args[<span class="num">0</span>]);
+    emit <span class="op">IR_JUMPZ</span> <span class="tmp">t_cond</span> <span class="lbl">L1</span>        <span class="cm">/* exit loop if cond is false */</span>
+
+    <span class="cm">/* ── loop body ── */</span>
+    <span class="fn">gen_stmt</span>(f, n-&gt;args[<span class="num">1</span>]);
+
+    <span class="cm">/* ── back edge ── */</span>
+    emit <span class="op">IR_JUMP</span> <span class="lbl">L0</span>
+
+    <span class="cm">/* ── after loop ── */</span>
+    emit <span class="op">IR_LABEL</span> <span class="lbl">L1</span>
+}</code></pre>
+</section>
+
+<!-- ═══════════════════════════════════════════ 04 -->
+<section class="section">
+  <p class="section-num">Section 04</p>
+  <h2>Translating sample.c — The Actual IR Output</h2>
+
+  <p>Here is <span class="mono">sample.c</span> — the program we compile:</p>
+
+<pre><code><span class="kw">int</span> <span class="fn">add</span>(<span class="kw">int</span> a, <span class="kw">int</span> b) {
+    <span class="kw">return</span> a + b;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="kw">int</span> i;
+    <span class="kw">int</span> sum;
+    i   = <span class="num">1</span>;
+    sum = <span class="num">0</span>;
+    <span class="kw">while</span> (i &lt; <span class="num">6</span>) {
+        sum = <span class="fn">add</span>(sum, i);
+        i   = i + <span class="num">1</span>;
+    }
+    <span class="kw">return</span> sum;
+}</code></pre>
+
+  <p>
+    Running <span class="mono">make run</span> prints this IR (one instruction per line,
+    temporaries named <span class="mono">t0</span>, <span class="mono">t1</span>, …,
+    labels named <span class="mono">L0</span>, <span class="mono">L1</span>):
+  </p>
+
+<pre><code>=== IR Generation Demo — Module 08 ===
+
+Generating IR for: sample.c
+
+=== IR: add ===
+  <span class="tmp">t0</span> = LOAD a
+  <span class="tmp">t1</span> = LOAD b
+  <span class="tmp">t2</span> = ADD <span class="tmp">t0</span> <span class="tmp">t1</span>
+  RETURN <span class="tmp">t2</span>
+
+=== IR: main ===
+  <span class="tmp">t0</span> = ICONST 1
+  STORE i = <span class="tmp">t0</span>
+  <span class="tmp">t1</span> = ICONST 0
+  STORE sum = <span class="tmp">t1</span>
+  LABEL <span class="lbl">L0</span>
+  <span class="tmp">t2</span> = LOAD i
+  <span class="tmp">t3</span> = ICONST 6
+  <span class="tmp">t4</span> = LT <span class="tmp">t2</span> <span class="tmp">t3</span>
+  JUMPZ <span class="tmp">t4</span> <span class="lbl">L1</span>
+  <span class="tmp">t5</span> = LOAD sum
+  PARAM <span class="tmp">t5</span>
+  <span class="tmp">t6</span> = LOAD i
+  PARAM <span class="tmp">t6</span>
+  <span class="tmp">t7</span> = CALL add (2 args)
+  STORE sum = <span class="tmp">t7</span>
+  <span class="tmp">t8</span> = LOAD i
+  <span class="tmp">t9</span> = ICONST 1
+  <span class="tmp">t10</span> = ADD <span class="tmp">t8</span> <span class="tmp">t9</span>
+  STORE i = <span class="tmp">t10</span>
+  JUMP <span class="lbl">L0</span>
+  LABEL <span class="lbl">L1</span>
+  <span class="tmp">t11</span> = LOAD sum
+  RETURN <span class="tmp">t11</span>
+</code></pre>
+
+  <div class="card">
+    <p class="card-title gold">Trace Through the While Loop</p>
+    <p>
+      The pattern for <code>while (i &lt; 6)</code> is textbook:
+    </p>
+    <ol>
+      <li><strong>LABEL L0</strong> — top of loop; the back-edge jump lands here.</li>
+      <li><strong>t2 = LOAD i</strong> and <strong>t3 = ICONST 6</strong> — materialise both operands of the condition.</li>
+      <li><strong>t4 = LT t2 t3</strong> — compute the boolean result (1 or 0).</li>
+      <li><strong>JUMPZ t4 L1</strong> — if the condition is false (t4 == 0), exit the loop by jumping to L1.</li>
+      <li><em>Loop body instructions …</em></li>
+      <li><strong>JUMP L0</strong> — back edge: go re-evaluate the condition.</li>
+      <li><strong>LABEL L1</strong> — merge point after the loop.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <p class="card-title green">Trace Through the Function Call</p>
+    <p>
+      The call <code>add(sum, i)</code> follows the PARAM / CALL convention:
+    </p>
+    <ol>
+      <li>Evaluate argument 0: <strong>t5 = LOAD sum</strong>, then <strong>PARAM t5</strong>.</li>
+      <li>Evaluate argument 1: <strong>t6 = LOAD i</strong>, then <strong>PARAM t6</strong>.</li>
+      <li><strong>t7 = CALL add (2 args)</strong> — the callee pops 2 PARAMs and returns its value into t7.</li>
+      <li><strong>STORE sum = t7</strong> — write the result back to the local variable <code>sum</code>.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ 05 -->
+<section class="section">
+  <p class="section-num">Section 05</p>
+  <h2>Run It on GCC / WSL</h2>
+
+  <p>
+    On Linux, macOS, or Windows Subsystem for Linux, build and run with:
+  </p>
+
+<pre><code>$ make
+gcc -Wall -Wextra -Werror -std=c11 -c -o source.o source.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o lexer.o lexer.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o symtab.o symtab.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o ast.o ast.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o parser.o parser.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o sema.o sema.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o ir.o ir.c
+gcc -Wall -Wextra -Werror -std=c11 -c -o main.o main.c
+gcc -Wall -Wextra -Werror -std=c11 -o irgen source.o lexer.o symtab.o \
+    ast.o parser.o sema.o ir.o main.o
+
+$ make run
+./irgen sample.c</code></pre>
+
+  <p>
+    You should see the IR output from Section 04 printed to stdout.
+    No warnings, no errors — all eight translation units compile clean under
+    <code>-Wall -Wextra -Werror</code>.
+  </p>
+
+  <div class="card">
+    <p class="card-title orange">Troubleshooting</p>
+    <ul>
+      <li>
+        <strong>"implicit declaration of function"</strong> — check that every
+        <span class="mono">.h</span> is included at the top of the
+        <span class="mono">.c</span> that uses it.
+      </li>
+      <li>
+        <strong>"undefined reference to …"</strong> — make sure the
+        <span class="mono">SRCS</span> list in the Makefile includes every
+        <span class="mono">.c</span> file.
+      </li>
+      <li>
+        <strong>parse/semantic errors</strong> — the driver aborts before calling
+        <span class="mono">irgen()</span> if the front-end fails; fix
+        <span class="mono">sample.c</span> first.
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ 06 -->
+<section class="section">
+  <p class="section-num">Section 06</p>
+  <h2>Brain Exercise</h2>
+
+  <div class="brain">
+    <p class="brain-label">Challenge</p>
+    <p>
+      In Module 08, <span class="mono">IR_OR</span> takes two already-evaluated
+      temporaries and produces a result:
+    </p>
+    <pre style="margin:12px 0;"><code>t2 = OR t0 t1</code></pre>
+    <p>
+      Given <em>only</em> the instructions available in Module 08 (no new ops allowed),
+      how would you translate the C assignment:
+    </p>
+    <pre style="margin:12px 0;"><code>x = a || b;</code></pre>
+    <p>
+      into IR? (Assume <code>a</code>, <code>b</code>, and <code>x</code> are already
+      declared local variables.)
+    </p>
+    <details>
+      <summary>Show answer</summary>
+      <div class="answer">
+        <p>Evaluate each operand to its own temporary, apply <span class="mono">IR_OR</span>, then store the result:</p>
+<pre><code><span class="tmp">t0</span> = LOAD a          <span class="cm">/* evaluate operand a */</span>
+<span class="tmp">t1</span> = LOAD b          <span class="cm">/* evaluate operand b */</span>
+<span class="tmp">t2</span> = OR <span class="tmp">t0</span> <span class="tmp">t1</span>      <span class="cm">/* eager logical OR   */</span>
+STORE x = <span class="tmp">t2</span>        <span class="cm">/* write result to x  */</span></code></pre>
+        <p>
+          This is <em>eager</em> evaluation: both <code>a</code> and <code>b</code>
+          are always loaded, even if <code>a</code> is already true. C's actual
+          <code>||</code> must <em>not</em> evaluate <code>b</code> when
+          <code>a</code> is true — that is the short-circuit guarantee.
+          Implementing short-circuit correctly requires inserting a conditional jump
+          between the two LOAD instructions, which is the topic of Module 09.
+        </p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ 07 -->
+<section class="section">
+  <p class="section-num">Section 07</p>
+  <h2>Q&amp;A</h2>
+
+  <div class="qa-item">
+    <p class="qa-q">
+      Why does every variable access go through IR_LOAD and IR_STORE instead of just
+      assigning each variable a permanent temporary at declaration time?
+    </p>
+    <div class="qa-a">
+      <p>
+        Because C variables live in memory (the stack frame), not in registers.
+        Using <span class="mono">IR_LOAD</span>/<span class="mono">IR_STORE</span>
+        makes the IR honest: it says "read from memory, write to memory," which is
+        exactly what the hardware will do unless a later register-allocation pass
+        decides to promote a variable to a register. Mapping variables directly to
+        permanent temporaries would bake a register-allocation decision into the IR
+        generator — the wrong layer.
+      </p>
+    </div>
+  </div>
+
+  <div class="qa-item">
+    <p class="qa-q">
+      Why is IR_NO_TEMP set to -1 rather than 0?
+    </p>
+    <div class="qa-a">
+      <p>
+        Zero is a valid temporary number (<span class="mono">t0</span>).
+        If <span class="mono">IR_NO_TEMP</span> were 0, then a freshly
+        <span class="mono">memset</span>-zeroed <span class="mono">IRInstr</span>
+        would silently look like it had <span class="mono">t0</span> in all three
+        operand slots, producing wrong IR that is hard to debug.
+        With <code>-1</code>, every initialisation bug shows up immediately as an
+        impossible temporary number.
+      </p>
+    </div>
+  </div>
+
+  <div class="qa-item">
+    <p class="qa-q">
+      Why does ir_append maintain both head and tail pointers instead of just head?
+    </p>
+    <div class="qa-a">
+      <p>
+        Without a <span class="mono">tail</span> pointer, every append would have to
+        walk the entire list to find the last node — O(N) per append, O(N²) overall
+        for a function with N instructions. Keeping <span class="mono">tail</span>
+        makes each append O(1), at the cost of a single extra pointer per
+        <span class="mono">IRFunc</span> struct — a trivial price.
+      </p>
+    </div>
+  </div>
+
+  <div class="qa-item">
+    <p class="qa-q">
+      Why use a linked list of IRInstr nodes instead of a dynamic array?
+    </p>
+    <div class="qa-a">
+      <p>
+        Two reasons. First, node addresses are stable: if we allocate
+        <span class="mono">IRInstr</span> nodes on the heap and a later pass holds
+        a pointer to one (e.g. a <span class="mono">JUMPZ</span> that needs to be
+        back-patched), a dynamic array reallocation would invalidate that pointer.
+        Second, inserting an instruction between two existing ones requires only
+        pointer surgery — no shifting of array elements.
+        The downside (no random access, worse cache locality) matters more once
+        the IR is very large; a later module could switch to a chunked arena if
+        needed.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ 08 -->
+<section class="section">
+  <p class="section-num">Section 08</p>
+  <h2>What's Next</h2>
+
+  <div class="next-box">
+    <h3>Module 09 — IR Optimisation: Constant Folding</h3>
+    <p style="margin-bottom:14px;">
+      The IR you built in Module 08 is correct but unoptimised. Take a look at the
+      <span class="mono">add</span> function's IR:
+    </p>
+    <pre style="margin:0 0 14px;"><code>  t0 = LOAD a
+  t1 = LOAD b
+  t2 = ADD t0 t1
+  RETURN t2</code></pre>
+    <p style="margin-bottom:14px;">
+      If a caller passes two integer literals — say <code>add(3, 4)</code> — the
+      compiler already knows the result is <code>7</code> at compile time.
+      <strong>Constant folding</strong> is the pass that detects
+      <span class="mono">ICONST + ICONST</span> patterns and collapses them into a
+      single <span class="mono">ICONST</span>, eliminating the arithmetic instruction
+      entirely.
+    </p>
+    <p style="margin-bottom:14px;">
+      Module 09 also introduces the <strong>short-circuit</strong> fix for
+      <span class="mono">&&</span> and <span class="mono">||</span>: a dedicated
+      <span class="mono">gen_cond()</span> path that threads "true label / false label"
+      through expression generation so the second operand is only evaluated when needed.
+    </p>
+    <p>
+      You will reuse every file from Module 08 unchanged. Module 09 adds a new
+      <span class="mono">opt.c</span> / <span class="mono">opt.h</span> layer that
+      sits between <span class="mono">irgen()</span> and <span class="mono">ir_print()</span>.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ FOOTER NAV -->
+<nav class="footer-nav">
+  <a href="#">← Module 07</a>
+  <span style="font-family:'Source Code Pro',monospace;font-size:12px;color:var(--muted);">MODULE 08 / 16</span>
+  <a href="#">Module 09 →</a>
+</nav>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

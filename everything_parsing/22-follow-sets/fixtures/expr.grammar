@@ -1,0 +1,8 @@
+# The expression grammar. FOLLOW(F) has to collect ) * + $ -- the closing paren
+# from F -> ( E ), the operators from the primed rules, and $ from the start.
+%start E
+E  -> T Ep
+Ep -> + T Ep | epsilon
+T  -> F Tp
+Tp -> * F Tp | epsilon
+F  -> ( E ) | num | id

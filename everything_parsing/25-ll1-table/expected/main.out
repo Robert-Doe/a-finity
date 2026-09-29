@@ -1,0 +1,109 @@
+=== Module 25 - The LL(1) Parsing Table ===
+
+M[A][t] = the production to apply when expanding A with lookahead t.
+build: for each A -> alpha, put it in M[A][t] for every t in PREDICT(A -> alpha).
+a cell that gets two productions is a CONFLICT  <=>  grammar is not LL(1).
+
+########## fixtures/expr.grammar
+
+productions:
+  (0) E -> T Ep
+  (1) Ep -> + T Ep
+  (2) Ep -> epsilon
+  (3) T -> F Tp
+  (4) Tp -> * F Tp
+  (5) Tp -> epsilon
+  (6) F -> ( E )
+  (7) F -> id
+  (8) F -> num
+
+PREDICT sets:
+  (0) E -> T Ep            { (, id, num }
+  (1) Ep -> + T Ep         { + }
+  (2) Ep -> epsilon        { ), $ }
+  (3) T -> F Tp            { (, id, num }
+  (4) Tp -> * F Tp         { * }
+  (5) Tp -> epsilon        { ), +, $ }
+  (6) F -> ( E )           { ( }
+  (7) F -> id              { id }
+  (8) F -> num             { num }
+
+table (cells = production index; . = blank, ! = conflict):
+        +   *   (   )   id  num $   
+  E     .   .   0   .   0   0   .   
+  Ep    1   .   .   2   .   .   2   
+  T     .   .   3   .   3   3   .   
+  Tp    5   4   .   5   .   .   5   
+  F     .   .   6   .   7   8   .   
+
+VERDICT: LL(1) = YES   every cell has at most one production
+
+########## fixtures/stmts.grammar
+
+productions:
+  (0) P -> L
+  (1) L -> S L
+  (2) L -> epsilon
+  (3) S -> id assign E semi
+  (4) E -> id
+  (5) E -> num
+
+PREDICT sets:
+  (0) P -> L               { id, $ }
+  (1) L -> S L             { id }
+  (2) L -> epsilon         { $ }
+  (3) S -> id assign E semi { id }
+  (4) E -> id              { id }
+  (5) E -> num             { num }
+
+table (cells = production index; . = blank, ! = conflict):
+        id     assign semi   num    $      
+  P     0      .      .      .      0      
+  L     1      .      .      .      2      
+  S     3      .      .      .      .      
+  E     4      .      .      5      .      
+
+VERDICT: LL(1) = YES   every cell has at most one production
+
+########## fixtures/danglingelse.grammar
+
+productions:
+  (0) S -> other
+  (1) S -> if b then S Sp
+  (2) Sp -> else S
+  (3) Sp -> epsilon
+
+PREDICT sets:
+  (0) S -> other           { other }
+  (1) S -> if b then S Sp  { if }
+  (2) Sp -> else S         { else }
+  (3) Sp -> epsilon        { else, $ }
+
+table (cells = production index; . = blank, ! = conflict):
+        other if    b     then  else  $     
+  S     0     1     .     .     .     .     
+  Sp    .     .     .     .     !     3     
+
+VERDICT: LL(1) = NO    1 conflicted cell(s):
+  M[Sp][else] wants:
+      (2) Sp -> else S
+      (3) Sp -> epsilon
+
+using the expr table to parse  id + id * id :
+   0  expand (0) E -> T Ep
+   1  expand (3) T -> F Tp
+   2  expand (7) F -> id
+   3  match id
+   4  expand (5) Tp -> epsilon
+   5  expand (1) Ep -> + T Ep
+   6  match +
+   7  expand (3) T -> F Tp
+   8  expand (7) F -> id
+   9  match id
+  10  expand (4) Tp -> * F Tp
+  11  match *
+  12  expand (7) F -> id
+  13  match id
+  14  expand (5) Tp -> epsilon
+  15  expand (2) Ep -> epsilon
+  16  stack top $     look $     ACCEPT

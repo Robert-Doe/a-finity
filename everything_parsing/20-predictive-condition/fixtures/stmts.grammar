@@ -1,0 +1,8 @@
+# A small statement-list language. Exercises a nullable list rule
+# (L -> S L | epsilon). Should be LL(1): FIRST(S L) = {id}, FOLLOW(L) = {$},
+# and {id} does not meet {$}.
+%start P
+P -> L
+L -> S L | epsilon
+S -> id assign E semi
+E -> id | num

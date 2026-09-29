@@ -1,0 +1,5 @@
+# grammar:input   -- which grammar file, then the token stream
+expr: id + id * id
+expr: ( id + id ) * id
+expr: id
+ambiguous: id + id + id

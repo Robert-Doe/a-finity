@@ -1,0 +1,48 @@
+=== Module 17 - Lexical Errors & Recovery ===
+
+spec: fixtures/ajoda.tokens  (28 rules, from Module 16)
+
+--- probe: x$y?z ---
+  SKIP_ONE (one ERROR per bad character):
+    IDENT(x) ERROR($) IDENT(y) ERROR(?) IDENT(z) EOF
+    2 errors: 1:2 "$", 1:4 "?"
+  SKIP_TO_RESTART (one ERROR per bad run):
+    IDENT(x) ERROR($) IDENT(y) ERROR(?) IDENT(z) EOF
+    2 errors: 1:2 "$", 1:4 "?"
+  Module 16 alone: stops at 1:2: no token can start with '$'
+
+--- probe: total = a @@@# b; ---
+  SKIP_ONE (one ERROR per bad character):
+    IDENT(total) ASSIGN(=) IDENT(a) ERROR(@) ERROR(@) ERROR(@) ERROR(#) IDENT(b) SEMI(;) EOF
+    4 errors: 1:11 "@", 1:12 "@", 1:13 "@", 1:14 "#"
+  SKIP_TO_RESTART (one ERROR per bad run):
+    IDENT(total) ASSIGN(=) IDENT(a) ERROR(@@@#) IDENT(b) SEMI(;) EOF
+    1 error: 1:11 "@@@#"
+  Module 16 alone: stops at 1:11: no token can start with '@'
+
+--- probe: let n: i64 = 5 @ 2; ---
+  SKIP_ONE (one ERROR per bad character):
+    LET(let) IDENT(n) COLON(:) I64(i64) ASSIGN(=) INT_LIT(5) ERROR(@) INT_LIT(2) SEMI(;) EOF
+    1 error: 1:16 "@"
+  SKIP_TO_RESTART (one ERROR per bad run):
+    LET(let) IDENT(n) COLON(:) I64(i64) ASSIGN(=) INT_LIT(5) ERROR(@) INT_LIT(2) SEMI(;) EOF
+    1 error: 1:16 "@"
+  Module 16 alone: stops at 1:16: no token can start with '@'
+
+--- probe: @@@ ---
+  SKIP_ONE (one ERROR per bad character):
+    ERROR(@) ERROR(@) ERROR(@) EOF
+    3 errors: 1:1 "@", 1:2 "@", 1:3 "@"
+  SKIP_TO_RESTART (one ERROR per bad run):
+    ERROR(@@@) EOF
+    1 error: 1:1 "@@@"
+  Module 16 alone: stops at 1:1: no token can start with '@'
+
+--- fixtures/typos.ajoda, SKIP_TO_RESTART ---
+  32 tokens, 3 errors:
+    2:20 "$"
+    3:20 "??"
+    5:14 "@"
+  (the comment on line 4 holds @#$? but is discarded whole, so it is not an error)
+
+summary: report + resynchronize | SKIP_ONE: one error per character | SKIP_TO_RESTART: one error per run | one scan finds every error, each with line:col

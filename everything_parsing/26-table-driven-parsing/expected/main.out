@@ -1,0 +1,213 @@
+=== Module 26 - Table-Driven Predictive Parsing ===
+
+stack + LL(1) table + a loop. no recursion, no per-grammar code.
+stack top = nonterminal -> M[top][lookahead] gives the production; pop, push RHS reversed.
+stack top = terminal    -> must equal lookahead; pop and advance.
+stack top = $ and lookahead = $ -> ACCEPT.
+
+grammar:
+  E -> T Ep
+  Ep -> + T Ep
+  Ep -> epsilon
+  T -> F Tp
+  Tp -> * F Tp
+  Tp -> epsilon
+  F -> ( E )
+  F -> id
+  F -> num
+
+--- id + id * id ---
+   0  top E     look id    expand E -> T Ep
+   1  top T     look id    expand T -> F Tp
+   2  top F     look id    expand F -> id
+   3  top id    look id    match
+   4  top Tp    look +     expand Tp -> epsilon
+   5  top Ep    look +     expand Ep -> + T Ep
+   6  top +     look +     match
+   7  top T     look id    expand T -> F Tp
+   8  top F     look id    expand F -> id
+   9  top id    look id    match
+  10  top Tp    look *     expand Tp -> * F Tp
+  11  top *     look *     match
+  12  top F     look id    expand F -> id
+  13  top id    look id    match
+  14  top Tp    look $     expand Tp -> epsilon
+  15  top Ep    look $     expand Ep -> epsilon
+  16  top $     look $     ACCEPT
+  productions (a leftmost derivation):
+      E -> T Ep
+      T -> F Tp
+      F -> id
+      Tp -> epsilon
+      Ep -> + T Ep
+      T -> F Tp
+      F -> id
+      Tp -> * F Tp
+      F -> id
+      Tp -> epsilon
+      Ep -> epsilon
+  replay -> id + id * id
+  equals input? true
+  parse tree:
+    E
+    +- T
+    |  +- F
+    |  |  +- id
+    |  +- Tp
+    |     +- epsilon
+    +- Ep
+       +- +
+       +- T
+       |  +- F
+       |  |  +- id
+       |  +- Tp
+       |     +- *
+       |     +- F
+       |     |  +- id
+       |     +- Tp
+       |        +- epsilon
+       +- Ep
+          +- epsilon
+
+--- ( id + num ) * id ---
+   0  top E     look (     expand E -> T Ep
+   1  top T     look (     expand T -> F Tp
+   2  top F     look (     expand F -> ( E )
+   3  top (     look (     match
+   4  top E     look id    expand E -> T Ep
+   5  top T     look id    expand T -> F Tp
+   6  top F     look id    expand F -> id
+   7  top id    look id    match
+   8  top Tp    look +     expand Tp -> epsilon
+   9  top Ep    look +     expand Ep -> + T Ep
+  10  top +     look +     match
+  11  top T     look num   expand T -> F Tp
+  12  top F     look num   expand F -> num
+  13  top num   look num   match
+  14  top Tp    look )     expand Tp -> epsilon
+  15  top Ep    look )     expand Ep -> epsilon
+  16  top )     look )     match
+  17  top Tp    look *     expand Tp -> * F Tp
+  18  top *     look *     match
+  19  top F     look id    expand F -> id
+  20  top id    look id    match
+  21  top Tp    look $     expand Tp -> epsilon
+  22  top Ep    look $     expand Ep -> epsilon
+  23  top $     look $     ACCEPT
+  productions (a leftmost derivation):
+      E -> T Ep
+      T -> F Tp
+      F -> ( E )
+      E -> T Ep
+      T -> F Tp
+      F -> id
+      Tp -> epsilon
+      Ep -> + T Ep
+      T -> F Tp
+      F -> num
+      Tp -> epsilon
+      Ep -> epsilon
+      Tp -> * F Tp
+      F -> id
+      Tp -> epsilon
+      Ep -> epsilon
+  replay -> ( id + num ) * id
+  equals input? true
+  parse tree:
+    E
+    +- T
+    |  +- F
+    |  |  +- (
+    |  |  +- E
+    |  |  |  +- T
+    |  |  |  |  +- F
+    |  |  |  |  |  +- id
+    |  |  |  |  +- Tp
+    |  |  |  |     +- epsilon
+    |  |  |  +- Ep
+    |  |  |     +- +
+    |  |  |     +- T
+    |  |  |     |  +- F
+    |  |  |     |  |  +- num
+    |  |  |     |  +- Tp
+    |  |  |     |     +- epsilon
+    |  |  |     +- Ep
+    |  |  |        +- epsilon
+    |  |  +- )
+    |  +- Tp
+    |     +- *
+    |     +- F
+    |     |  +- id
+    |     +- Tp
+    |        +- epsilon
+    +- Ep
+       +- epsilon
+
+--- num ---
+   0  top E     look num   expand E -> T Ep
+   1  top T     look num   expand T -> F Tp
+   2  top F     look num   expand F -> num
+   3  top num   look num   match
+   4  top Tp    look $     expand Tp -> epsilon
+   5  top Ep    look $     expand Ep -> epsilon
+   6  top $     look $     ACCEPT
+  productions (a leftmost derivation):
+      E -> T Ep
+      T -> F Tp
+      F -> num
+      Tp -> epsilon
+      Ep -> epsilon
+  replay -> num
+  equals input? true
+  parse tree:
+    E
+    +- T
+    |  +- F
+    |  |  +- num
+    |  +- Tp
+    |     +- epsilon
+    +- Ep
+       +- epsilon
+
+--- id + ---
+   0  top E     look id    expand E -> T Ep
+   1  top T     look id    expand T -> F Tp
+   2  top F     look id    expand F -> id
+   3  top id    look id    match
+   4  top Tp    look +     expand Tp -> epsilon
+   5  top Ep    look +     expand Ep -> + T Ep
+   6  top +     look +     match
+   7  top T     look $     error: M[T][$] blank cell
+  REJECTED: no production for T on '$' at position 2
+
+--- id id ---
+   0  top E     look id    expand E -> T Ep
+   1  top T     look id    expand T -> F Tp
+   2  top F     look id    expand F -> id
+   3  top id    look id    match
+   4  top Tp    look id    error: M[Tp][id] blank cell
+  REJECTED: no production for Tp on 'id' at position 1
+
+--- ( id + id ---
+   0  top E     look (     expand E -> T Ep
+   1  top T     look (     expand T -> F Tp
+   2  top F     look (     expand F -> ( E )
+   3  top (     look (     match
+   4  top E     look id    expand E -> T Ep
+   5  top T     look id    expand T -> F Tp
+   6  top F     look id    expand F -> id
+   7  top id    look id    match
+   8  top Tp    look +     expand Tp -> epsilon
+   9  top Ep    look +     expand Ep -> + T Ep
+  10  top +     look +     match
+  11  top T     look id    expand T -> F Tp
+  12  top F     look id    expand F -> id
+  13  top id    look id    match
+  14  top Tp    look $     expand Tp -> epsilon
+  15  top Ep    look $     expand Ep -> epsilon
+  16  top )     look $     error: expected )
+  REJECTED: expected ')' but saw '$' at position 4
+
+table-driven == recursive descent: the production sequence above is the
+same leftmost derivation Module 19's call stack produces for the same input.
+the explicit stack here IS that call stack, made into data.

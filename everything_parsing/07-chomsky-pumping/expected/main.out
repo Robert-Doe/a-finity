@@ -1,0 +1,34 @@
+=== Module 07 - The Chomsky Hierarchy & Pumping Lemmas ===
+
+grammar classification:
+  fixtures/a-star-b.grammar  S -> a S | b                     RIGHT_LINEAR   (regular)
+  fixtures/b-a-star.grammar  S -> S a | b                     LEFT_LINEAR    (regular)
+  fixtures/anbn.grammar      S -> a S b | epsilon             CONTEXT_FREE   (not regular)
+  fixtures/expr.grammar      E -> E + E | E * E | ( E ) | id  CONTEXT_FREE   (not regular)
+
+a context-free grammar DOES generate { a^n b^n }:
+  fixtures/anbn.grammar  enumerated to length 8:  epsilon, ab, aabb, aaabbb, aaaabbbb
+
+no regular grammar can -- the regular pumping lemma has no valid pumping length:
+  p=1: s=ab         all 1/1 splits escape;  x="" y="a" z="b", pump^2 -> "aab"  (not in a^n b^n)
+  p=2: s=aabb       all 3/3 splits escape;  x="" y="a" z="abb", pump^2 -> "aaabb"  (not in a^n b^n)
+  p=3: s=aaabbb     all 6/6 splits escape;  x="" y="a" z="aabbb", pump^2 -> "aaaabbb"  (not in a^n b^n)
+  p=4: s=aaaabbbb   all 10/10 splits escape;  x="" y="a" z="aaabbbb", pump^2 -> "aaaaabbbb"  (not in a^n b^n)
+  p=5: s=aaaaabbbbb all 15/15 splits escape;  x="" y="a" z="aaaabbbbb", pump^2 -> "aaaaaabbbbb"  (not in a^n b^n)
+  p=6: s=aaaaaabbbbbb all 21/21 splits escape;  x="" y="a" z="aaaaabbbbbb", pump^2 -> "aaaaaaabbbbbb"  (not in a^n b^n)
+  for EVERY p, a^p b^p is in L but no split survives pumping  ->  { a^n b^n } is NOT regular
+
+one level up -- the context-free pumping lemma has no valid pumping length for { a^n b^n c^n }:
+  p=1: s=abc          all 6 5-splits escape;  v="" w="" x="a", pump^2 -> "aabc"  (not in a^n b^n c^n)
+  p=2: s=aabbcc       all 37 5-splits escape;  v="" w="" x="a", pump^2 -> "aaabbcc"  (not in a^n b^n c^n)
+  p=3: s=aaabbbccc    all 121 5-splits escape;  v="" w="" x="a", pump^2 -> "aaaabbbccc"  (not in a^n b^n c^n)
+  p=4: s=aaaabbbbcccc all 295 5-splits escape;  v="" w="" x="a", pump^2 -> "aaaaabbbbcccc"  (not in a^n b^n c^n)
+  ->  { a^n b^n c^n } is context-sensitive but NOT context-free
+
+the hierarchy (each type STRICTLY contains the one below):
+  Type 3  regular            a*, (a|b)*abb         finite automaton / regex
+  Type 2  context-free       a^n b^n, balanced()   pushdown automaton
+  Type 1  context-sensitive  a^n b^n c^n           linear-bounded automaton
+  Type 0  recursively enum.  { <M,w> : M halts }   Turing machine
+
+summary: 2 regular grammars + 2 context-free classified | { a^n b^n } not regular (pumping p=1..6) | { a^n b^n c^n } not context-free (pumping p=1..4) | allAdversaryRunsSucceeded=true

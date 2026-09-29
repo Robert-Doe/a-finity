@@ -1,0 +1,149 @@
+=== Module 21 - Nullable & FIRST Sets (least fixed points) ===
+
+NULLABLE: start empty; add A when  A -> epsilon  or  A -> X1..Xk with every Xi
+          already nullable; repeat until a pass adds nothing.
+FIRST   : start empty; fold FIRST(rhs) into FIRST(lhs) for every production;
+          repeat to convergence. Circular by nature -> needs the iteration.
+
+########## fixtures/indirect.grammar
+
+  (0) X -> Y
+  (1) Y -> Z
+  (2) Z -> z
+  (3) Z -> epsilon
+
+NULLABLE iteration:
+  round 0: {  }
+  round 1: { Z }
+  round 2: { Y Z }
+  round 3: { X Y Z }
+  round 4: { X Y Z }   (stable -- one more pass adds nothing)
+  => nullable nonterminals: { X Y Z }
+
+FIRST iteration:
+  round 0:
+      FIRST(X ) = {  }
+      FIRST(Y ) = {  }
+      FIRST(Z ) = {  }
+  round 1:
+      FIRST(X ) = { epsilon }
+      FIRST(Y ) = { epsilon }
+      FIRST(Z ) = { z epsilon }
+  round 2:
+      FIRST(X ) = { epsilon }
+      FIRST(Y ) = { z epsilon }
+      FIRST(Z ) = { z epsilon }
+  round 3:
+      FIRST(X ) = { z epsilon }
+      FIRST(Y ) = { z epsilon }
+      FIRST(Z ) = { z epsilon }
+  round 4:
+      FIRST(X ) = { z epsilon }
+      FIRST(Y ) = { z epsilon }
+      FIRST(Z ) = { z epsilon }
+  one more pass changes nothing? true
+
+cross-check vs Module 20 Predict.firstOf: MATCH
+
+########## fixtures/cascade.grammar
+
+  (0) S -> A B C d
+  (1) A -> a
+  (2) A -> epsilon
+  (3) B -> b
+  (4) B -> epsilon
+  (5) C -> c
+  (6) C -> epsilon
+
+NULLABLE iteration:
+  round 0: {  }
+  round 1: { A B C }
+  round 2: { A B C }   (stable -- one more pass adds nothing)
+  => nullable nonterminals: { A B C }
+
+FIRST iteration:
+  round 0:
+      FIRST(S ) = {  }
+      FIRST(A ) = {  }
+      FIRST(B ) = {  }
+      FIRST(C ) = {  }
+  round 1:
+      FIRST(S ) = { d }
+      FIRST(A ) = { a epsilon }
+      FIRST(B ) = { b epsilon }
+      FIRST(C ) = { c epsilon }
+  round 2:
+      FIRST(S ) = { a b c d }
+      FIRST(A ) = { a epsilon }
+      FIRST(B ) = { b epsilon }
+      FIRST(C ) = { c epsilon }
+  round 3:
+      FIRST(S ) = { a b c d }
+      FIRST(A ) = { a epsilon }
+      FIRST(B ) = { b epsilon }
+      FIRST(C ) = { c epsilon }
+  one more pass changes nothing? true
+
+cross-check vs Module 20 Predict.firstOf: MATCH
+
+########## fixtures/expr.grammar
+
+  (0) E -> T Ep
+  (1) Ep -> + T Ep
+  (2) Ep -> epsilon
+  (3) T -> F Tp
+  (4) Tp -> * F Tp
+  (5) Tp -> epsilon
+  (6) F -> ( E )
+  (7) F -> num
+  (8) F -> id
+
+NULLABLE iteration:
+  round 0: {  }
+  round 1: { Ep Tp }
+  round 2: { Ep Tp }   (stable -- one more pass adds nothing)
+  => nullable nonterminals: { Ep Tp }
+
+FIRST iteration:
+  round 0:
+      FIRST(E ) = {  }
+      FIRST(Ep) = {  }
+      FIRST(T ) = {  }
+      FIRST(Tp) = {  }
+      FIRST(F ) = {  }
+  round 1:
+      FIRST(E ) = {  }
+      FIRST(Ep) = { + epsilon }
+      FIRST(T ) = {  }
+      FIRST(Tp) = { * epsilon }
+      FIRST(F ) = { ( id num }
+  round 2:
+      FIRST(E ) = {  }
+      FIRST(Ep) = { + epsilon }
+      FIRST(T ) = { ( id num }
+      FIRST(Tp) = { * epsilon }
+      FIRST(F ) = { ( id num }
+  round 3:
+      FIRST(E ) = { ( id num }
+      FIRST(Ep) = { + epsilon }
+      FIRST(T ) = { ( id num }
+      FIRST(Tp) = { * epsilon }
+      FIRST(F ) = { ( id num }
+  round 4:
+      FIRST(E ) = { ( id num }
+      FIRST(Ep) = { + epsilon }
+      FIRST(T ) = { ( id num }
+      FIRST(Tp) = { * epsilon }
+      FIRST(F ) = { ( id num }
+  one more pass changes nothing? true
+
+cross-check vs Module 20 Predict.firstOf: MATCH
+
+why the LEAST fixed point?
+  - the empty assignment is NOT a fixed point: the rules force elements in.
+  - our result IS a fixed point: one more pass adds nothing (checked above).
+  - we only ever ADD, starting from empty, so every element we put in was
+    forced by a rule. Any other fixed point must also contain those elements.
+    Therefore ours is contained in every fixed point = the least one.
+  - the LEAST one is the right answer: a bigger set would claim a token can
+    start a nonterminal when no derivation actually produces it there.

@@ -1,0 +1,4 @@
+# Two alternatives that start with the same tokens. One lookahead token can't
+# tell them apart: FIRST(a b c) and FIRST(a b d) both = {a}. NOT LL(1).
+# Fix: left factoring (Module 24)  ->  S -> a b S' ;  S' -> c | d
+S -> a b c | a b d

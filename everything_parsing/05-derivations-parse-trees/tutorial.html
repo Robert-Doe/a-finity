@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 05 — Derivations, Parse Trees, Leftmost/Rightmost | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#2E7D4F;--accent-wash:#E4F1E9;--accent-line:#AFD6BF}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 05 · Part I — Foundations</p>
+  <h1>Parse Trees vs.<em>Derivation Order</em></h1>
+  <p class="thesis">A derivation is a <b>sequence</b> — this rule, then that one.
+  A parse tree is a <b>structure</b> — what nests inside what. This module shows
+  the tree is the real object: the <b>leftmost</b> and <b>rightmost</b>
+  derivations are just two ways to walk the same tree, using the same rules in a
+  different order.</p>
+
+  <div class="headline">
+    <span class="lbl">The claim, made checkable</span>
+    <p>Build one parse tree for <span class="hi">id + id * id</span>. Read the
+    leftmost derivation off it (8 steps). Read the rightmost derivation off it
+    (8 steps). <b>Different sentential forms. Same eight productions. Same
+    tree.</b> The order was never part of the answer.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../04-cfg-formal-definition/tutorial.html">grammars, productions, the derivation relation ⇒ (Module 4)</a></li>
+    <li><a href="../prerequisites/trees.html">nodes, leaves, pre-order vs post-order</a></li>
+    <li><a href="../prerequisites/functions-and-notation.html">⇒<sub>lm</sub>, ⇒<sub>rm</sub>, sentential form</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the flat-pack bookshelf</h2></div>
+
+  <div class="picture">
+    <p>You're assembling a flat-pack bookshelf. The booklet has numbered steps:
+    "attach panel A to shelf 1," "attach shelf 1 to upright B," and so on. You
+    follow them top to bottom and end up with a bookshelf.</p>
+
+    <p>Your left-handed friend assembles the <em>same kit</em> working from the
+    <em>last step backwards</em> — building the right-hand sub-assembly first,
+    then the left, then joining them. Different order. Different pile of
+    half-built pieces on the floor at any given moment.</p>
+
+    <p><b>The finished bookshelf is identical.</b> Same panels, same screws, same
+    joints. What the object <em>is</em> — which part connects to which — was
+    fixed by the design, not by the order you turned the screwdriver.</p>
+
+    <p>The design is the <b>parse tree</b>. The booklet's step order is a
+    <b>leftmost derivation</b>. Your friend's order is a <b>rightmost
+    derivation</b>. The screws-and-joints list is the <b>multiset of
+    productions</b> — identical for both. And "it's a bookshelf" is the
+    <b>string</b> the tree yields.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Flat-pack</th><th>Formal term</th><th>In the code</th></tr></thead>
+    <tbody>
+      <tr><td>the finished design</td><td>parse tree</td><td><code>ParseTree</code> root</td></tr>
+      <tr><td>a sub-assembly</td><td>a nonterminal node</td><td>an expanded node</td></tr>
+      <tr><td>a single part (screw, dowel)</td><td>a terminal</td><td>an unexpanded leaf</td></tr>
+      <tr><td>one instruction ("attach A to B")</td><td>a production</td><td><code>node.production</code></td></tr>
+      <tr><td>booklet order, top to bottom</td><td>leftmost derivation</td><td><code>derivation(g, tree, true)</code></td></tr>
+      <tr><td>last-step-first order</td><td>rightmost derivation</td><td><code>derivation(g, tree, false)</code></td></tr>
+      <tr><td>the parts-and-joints list</td><td>production multiset</td><td><code>productionMultiset(tree)</code></td></tr>
+      <tr><td>"it's a bookshelf"</td><td>the string / yield</td><td><code>tree.terminalYield()</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Build the tree once.</b> Start with a single unexpanded node
+        <code>[E]</code>. For each production choice, expand the leftmost
+        unexpanded nonterminal: replace it with child nodes, one per right-hand
+        symbol. Each node records the production that expanded it.</li>
+      <li><b>The tree has no order.</b> It records which productions and how they
+        nest — not when each was applied.</li>
+      <li><b>Read the leftmost derivation:</b> frontier = <code>[root]</code>.
+        Repeatedly find the leftmost frontier node that's an expanded
+        nonterminal, splice in its children, record the new symbol sequence and
+        the node's production. Stop when the frontier is all leaves.</li>
+      <li><b>Read the rightmost derivation:</b> the same walk, but always take
+        the <em>rightmost</em> expanded nonterminal.</li>
+      <li><b>Compare.</b> Collect every node's production, sort by index → the
+        multiset is identical for both. The yield is identical. Only the
+        intermediate sentential forms differ.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The one tree for <code>id + id * id</code></h3>
+  <div class="diagram"><pre>E
++- E
+|  +- T
+|     +- F
+|        +- id
++- +
++- T
+   +- T
+   |  +- F
+   |     +- id
+   +- *
+   +- F
+      +- id
+
+  '*' is nested deeper than '+', so id * id groups first — precedence,
+  and it lives in the tree's SHAPE, not in any derivation.</pre></div>
+
+  <h3>Two walks of that tree, side by side</h3>
+  <div class="diagram"><pre>step   LEFTMOST (expand leftmost NT)     RIGHTMOST (expand rightmost NT)
+  0    E                                E
+  1    E + T          (E -> E + T)      E + T              (E -> E + T)
+  2    <span class="hit">T + T</span>          (E -> T)          <span class="hit">E + T * F</span>          (T -> T * F)
+  3    F + T          (T -> F)          E + T * id         (F -> id)
+  4    id + T         (F -> id)         E + F * id         (T -> F)
+  5    id + T * F     (T -> T * F)      E + id * id        (F -> id)
+  6    id + F * F     (T -> F)          T + id * id        (E -> T)
+  7    id + id * F    (F -> id)         F + id * id        (T -> F)
+  8    id + id * id   (F -> id)         id + id * id       (F -> id)
+
+  productions, sorted:  [E->E+T, E->T, T->T*F, T->F, T->F, F->id, F->id, F->id]   ← identical</pre></div>
+
+  <p>They diverge at step 2 and reconverge at step 8. Every row of the middle
+  column and every row of the right column is a real sentential form of the
+  grammar — there are just two legal itineraries through the same tree.</p>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>Building the tree — expand the frontier, one choice at a time</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/ParseTree.java</figcaption>
+<pre><code><span class="k">void</span> expand(Grammar.Production p) {
+  <span class="k">this</span>.production = p;
+  <span class="k">this</span>.children = <span class="k">new</span> ArrayList&lt;&gt;();
+  <span class="k">for</span> (String s : p.rhs())
+    children.add(<span class="k">new</span> ParseTree(s));   <span class="c">// one child per rhs symbol; [] if rhs empty</span>
+}
+
+<span class="k">static</span> ParseTree build(Grammar g, <span class="k">int</span>[] choices, <span class="k">boolean</span> leftmost) {
+  ParseTree root = <span class="k">new</span> ParseTree(g.start);
+  <span class="k">for</span> (<span class="k">int</span> c : choices) {
+    ParseTree node = frontier(g, root, leftmost);   <span class="c">// leftmost/rightmost unexpanded NT</span>
+    <span class="c">// ... check production c's lhs matches node.symbol ...</span>
+    node.expand(g.productions.get(c));
+  }
+  <span class="k">return</span> root;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/parsetree.mjs</figcaption>
+<pre><code>expand(p) {
+  <span class="k">this</span>.production = p;
+  <span class="k">this</span>.children = p.rhs.map(s => <span class="k">new</span> ParseTree(s));
+}
+
+<span class="k">static</span> build(g, choices, leftmost) {
+  <span class="k">const</span> root = <span class="k">new</span> ParseTree(g.start);
+  <span class="k">for</span> (<span class="k">const</span> c <span class="k">of</span> choices) {
+    <span class="k">const</span> node = frontier(g, root, leftmost);
+    <span class="c">// ... check ...</span>
+    node.expand(g.productions[c]);
+  }
+  <span class="k">return</span> root;
+}</code></pre>
+    </figure>
+  </div>
+
+  <h3>Reading a derivation off the finished tree</h3>
+<pre><code><span class="k">static</span> List&lt;Step&gt; derivation(Grammar g, ParseTree root, <span class="k">boolean</span> leftmost) {
+  List&lt;Step&gt; steps = <span class="k">new</span> ArrayList&lt;&gt;();
+  List&lt;ParseTree&gt; frontier = <span class="k">new</span> ArrayList&lt;&gt;(List.of(root));
+  steps.add(<span class="k">new</span> Step(symbols(frontier), <span class="k">null</span>));   <span class="c">// form 0: just [S]</span>
+
+  <span class="k">while</span> (<span class="k">true</span>) {
+    <span class="k">int</span> i = pick(g, frontier, leftmost);       <span class="c">// index of leftmost/rightmost EXPANDED nonterminal</span>
+    <span class="k">if</span> (i &lt; 0) <span class="k">break</span>;                          <span class="c">// frontier is all leaves — done</span>
+    ParseTree node = frontier.remove(i);
+    frontier.addAll(i, node.children);          <span class="c">// splice the children in its place</span>
+    steps.add(<span class="k">new</span> Step(symbols(frontier), node.production));
+  }
+  <span class="k">return</span> steps;
+}</code></pre>
+  <p>The <em>only</em> difference between the two derivations is the direction
+  <code>pick</code> scans the frontier. Everything else — which children, which
+  production — was decided when the tree was built.</p>
+
+  <div class="callout brain">
+    <span class="ct">Why "expanded nonterminal," not just "nonterminal"?</span>
+    <p>In a finished tree every nonterminal node <em>is</em> expanded, so the two
+    conditions are equivalent here. Stating it as "expanded" makes the same
+    function correct on a <em>partial</em> tree too, and makes
+    <code>pick</code>'s logic line up exactly with <code>build</code>'s
+    <code>frontier</code>. See <a href="DECISIONS.md">DECISIONS.md</a>.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Find the tree for a string. You <em>supply</em> the production choices; discovering them from the input is parsing (Modules 15+).</li>
+        <li>Handle a string with <em>two</em> trees — this module assumes exactly one. Module 6 is what happens when there are more.</li>
+        <li>Attach meaning to a node. The tree is pure structure; values, types, and evaluation come with attribute grammars (Module 37).</li>
+        <li>Cope with a grammar whose choices you got slightly wrong — <code>build</code> throws, it doesn't search or recover.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Build a parse tree from a grammar and a list of production choices.</li>
+        <li>Read the leftmost <em>and</em> the rightmost derivation off that one tree.</li>
+        <li>Show the two derivations use the identical multiset of productions.</li>
+        <li>Recover the string from the tree (<code>terminalYield</code>).</li>
+        <li>Render the tree as readable ASCII.</li>
+        <li>Demonstrate that when a grammar never puts two nonterminals in one form, the two derivation orders coincide exactly.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java</h4>
+<pre><code>cd 05-derivations-parse-trees
+javac -d java/out java/*.java
+java -cp java/out Main fixtures/expr.grammar</code></pre>
+    <h4>JavaScript — identical bytes</h4>
+<pre><code>node js/main.mjs fixtures/expr.grammar</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>leftmost derivation  (always expand the leftmost nonterminal):
+    E
+=&gt;  E + T                   (E -&gt; E + T)
+=&gt;  <span class="exp">T + T</span>                   (E -&gt; T)
+...
+
+rightmost derivation  (always expand the rightmost nonterminal):
+    E
+=&gt;  E + T                   (E -&gt; E + T)
+=&gt;  <span class="exp">E + T * F</span>               (T -&gt; T * F)
+...
+
+productions used (multiset, sorted by index):
+  leftmost : [E-&gt;E+T, E-&gt;T, T-&gt;T*F, T-&gt;F, T-&gt;F, F-&gt;id, F-&gt;id, F-&gt;id]
+  rightmost: [E-&gt;E+T, E-&gt;T, T-&gt;T*F, T-&gt;F, T-&gt;F, F-&gt;id, F-&gt;id, F-&gt;id]
+  same multiset? true</code></pre>
+    <h4>Also try — leftmost = rightmost when there's no choice</h4>
+<pre><code>java -cp java/out Main fixtures/anbn.grammar   # the two derivations are identical</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out ParseTreeTest   # OK 20 passed
+node js/parsetree.test.mjs        # OK 17 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>production N (...) does not match frontier nonterminal 'X'</code></b>
+    — the hard-coded choices are for the shipped fixtures only; a new grammar
+    needs its own leftmost-derivation choice list.<br>
+    <b><code>choices ran out before the tree was complete</code></b> — every
+    nonterminal you introduce has to be expanded; count them and extend the
+    list.<br>
+    <b>leftmost and rightmost look identical</b> — that's correct for
+    <code>anbn</code>: no sentential form ever has two nonterminals, so there's
+    never a choice of which to expand.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p>The <code>anbn</code> run shows leftmost and rightmost derivations that are
+  byte-for-byte identical.</p>
+  <p><b>State the exact condition</b> under which a grammar's leftmost and
+  rightmost derivations of <em>every</em> string coincide. Then: for the
+  expression grammar, is the map <em>parse tree → leftmost derivation</em>
+  one-to-one? Is <em>parse tree → string</em>?</p>
+
+  <details>
+    <summary>Answer</summary>
+    <p><b>Coincidence condition:</b> leftmost = rightmost for every string iff
+    <em>no sentential form reachable from the start symbol ever contains two or
+    more nonterminals</em>. Equivalently: every production's right-hand side
+    contains at most one nonterminal (a "linear" grammar), <em>and</em> the start
+    symbol is such. If a form ever has two nonterminals, "leftmost" and
+    "rightmost" pick different ones and the sequences diverge — as they do for
+    <code>E + T</code> in the expression grammar.</p>
+    <p><b>Tree → leftmost derivation:</b> one-to-one (a bijection). Given the
+    tree, the leftmost derivation is forced — at each step there is exactly one
+    "leftmost expanded nonterminal." Run it backwards and each leftmost
+    derivation reconstructs exactly one tree. This is why parsers target the
+    leftmost (or rightmost) derivation: nailing it down <em>is</em> nailing down
+    the tree.</p>
+    <p><b>Tree → string:</b> many-to-one <em>only if the grammar is
+    ambiguous</em>. For the unambiguous expression grammar, each string has one
+    tree, so it's one-to-one here. Module 6 is precisely the case where it
+    isn't.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>If the tree is what matters, why does anyone talk about derivations at all?</summary>
+    <p>Because a parser produces one <em>incrementally</em>, token by token, and
+    the derivation is the running record of that process. A top-down parser
+    builds a leftmost derivation as it reads left to right (Module 19); a
+    bottom-up parser builds a rightmost derivation <em>in reverse</em> (Module
+    27). The derivation is the parser's play-by-play; the tree is the final
+    score.</p>
+  </details>
+
+  <details>
+    <summary>Is "leftmost" the same as pre-order traversal of the tree?</summary>
+    <p>Close. A leftmost derivation expands nodes in the order a pre-order walk
+    <em>visits internal nodes</em>. The sentential forms are the "frontier" of
+    that walk at each moment. Rightmost corresponds to a right-to-left pre-order
+    (visit node, then children right to left) — or equivalently, reverse of a
+    left-to-right post-order.</p>
+  </details>
+
+  <details>
+    <summary>The grammar has <code>E -> E + T</code>. Doesn't that recurse forever?</summary>
+    <p>It would break a top-down <em>parser</em> — that's Module 16's whole
+    topic. But this module doesn't parse; it applies productions you chose. The
+    choice list <code>[0, 1, ...]</code> uses <code>E -> E + T</code> once and
+    then <code>E -> T</code>, so the recursion bottoms out. Left recursion is a
+    problem for a strategy, not for a grammar or its trees.</p>
+  </details>
+
+  <details>
+    <summary>Why sort the production multiset before comparing?</summary>
+    <p>Because the claim is "the two derivations use the same productions,
+    <em>regardless of order</em>." Sorting by production index throws the order
+    away so the comparison is exactly "same bag of rules?" — which is the thing
+    being asserted. If we compared them in application order, they'd differ, and
+    that difference is the point, not a bug.</p>
+  </details>
+
+  <details>
+    <summary>Could a single tree have a derivation that's neither leftmost nor rightmost?</summary>
+    <p>Yes — any order that expands each node after its parent is a valid
+    derivation of the tree, and most trees have many. Leftmost and rightmost are
+    just the two <em>canonical</em> ones: fully determined by the tree, easy to
+    generate, and each in bijection with the tree. Parsers standardise on one so
+    that "the parse" has a single well-defined meaning.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>Everything here assumed a string has <em>one</em> tree. <b>Module 6 —
+  Ambiguity &amp; Disambiguation</b> breaks that assumption: the grammar
+  <code>E -&gt; E + E | E * E | id</code> gives <code>id + id * id</code>
+  <em>two</em> distinct parse trees — one meaning "(id + id) * id," one meaning
+  "id + (id * id)." You'll build a detector that finds both, and then the
+  standard rewrites (precedence tiers, associativity) that force a grammar back
+  down to one tree per string — which is exactly the shape of the grammar you
+  used today.</p>
+</section>
+
+<nav class="pager">
+  <a href="../04-cfg-formal-definition/tutorial.html"><span class="dir">Previous</span>← Module 04 · Context-Free Grammars: Formal Definition</a>
+  <a href="../06-ambiguity-disambiguation/tutorial.html"><span class="dir">Next</span>Module 06 · Ambiguity &amp; Disambiguation →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 05 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>05-derivations-parse-trees/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# A short grammar that shows FOLLOW flowing through a nullable tail.
+#   S -> A B c
+#   A -> a | epsilon        FOLLOW(A) = FIRST(B c) = { b c }   (B nullable -> add c)
+#   B -> b | epsilon        FOLLOW(B) = { c }
+%start S
+S -> A B c
+A -> a | epsilon
+B -> b | epsilon

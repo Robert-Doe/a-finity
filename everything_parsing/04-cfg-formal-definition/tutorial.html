@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 04 — Context-Free Grammars: Formal Definition | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#6D4AA6;--accent-wash:#EEE9F6;--accent-line:#CBBEE4}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 04 · Part I — Foundations</p>
+  <h1>Context-Free<em>Grammars</em></h1>
+  <p class="thesis">Formally, a grammar is the 4-tuple
+  <b>(N, Σ, P, S)</b> — nonterminals, terminals, productions, start symbol —
+  plus one relation, ⇒. That relation, applied over and over, <b>generates the
+  language</b>. This module loads any such grammar as data and runs ⇒ until the
+  strings come out, giving "well-formed" its real definition: <b>there exists a
+  derivation</b>.</p>
+
+  <div class="headline">
+    <span class="lbl">The whole idea in one line</span>
+    <p><span class="hi">S ⇒ a S b ⇒ a a S b b ⇒ a a b b</span> — three
+    applications of two rules. Change the rules you pick, get a different
+    string. The set of every string you could ever reach this way, starting
+    from <code>S</code>, <b>is</b> the language.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../prerequisites/sets-and-languages.html">a language is a set of strings</a></li>
+    <li><a href="../prerequisites/functions-and-notation.html">⇒, ⇒*, sentential form, ε</a></li>
+    <li><a href="../prerequisites/functions-and-notation.html">reading a production out loud</a></li>
+    <li><a href="../prerequisites/java-and-js-setup.html">toolchain</a></li>
+  </ul>
+  <p>From <a href="../01-syntax-vs-semantics/tutorial.html">Module 1</a>: you
+  recognized a language with an ad-hoc counter. That counter was secretly one
+  specific grammar. This module makes the grammar explicit and general.</p>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the rubber-stamp kit</h2></div>
+
+  <div class="picture">
+    <p>You have a sheet of paper with a single empty box drawn on it, labelled
+    <code>S</code>. Next to you: a small tray of <b>rubber stamps</b>. Each stamp
+    carries a label and, when you press it onto a box with that label, it
+    replaces the box with a short strip of ink. Some of that ink is
+    <em>finished text</em>. Some of it is <em>more empty boxes</em>.</p>
+
+    <p>The <code>S</code> stamp comes in two faces. One prints
+    <code>a</code>&#8202;<code>[S]</code>&#8202;<code>b</code> — a letter, a
+    fresh box, a letter. The other prints <em>nothing at all</em> and the box
+    just vanishes. You keep pressing stamps onto whatever empty boxes remain.
+    When there are no boxes left, the page is done: it's a <b>sentence of the
+    language</b>.</p>
+
+    <p>Press the first face twice, then the empty face:
+    <code>[S]</code> → <code>a[S]b</code> → <code>aa[S]bb</code> →
+    <code>aabb</code>. A different sequence of presses gives a different page.
+    <b>The language is every page the kit can ever produce.</b> The kit has
+    two stamps. The pages never run out.</p>
+  </div>
+
+  <p>The vocabulary, mapped once:</p>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Stamp kit</th><th>Grammar term</th><th>In the code</th></tr></thead>
+    <tbody>
+      <tr><td>an empty labelled box</td><td>nonterminal</td><td>a symbol in <code>g.nonterminals</code></td></tr>
+      <tr><td>finished ink</td><td>terminal</td><td>a symbol not in <code>g.nonterminals</code></td></tr>
+      <tr><td>one stamp face</td><td>production</td><td>a <code>Production</code> (index, lhs, rhs)</td></tr>
+      <tr><td>the ink strip it prints</td><td>right-hand side</td><td><code>production.rhs</code> (a list; empty = ε)</td></tr>
+      <tr><td>the page mid-stamping</td><td>sentential form</td><td>a <code>List&lt;String&gt;</code></td></tr>
+      <tr><td>one press</td><td>a derivation step ⇒</td><td>one <code>substitute(form, i, rhs)</code></td></tr>
+      <tr><td>a finished page</td><td>a string in L(G)</td><td>a form with no nonterminals left</td></tr>
+      <tr><td>always stamp the leftmost box</td><td>leftmost derivation</td><td><code>leftmostNonterminal(g, form)</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Load the grammar.</b> Strip <code>#</code> comments. Each line
+        <code>LHS -&gt; ALT | ALT</code> becomes one <code>Production</code> per
+        alternative, in file order, numbered from 0. <code>epsilon</code> or an
+        empty alternative → <code>rhs = []</code>.</li>
+      <li><b>Classify symbols.</b> Every LHS is a nonterminal. Every other
+        symbol appearing in any RHS is a terminal. (Nothing is declared — having
+        a rule is what makes you a nonterminal.)</li>
+      <li><b>Start form</b> is the one-element list <code>[S]</code>.</li>
+      <li><b>One derivation step:</b> find the leftmost nonterminal at index
+        <code>i</code>; pick one of its productions; replace
+        <code>form[i]</code> with that production's <code>rhs</code> (splice).</li>
+      <li><b>Repeat</b> until no nonterminal remains. The result is one string of
+        L(G). <em>A different sequence of production choices is a different
+        string.</em></li>
+      <li><b>Enumerate</b> the language: breadth-first over all choice
+        sequences, discarding any form whose terminal count already exceeds the
+        length bound.</li>
+      <li><b>Decide membership</b> (<code>w ∈ L(G)</code>?): the same
+        breadth-first search, targeting <code>w</code>, bounded by
+        <code>|w|</code> terminals.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>One leftmost derivation of <code>a a b b</code></h3>
+  <div class="diagram"><pre>choices:  0            0              1
+          │            │              │
+  [ S ]   ▼            ▼              ▼
+  ───►  [ a <span class="new">S</span> b ]  ───►  [ a a <span class="new">S</span> b b ]  ───►  [ a a b b ]
+        prod 0         prod 0          prod 1
+        S → a S b      S → a S b       S → ε
+        <span class="dim">(leftmost S is the only S each time)</span>          <span class="dim">no nonterminals left — done</span></pre></div>
+
+  <h3>Enumeration is a breadth-first frontier, ordered by terminal count</h3>
+  <div class="diagram"><pre>terminals: 0        2        4          6              8
+           │        │        │          │              │
+  frontier [S]  →  a[S]b  →  aa[S]bb  →  aaa[S]bbb  →   aaaa[S]bbbb  <span class="dim">(&gt; bound 6: dropped)</span>
+            │        │         │            │
+   emit:   (S→ε)    (S→ε)     (S→ε)        (S→ε)
+            ε        ab        aabb         aaabbb
+
+  language ≤ 6  =  { ε, ab, aabb, aaabbb }        raise the bound → one more, always</pre></div>
+
+  <p>The frontier only ever moves right (terminal count strictly increases with
+  every <code>S → a S b</code>). That is <em>why</em> the search terminates, and
+  it is the same fact that makes the membership bound sound — see the Brain
+  Exercise.</p>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>A derivation step is a list splice</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Derivation.java</figcaption>
+<pre><code><span class="k">static int</span> leftmostNonterminal(Grammar g, List&lt;String&gt; form) {
+  <span class="k">for</span> (<span class="k">int</span> i = <span class="y">0</span>; i &lt; form.size(); i++)
+    <span class="k">if</span> (g.isNonterminal(form.get(i))) <span class="k">return</span> i;
+  <span class="k">return</span> -<span class="y">1</span>;                         <span class="c">// all terminals: derivation complete</span>
+}
+
+<span class="k">private static</span> List&lt;String&gt; substitute(List&lt;String&gt; form, <span class="k">int</span> i, List&lt;String&gt; rhs) {
+  List&lt;String&gt; out = <span class="k">new</span> ArrayList&lt;&gt;(form.size() + rhs.size());
+  out.addAll(form.subList(<span class="y">0</span>, i));       <span class="c">// before</span>
+  out.addAll(rhs);                       <span class="c">// the production body (may be empty = ε)</span>
+  out.addAll(form.subList(i + <span class="y">1</span>, form.size())); <span class="c">// after</span>
+  <span class="k">return</span> out;
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/derivation.mjs</figcaption>
+<pre><code><span class="k">export function</span> leftmostNonterminal(g, form) {
+  <span class="k">for</span> (<span class="k">let</span> i = <span class="y">0</span>; i &lt; form.length; i++)
+    <span class="k">if</span> (g.isNonterminal(form[i])) <span class="k">return</span> i;
+  <span class="k">return</span> -<span class="y">1</span>;
+}
+
+<span class="k">function</span> substitute(form, i, rhs) {
+  <span class="k">return</span> [...form.slice(<span class="y">0</span>, i), ...rhs, ...form.slice(i + <span class="y">1</span>)];
+}</code></pre>
+    </figure>
+  </div>
+  <p>This is the entire derivation relation ⇒. Everything else — enumeration,
+  membership — is a loop that calls <code>substitute</code> and decides which
+  <code>i</code> and which <code>rhs</code>.</p>
+
+  <h3>The bounded search, and why its bound is honest</h3>
+<pre><code><span class="c">// derives(g, target): breadth-first, bounded by the target's terminal length</span>
+<span class="k">int</span> bound = target.size();
+<span class="k">while</span> (!queue.isEmpty() &amp;&amp; budget-- &gt; <span class="y">0</span>) {
+  List&lt;String&gt; form = queue.poll();
+  <span class="k">int</span> i = leftmostNonterminal(g, form);
+  <span class="k">if</span> (i &lt; <span class="y">0</span>) {                                <span class="c">// fully terminal</span>
+    <span class="k">if</span> (form.equals(target)) <span class="k">return</span> <span class="y">/* DERIVABLE, with depth */</span>;
+    <span class="k">continue</span>;
+  }
+  <span class="k">for</span> (Grammar.Production p : g.productionsFor(form.get(i))) {
+    List&lt;String&gt; next = substitute(form, i, p.rhs());
+    <span class="k">if</span> (terminalCount(g, next) &gt; bound) <span class="k">continue</span>;   <span class="c">// ← the prune</span>
+    <span class="k">if</span> (!depth.containsKey(key(next))) { depth.put(key(next), d + <span class="y">1</span>); queue.add(next); }
+  }
+}</code></pre>
+
+  <div class="callout brain">
+    <span class="ct">Why <code>terminalCount(next) &gt; bound</code> is safe to prune</span>
+    <p>A terminal symbol is never the left-hand side of any production — so no
+    derivation step can ever <em>remove</em> a terminal. Every intermediate form
+    on the way to <code>w</code> therefore has <b>at most <code>|w|</code>
+    terminals</b>. Dropping forms with more than that cannot drop a form that
+    leads to <code>w</code>. When the queue empties, "NOT DERIVABLE" is a
+    <em>proof</em>, not a time-out.</p>
+  </div>
+
+  <h3>Loading a rule: the <code>|</code> is pure sugar</h3>
+<pre><code><span class="k">for</span> (String alt : r[<span class="y">1</span>].split(<span class="y">"\\|"</span>)) {          <span class="c">// "a S b | epsilon" → ["a S b ", " epsilon"]</span>
+  alt = alt.strip();
+  List&lt;String&gt; syms = <span class="k">new</span> ArrayList&lt;&gt;();
+  <span class="k">if</span> (!alt.isEmpty() &amp;&amp; !alt.equals(<span class="y">"epsilon"</span>))
+    <span class="k">for</span> (String s : alt.split(<span class="y">"\\s+"</span>)) syms.add(s);
+  prods.add(<span class="k">new</span> Production(prods.size(), lhs, syms));   <span class="c">// one Production per alternative</span>
+}</code></pre>
+  <p><code>S -&gt; a S b | epsilon</code> becomes productions <code>0</code> and
+  <code>1</code>. Downstream algorithms select "a production," so the
+  alternative is the right unit. See <a href="DECISIONS.md">DECISIONS.md</a> #2.</p>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Decide membership <em>efficiently</em> — the search is exponential in the worst case (see Brain Exercise).</li>
+        <li>Handle a left-recursive rule like <code>E → E + T</code> without the search exploding — Module 23 fixes the grammar; Modules 19+ parse it directly.</li>
+        <li>Build a parse tree. We produce <em>strings</em>, and a flat list of sentential forms — no structure is retained.</li>
+        <li>Tell you which derivation is "the right one" when a grammar is ambiguous (Module 6).</li>
+        <li>Read an input left-to-right. It only generates outward from <code>S</code>.</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Represent <em>any</em> context-free grammar as data, loaded from a file.</li>
+        <li>Perform a specified leftmost derivation and show every sentential form.</li>
+        <li>Enumerate a language up to a length bound, in canonical order.</li>
+        <li>Prove a language is infinite by construction.</li>
+        <li>Decide membership for short strings, with a sound "not in the language" answer.</li>
+        <li>Serve as the substrate every later Track-1 module runs on — <code>Grammar</code> and <code>substitute</code> don't change again.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java</h4>
+<pre><code>cd 02-grammars-derivations
+javac -d java/out java/*.java
+java -cp java/out Main fixtures/anbn.grammar</code></pre>
+    <h4>JavaScript — identical bytes</h4>
+<pre><code>node js/main.mjs fixtures/anbn.grammar</code></pre>
+    <h4>Expected</h4>
+<pre><code>=== Module 04 - Context-Free Grammars ===
+
+grammar: fixtures/anbn.grammar
+  nonterminals: S
+  terminals   : a b
+  start       : S
+  productions :
+    (0) S -&gt; a S b
+    (1) S -&gt; epsilon
+
+leftmost derivation of a a b b  [choices: 0 0 1]
+    S
+=&gt;  a S b           (0) S -&gt; a S b
+=&gt;  a a S b b       (0) S -&gt; a S b
+=&gt;  a a b b         (1) S -&gt; epsilon
+    4 sentential forms, 3 steps
+
+language up to length 6:
+    len 0: epsilon
+    len 2: a b
+    len 4: a a b b
+    len 6: a a a b b b
+    <span class="exp">4 strings of length &lt;= 6 -- raise the bound and the list always grows (the grammar is infinite)</span>
+
+membership (bounded derivation search):
+    a a b b       DERIVABLE      (S =&gt;* a a b b in 3 steps)
+    a a b         NOT DERIVABLE  (searched every sentential form with &lt;= 3 terminal symbols)
+    b a           NOT DERIVABLE  (searched every sentential form with &lt;= 2 terminal symbols)
+    ""            DERIVABLE      (S =&gt;* "" in 1 step)
+
+summary: productions=2  language=infinite  testsDerivable=2/4</code></pre>
+    <h4>Tests — both "OK 30 passed"</h4>
+<pre><code>java -cp java/out GrammarTest
+node js/grammar.test.mjs</code></pre>
+    <p style="color:#9FB6AB;margin:12px 0 0">Then try
+    <code>fixtures/balanced.grammar</code> — a rule with the nonterminal twice
+    on one side.</p>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>rule has no '-&gt;'</code></b> — a non-comment line that isn't a
+    rule. Every line is <code>LHS -&gt; ...</code>, <code>%start X</code>, blank,
+    or <code>#</code>.<br>
+    <b>Enumeration prints nothing</b> — every recursive rule needs a
+    non-recursive alternative, or nothing ever finishes. <code>S -&gt; a S b</code>
+    alone (no <code>| epsilon</code>) generates an empty language.<br>
+    <b><code>derives</code> says NOT DERIVABLE for something you think is in the
+    language</b> — recheck by hand; if it really is derivable, your grammar has
+    a unit or epsilon cycle inflating the search past the safety cap. Modules 23
+    and 23 remove those.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+
+  <p>Two parts.</p>
+  <p><b>(1)</b> Section 04 claimed the prune "drop any form with more than
+  <code>|w|</code> terminals" never loses a form that leads to <code>w</code>.
+  Write that argument out in two sentences.</p>
+  <p><b>(2)</b> Give a grammar whose language is <em>finite and tiny</em> —
+  fewer than ten strings — for which <code>enumerate</code> nonetheless
+  approaches the <code>MAX_FORMS</code> cap as you raise the bound. What is the
+  search actually drowning in?</p>
+
+  <details>
+    <summary>Work both out first.</summary>
+    <p><b>(1)</b> No terminal symbol is ever a left-hand side, so no derivation
+    step can delete a terminal; a form's terminal count only ever stays the same
+    or grows. Therefore every sentential form on any path from <code>S</code> to
+    <code>w</code> has ≤ <code>|w|</code> terminals, and pruning the forms with
+    more than that removes only forms that could never have reached
+    <code>w</code>.</p>
+    <p><b>(2)</b> <code>S -&gt; S S | a | epsilon</code>. The language is just
+    <code>{ε, a, aa, aaa, …}</code> — effectively <code>a*</code>, and if you
+    also want it finite, drop the recursion base: <code>S -&gt; A A A A A A</code>,
+    <code>A -&gt; a | a</code> gives the single string <code>aaaaaa</code>, yet
+    <code>S -&gt; S S | a</code> has <b>Catalan-many</b> distinct sentential forms
+    of a given terminal count — <code>a(SS)</code>, <code>(SS)a</code>,
+    <code>(S(SS))</code>, … — all producing the same handful of strings. The
+    search is drowning in <em>parse-tree shapes</em>. Generation explores one
+    branch per tree; a real parser (Module 19 on) reads <code>w</code> once and
+    never forks. That difference — same yes/no answer, exponential vs. linear —
+    is the entire reason the rest of Track 1 exists.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Is a grammar just a fancy regular expression?</summary>
+    <p>Other way around: a regular expression is a grammar with recursion
+    <em>restricted</em> — a nonterminal may only refer to itself at the very end
+    of a rule (right-linear). Every RE can be written as a CFG. Not every CFG can
+    be written as an RE: <code>S → a S b | ε</code> can't, because matching
+    <code>aⁿbⁿ</code> needs unbounded memory of "how many <code>a</code>s."
+    Module 7 proves exactly this with the pumping lemma.</p>
+  </details>
+
+  <details>
+    <summary>Why always expand the <em>leftmost</em> nonterminal? Couldn't I expand any of them?</summary>
+    <p>You could, and the finished string — and its parse tree — would be
+    identical. Fixing "leftmost" gives each parse tree exactly one derivation, so
+    <code>enumerate</code> doesn't emit <code>aabb</code> five times via five
+    reorderings of the same three choices. <em>Which</em> canonical order you
+    pick (leftmost vs. rightmost) turns out to be the fork between top-down and
+    bottom-up parsing — that's Module 5.</p>
+  </details>
+
+  <details>
+    <summary><code>derives</code> only "searched forms with ≤ N terminals." Isn't a bounded search just giving up early?</summary>
+    <p>Not here. Because terminals can never disappear (Brain Exercise part 1),
+    <em>every</em> form that could possibly reach an N-terminal target has ≤ N
+    terminals. Searching all of those and finding nothing is a complete proof
+    that the string is not in the language. The <code>MAX_FORMS</code> cap
+    <em>is</em> a give-up — but it only triggers on grammars with cycles, which
+    the course teaches you to remove.</p>
+  </details>
+
+  <details>
+    <summary>The grammar file has <code>epsilon</code> in it, but you say there's no epsilon symbol. Which is it?</summary>
+    <p><code>epsilon</code> is a keyword in the <em>file format</em> meaning "this
+    alternative's right-hand side is empty." After loading, that production has
+    <code>rhs = []</code> and the alphabet Σ never contains a symbol called
+    <code>epsilon</code>. Writing <code>S → a epsilon</code> is rejected at load
+    time because an empty thing concatenated with <code>a</code> is just
+    <code>a</code> — the <code>epsilon</code> can only be a mistake.</p>
+  </details>
+
+  <details>
+    <summary>This breadth-first search reads like a parser already. Why are there 20 more modules?</summary>
+    <p>This is recognition by <em>generating the whole language</em> until the
+    target shows up (or the bound proves it won't). It's correct and it's
+    exponential. A parser reads the input string left to right, uses the next
+    token to decide which rule applies, and never explores a branch that the
+    input already rules out — linear time. Modules 19–36 are the different ways
+    to make that decision reliably.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>Your derivation engine produces a flat <em>sequence</em> of sentential
+  forms and throws the structure away. <b>Module 5 — Derivations, Parse Trees,
+  Leftmost/Rightmost</b> keeps the structure: every derivation step becomes a
+  parent–child link, so the output is a <em>tree</em>. You'll prove that the
+  leftmost derivation you built here and the rightmost derivation you haven't
+  are two readings of the <em>same</em> tree — and that the tree, not the
+  string, is what every parser is really after.</p>
+</section>
+
+<nav class="pager">
+  <a href="../03-regex-formal-definition/tutorial.html"><span class="dir">Previous</span>← Module 03 · Regular Expressions: Formal Definition</a>
+  <a href="../05-derivations-parse-trees/tutorial.html"><span class="dir">Next</span>Module 05 · Derivations, Parse Trees, Leftmost/Rightmost →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 04 · verified against OpenJDK 24
+and Node v22.14.0. All output shown is real, from <code>02-grammars-derivations/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

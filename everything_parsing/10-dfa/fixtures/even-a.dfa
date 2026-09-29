@@ -1,0 +1,10 @@
+# Accepts strings over {a,b} with an EVEN number of 'a's.
+# Two states: E (even so far, start & accept), O (odd so far).
+states: E O
+alphabet: a b
+start: E
+accept: E
+E a O
+E b E
+O a E
+O b O

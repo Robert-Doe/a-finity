@@ -1,0 +1,6 @@
+# A small statement language, LL(1). Shows a nullable list rule (L) in the table.
+%start P
+P -> L
+L -> S L | epsilon
+S -> id assign E semi
+E -> id | num

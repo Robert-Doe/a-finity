@@ -1,0 +1,5 @@
+# An UNambiguous expression grammar (precedence and associativity baked in).
+# Left-recursive — fine here, since Module 5 derives rather than parses top-down.
+E -> E + T | T
+T -> T * F | F
+F -> ( E ) | id

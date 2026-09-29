@@ -1,0 +1,55 @@
+=== Module 24 - Left Factoring ===
+
+A -> a b1 | a b2 | rest      ==>      A  -> a A' | rest
+                                     A' -> b1 | b2      (empty bi -> A' -> epsilon)
+repeat until no nonterminal has two alternatives with the same first symbol.
+
+########## fixtures/danglingelse.grammar
+
+BEFORE:
+  S -> if b then S | if b then S else S | other
+  needs factoring? true
+
+AFTER:
+  S -> other | if b then S S'
+  S' -> epsilon | else S
+  needs factoring? false
+
+language check (all strings up to length 8):
+  before: 4   after: 4   identical? true
+
+########## fixtures/nested.grammar
+
+BEFORE:
+  A -> a b c | a b d | a e
+  needs factoring? true
+
+AFTER:
+  A -> a A''
+  A'' -> e | b A'
+  A' -> c | d
+  needs factoring? false
+
+language check (all strings up to length 4):
+  before: 3   after: 3   identical? true
+
+########## fixtures/decl.grammar
+
+BEFORE:
+  stmt -> id lp args rp semi | id assign expr semi | id colon type semi
+  args -> expr | epsilon
+  expr -> id | num
+  type -> id
+  needs factoring? true
+
+AFTER:
+  stmt -> id stmt'
+  stmt' -> lp args rp semi | assign expr semi | colon type semi
+  args -> expr | epsilon
+  expr -> id | num
+  type -> id
+  needs factoring? false
+
+language check (all strings up to length 6):
+  before: 6   after: 6   identical? true
+

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 10 — DFA: Deterministic Finite Automata | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#2E6E7E;--accent-wash:#E2EFF1;--accent-line:#A9D2DA}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 10 · Part II — Lexical Analysis</p>
+  <h1>Deterministic<em>Finite Automata</em></h1>
+  <p class="thesis">A DFA is a five-tuple <code>(Q, Σ, δ, q₀, F)</code> where
+  <b>δ is a total function</b> <code>Q × Σ → Q</code>. It decides membership in
+  one left-to-right pass with <b>only its current state</b> as memory — and the
+  set it accepts is <b>exactly a regular language</b>, not one string more.</p>
+
+  <div class="headline">
+    <span class="lbl">The proof and the limit, side by side</span>
+    <p>The 4-state DFA for <span class="hi">(a|b)*abb</span> accepts the same 15
+    strings (up to length 6) as the Module-3 regex — checked both ways. And a
+    DFA for <code>a*b*</code> is caught red-handed accepting <code>aaab</code>:
+    with finitely many states, <b>it cannot count</b>.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../prerequisites/automata-basics.html">states, transitions, accept states, δ</a></li>
+    <li><a href="../prerequisites/automata-basics.html">the pigeonhole principle</a></li>
+    <li><a href="../07-chomsky-pumping/tutorial.html">no DFA accepts aⁿbⁿ (Module 7)</a></li>
+    <li><a href="../03-regex-formal-definition/tutorial.html">the regex engine, reused for the cross-check</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — the bellhop who remembers nothing</h2></div>
+
+  <div class="picture">
+    <p>You hand a bellhop a slip of paper with a string of letters on it. He
+    starts in the <b>lobby</b>. For each letter, he reads the hallway sign for
+    that letter and walks to <b>exactly the one room it points to</b> — no
+    choice, no backtracking. When the letters run out, if he's standing in a
+    room with a <b>green door</b>, your reservation is confirmed.</p>
+    <p>Here's the constraint that makes a DFA a DFA: the bellhop <b>remembers
+    nothing</b> except which room he's currently in. Not the letters he's read,
+    not how many, not the path he took. Every room's hallway signs depend only
+    on the letter — so his entire knowledge of the past is compressed into
+    "which of the hotel's finitely many rooms am I in."</p>
+    <p>Give him <code>aⁿbⁿ</code> to check. He walks down the <code>a</code>
+    corridor. The hotel has, say, 20 rooms, so after 20 <code>a</code>s he's
+    revisited one — and from then on he's in a loop. He <em>genuinely cannot
+    tell</em> a walk of 20 <code>a</code>s from a walk of 25. So when the
+    <code>b</code>s come, he can't check the count matches. <b>No hotel with
+    finitely many rooms can.</b></p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Hotel</th><th>DFA</th></tr></thead>
+    <tbody>
+      <tr><td>a room</td><td>a state <code>q ∈ Q</code></td></tr>
+      <tr><td>the set of all rooms</td><td><code>Q</code> — finite</td></tr>
+      <tr><td>the alphabet on the slip</td><td><code>Σ</code></td></tr>
+      <tr><td>a room's hallway sign for a letter</td><td><code>δ(q, a)</code> — one room, always defined</td></tr>
+      <tr><td>the lobby</td><td><code>q₀</code>, the start state</td></tr>
+      <tr><td>green-door rooms</td><td><code>F</code>, the accepting states</td></tr>
+      <tr><td>"remembers only the room"</td><td>finite memory — the whole point</td></tr>
+      <tr><td>a corridor with no sign for a letter</td><td>routed to the <code>&lt;dead&gt;</code> trap room</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Load</b> states, alphabet, start, accepting set, and one transition
+        per line (<code>from symbol to</code>).</li>
+      <li><b>Complete δ.</b> Any <code>(state, symbol)</code> with no line →
+        transition to <code>&lt;dead&gt;</code>. <code>&lt;dead&gt;</code>
+        self-loops on everything. Now δ is total.</li>
+      <li><b>Run</b> on an input: <code>state = q₀</code>; for each symbol,
+        <code>state = δ(state, symbol)</code>. <b>Accept</b> iff
+        <code>state ∈ F</code> at the end.</li>
+      <li><b>Enumerate the language:</b> generate every string over Σ up to a
+        length bound; keep the ones that run to an accepting state.</li>
+      <li><b>Cross-check:</b> the enumerated language must equal the Module-3
+        regex's, both directions, up to the bound.</li>
+      <li><b>Show the limit:</b> run on one symbol repeated; by pigeonhole two
+        prefixes hit the same state — the machine's blind spot.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>The DFA for <code>(a|b)*abb</code> — states track "how much of <code>abb</code> we've matched"</h3>
+  <div class="diagram"><pre>            b            a            b            b
+          ┌───┐        ┌───┐        ┌───┐        ┌──────────┐
+          ▼   │        ▼   │        │   │        │          │
+   ──▶ ( S )──┴──a──▶( A )┴──b──▶( AB )──b──▶(( ABB ))     │
+        ▲                ▲          │            │  │       │
+        │                └────a─────┘            │  └───a───┘  (back to A)
+        └──────────────────b─────────────────────┘  (ABB on b → S)
+
+   run "aabb":   S --a--> A --a--> A --b--> AB --b--> ABB      ACCEPT
+   run "abba":   S --a--> A --b--> AB --b--> ABB --a--> A      reject</pre></div>
+
+  <h3>The pigeonhole loop that stops <code>a*b*</code> from being <code>aⁿbⁿ</code></h3>
+  <div class="diagram"><pre>  a*b* DFA:   ──▶(( A ))──b──▶(( B ))──a──▶( &lt;dead&gt; )
+                   │  ▲          │  ▲            │  ▲
+                   └a─┘          └b─┘            └ab┘
+
+  run "a a a a ...":   A --a--> A --a--> A --a--> A ...   never leaves A
+
+  repeatOn('a') = (0, 1):  same state (A) after 0 a's and after 1 a
+  → the machine has NO way to know how many a's it saw
+  → it accepts "aaab", "abbb", "aabb" — none of which are in { a^n b^n }</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The whole simulator</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Dfa.java</figcaption>
+<pre><code>String step(String state, String symbol) {
+  <span class="k">return</span> delta.getOrDefault(state, Map.of())
+              .getOrDefault(symbol, DEAD);   <span class="c">// total: always a real state</span>
+}
+
+<span class="k">boolean</span> acceptsString(String w) {
+  String state = start;
+  <span class="k">for</span> (<span class="k">int</span> i = <span class="y">0</span>; i &lt; w.length(); i++) {
+    String sym = String.valueOf(w.charAt(i));
+    <span class="k">if</span> (!alphabet.contains(sym)) <span class="k">return</span> <span class="k">false</span>;
+    state = step(state, sym);           <span class="c">// one hop per character — O(n)</span>
+  }
+  <span class="k">return</span> accept.contains(state);
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/dfa.mjs</figcaption>
+<pre><code>step(state, symbol) {
+  <span class="k">return</span> <span class="k">this</span>.delta.get(state)?.get(symbol) ?? DEAD;
+}
+
+acceptsString(w) { <span class="k">return</span> <span class="k">this</span>.accepts([...w]); }
+
+accepts(input) {
+  <span class="k">let</span> s = <span class="k">this</span>.start;
+  <span class="k">for</span> (<span class="k">const</span> sym <span class="k">of</span> input) {
+    <span class="k">if</span> (!<span class="k">this</span>.alphabet.includes(sym)) <span class="k">return</span> <span class="k">false</span>;
+    s = <span class="k">this</span>.step(s, sym);
+  }
+  <span class="k">return</span> <span class="k">this</span>.accept.has(s);
+}</code></pre>
+    </figure>
+  </div>
+  <p>That's it. No stack, no recursion, no lookahead. The machine's power is
+  entirely in the <em>structure</em> of <code>delta</code> — and its weakness is
+  that <code>state</code> is the only thing carried from one character to the
+  next.</p>
+
+  <h3>Completing δ to total — the dead state</h3>
+<pre><code><span class="c">// after loading: any (state, symbol) with no transition gets routed to DEAD</span>
+<span class="k">boolean</span> needDead = <span class="k">false</span>;
+<span class="k">for</span> (String s : states)
+  <span class="k">for</span> (String sym : alphabet)
+    <span class="k">if</span> (!delta.getOrDefault(s, Map.of()).containsKey(sym)) needDead = <span class="k">true</span>;
+<span class="k">if</span> (needDead) {
+  states.add(DEAD);
+  <span class="k">for</span> (String s : states)
+    <span class="k">for</span> (String sym : alphabet)
+      delta.computeIfAbsent(s, k -&gt; <span class="k">new</span> LinkedHashMap&lt;&gt;()).putIfAbsent(sym, DEAD);
+}</code></pre>
+
+  <div class="callout brain">
+    <span class="ct">Why total matters</span>
+    <p>A transition table with holes isn't a DFA — it's an NFA (Module 11),
+    where "no move" is a legal outcome. Forcing every <code>(state, symbol)</code>
+    to a real state is precisely what makes <code>step()</code> a
+    <em>function</em> and <code>accepts()</code> a simple loop with no "what if
+    there's nowhere to go?" branch.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Build a DFA from a regex — you write the transition table by hand (Modules 12–13 automate it).</li>
+        <li>Minimise a DFA — <code>ends-abb</code> happens to be minimal; proving it is Module 14.</li>
+        <li>Accept any non-regular language — no <code>aⁿbⁿ</code>, no nesting, no counting.</li>
+        <li>ε-moves or branching — δ is a single-valued function (that's Module 11).</li>
+        <li>Emit tokens — a DFA says yes/no; a lexer needs "which token, and how long" (Modules 15–16).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Decide membership in any regular language in one O(n) pass, constant memory.</li>
+        <li>Trace the exact state sequence for any input.</li>
+        <li>Enumerate the accepted language up to a length bound.</li>
+        <li>Cross-check that language against the Module-3 regex engine, both directions.</li>
+        <li>Exhibit the pigeonhole repeat that proves "a DFA cannot count".</li>
+        <li>Route undefined transitions to a trap state so δ is genuinely total.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg)</h4>
+<pre><code>cd 10-dfa
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>transition table  ( -&gt; start,  * accepting ):
+  state      a          b
+  -&gt; S        A          S
+     A        A          AB
+     AB       A          ABB
+    *ABB      A          S
+
+  "aabb"   -&gt; S A A AB ABB         ACCEPT
+
+cross-check vs regex (a|b)*abb, both up to length 6:
+  <span class="exp">DFA language == regex language:  true   (15 strings)</span>
+
+  repeatOn('a'): the DFA is in the SAME state after 0 'a's and after 1 'a'</code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out DfaTest    # OK 61 passed
+node js/dfa.test.mjs         # OK 60 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>transition to unknown state 'X'</code></b> — a transition target
+    isn't in <code>states:</code>.<br>
+    <b>every string rejected</b> — no accepting state is reachable, or
+    <code>accept:</code> is wrong.<br>
+    <b><code>DFA language == regex language</code> is <code>false</code></b> —
+    the machine and the regex really disagree, or the bound is too small to show
+    it. Widen the bound; if still false, the transition table is wrong.<br>
+    <b>a run lands in <code>&lt;dead&gt;</code> you didn't expect</b> — a
+    <code>(state, symbol)</code> you thought you defined is missing a line.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> The <code>ends-abb</code> DFA has 4 states. Is that the fewest
+  possible? How could you tell without trying every smaller machine?</p>
+  <p><b>(2)</b> <code>even-a</code> has 2 states. Could a <b>1</b>-state DFA
+  accept "an even number of <code>a</code>s"?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> Yes, 4 is minimal — and you tell by the <b>Myhill–Nerode</b>
+    argument (Module 14): count the distinguishable "futures." After reading some
+    prefix, the only thing that matters is how much of the suffix <code>abb</code>
+    you've matched: nothing / just <code>a</code> / <code>ab</code> /
+    <code>abb</code>. Four cases → at least four states, and the DFA has exactly
+    four, so it's minimal. The number of states of a minimal DFA equals the
+    number of these equivalence classes.</p>
+    <p><b>(2)</b> No. A 1-state DFA has one state that is either accepting or
+    not, and every transition loops back to it — so it accepts either
+    <em>every</em> string or <em>none</em>. "Even number of <code>a</code>s" is
+    neither <code>Σ*</code> nor <code>∅</code> (it accepts <code>""</code> and
+    <code>aa</code>, rejects <code>a</code>), so it needs ≥ 2 states — and 2
+    suffice.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Why "deterministic"? What's the non-deterministic version?</summary>
+    <p>An NFA (Module 11) lets <code>δ(q, a)</code> be a <em>set</em> of states —
+    zero, one, or many — and allows <code>ε</code>-moves that don't consume
+    input. It accepts if <em>some</em> path through the choices ends accepting.
+    Same expressive power (Module 13 converts one to the other), but an NFA is
+    far easier to build from a regex, which is why Thompson's construction
+    targets it.</p>
+  </details>
+
+  <details>
+    <summary>The dead state loops forever doing nothing. Isn't that wasteful?</summary>
+    <p>It's what makes δ total, which is what makes it a DFA. A minimal DFA
+    drops the dead state <em>if</em> no accepting state is reachable from it
+    (which is always) and the definition is relaxed to allow a partial δ. Real
+    lexer implementations usually make it implicit — a <code>null</code> from the
+    table means "reject and stop." The formal object keeps it explicit.</p>
+  </details>
+
+  <details>
+    <summary>Can a DFA have infinitely many states?</summary>
+    <p>Then it isn't a <em>finite</em> automaton. Add an unbounded stack and you
+    get a pushdown automaton (context-free); add an unbounded tape and you get a
+    Turing machine. The DFA's entire power — and its limit — comes from being
+    forced to squeeze all of history into finitely many states.</p>
+  </details>
+
+  <details>
+    <summary>How do I get a DFA from a regex without hand-writing the table?</summary>
+    <p>Module 12 compiles the Module-3 regex tree into an NFA (Thompson's
+    construction, one gadget per node). Module 13 flattens that NFA into a DFA
+    (subset construction). Module 14 minimises it. This module is the
+    <em>target</em> of that pipeline — worth understanding on its own first.</p>
+  </details>
+
+  <details>
+    <summary>Is <code>accepts</code> really O(n)? What about the alphabet check every character?</summary>
+    <p><code>alphabet.contains(sym)</code> is a hash-set lookup — O(1). So each
+    character costs one hash lookup plus one map lookup, and the whole scan is
+    O(n) with a small constant. That linear, constant-memory guarantee is the
+    reason lexers are built on DFAs.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>Hand-writing a DFA table is tedious and error-prone. <b>Module 11 — NFA and
+  ε-NFA</b> loosens the rules: <code>δ</code> may branch to several states or to
+  none, and <code>ε</code>-transitions move without consuming input. You'll
+  build an NFA simulator that tracks a <em>set</em> of current states, implement
+  <code>ε</code>-closure, and prove — by construction — that this freedom buys
+  <b>zero</b> extra power. That freedom is exactly what Module 12 needs to
+  compile the Module-3 regex tree into an automaton, one small gadget per node.</p>
+</section>
+
+<nav class="pager">
+  <a href="../09-input-buffering/tutorial.html"><span class="dir">Previous</span>← Module 09 · Input Buffering</a>
+  <a href="../11-nfa-epsilon/tutorial.html"><span class="dir">Next</span>Module 11 · NFA and ε-NFA →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 10 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>10-dfa/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Accepts a*b*  --  the regular language that most closely "approximates"
+# { a^n b^n }.  It CANNOT enforce that the two counts match: it happily
+# accepts "aaab" and "abb".  (Module 7 proved no DFA can do { a^n b^n }.)
+states: A B DEAD
+alphabet: a b
+start: A
+accept: A B
+A a A
+A b B
+B a DEAD
+B b B
+DEAD a DEAD
+DEAD b DEAD

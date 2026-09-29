@@ -1,0 +1,147 @@
+=== Module 30 - Handles, Shift-Reduce & Viable Prefixes ===
+
+SHIFT  : push the next input terminal.
+REDUCE A -> b : the top |b| stack symbols are b (a HANDLE); pop them, push A.
+ACCEPT : stack is [start], input consumed.
+the reductions, reversed, are a RIGHTMOST derivation of the input.
+
+########## expr : id + id * id
+  E -> E + T
+  E -> T
+  T -> T * F
+  T -> F
+  F -> ( E )
+  F -> id
+
+  STACK                      ACTION                                   INPUT
+  (empty)                    shift id                                 id + id * id $
+  id                         reduce F -> id   (handle: id)            + id * id $
+  F                          reduce T -> F   (handle: F)              + id * id $
+  T                          reduce E -> T   (handle: T)              + id * id $
+  E                          shift +                                  + id * id $
+  E +                        shift id                                 id * id $
+  E + id                     reduce F -> id   (handle: id)            * id $
+  E + F                      reduce T -> F   (handle: F)              * id $
+  E + T                      shift *                                  * id $
+  E + T *                    shift id                                 id $
+  E + T * id                 reduce F -> id   (handle: id)            $
+  E + T * F                  reduce T -> T * F   (handle: T * F)      $
+  E + T                      reduce E -> E + T   (handle: E + T)      $
+  E                          ACCEPT                                   $
+
+  reductions applied (bottom-up): F -> id  |  T -> F  |  E -> T  |  F -> id  |  T -> F  |  F -> id  |  T -> T * F  |  E -> E + T
+  reversed = rightmost derivation:
+    E
+    => E + T   (E -> E + T)
+    => E + T * F   (T -> T * F)
+    => E + T * id   (F -> id)
+    => E + F * id   (T -> F)
+    => E + id * id   (F -> id)
+    => T + id * id   (E -> T)
+    => F + id * id   (T -> F)
+    => id + id * id   (F -> id)
+  final form == input? true
+  no conflict: every right-sentential form has a unique handle.
+
+########## expr : ( id + id ) * id
+  E -> E + T
+  E -> T
+  T -> T * F
+  T -> F
+  F -> ( E )
+  F -> id
+
+  STACK                      ACTION                                   INPUT
+  (empty)                    shift (                                  ( id + id ) * id $
+  (                          shift id                                 id + id ) * id $
+  ( id                       reduce F -> id   (handle: id)            + id ) * id $
+  ( F                        reduce T -> F   (handle: F)              + id ) * id $
+  ( T                        reduce E -> T   (handle: T)              + id ) * id $
+  ( E                        shift +                                  + id ) * id $
+  ( E +                      shift id                                 id ) * id $
+  ( E + id                   reduce F -> id   (handle: id)            ) * id $
+  ( E + F                    reduce T -> F   (handle: F)              ) * id $
+  ( E + T                    reduce E -> E + T   (handle: E + T)      ) * id $
+  ( E                        shift )                                  ) * id $
+  ( E )                      reduce F -> ( E )   (handle: ( E ))      * id $
+  F                          reduce T -> F   (handle: F)              * id $
+  T                          shift *                                  * id $
+  T *                        shift id                                 id $
+  T * id                     reduce F -> id   (handle: id)            $
+  T * F                      reduce T -> T * F   (handle: T * F)      $
+  T                          reduce E -> T   (handle: T)              $
+  E                          ACCEPT                                   $
+
+  reductions applied (bottom-up): F -> id  |  T -> F  |  E -> T  |  F -> id  |  T -> F  |  E -> E + T  |  F -> ( E )  |  T -> F  |  F -> id  |  T -> T * F  |  E -> T
+  reversed = rightmost derivation:
+    E
+    => T   (E -> T)
+    => T * F   (T -> T * F)
+    => T * id   (F -> id)
+    => F * id   (T -> F)
+    => ( E ) * id   (F -> ( E ))
+    => ( E + T ) * id   (E -> E + T)
+    => ( E + F ) * id   (T -> F)
+    => ( E + id ) * id   (F -> id)
+    => ( T + id ) * id   (E -> T)
+    => ( F + id ) * id   (T -> F)
+    => ( id + id ) * id   (F -> id)
+  final form == input? true
+  no conflict: every right-sentential form has a unique handle.
+
+########## expr : id
+  E -> E + T
+  E -> T
+  T -> T * F
+  T -> F
+  F -> ( E )
+  F -> id
+
+  STACK                      ACTION                                   INPUT
+  (empty)                    shift id                                 id $
+  id                         reduce F -> id   (handle: id)            $
+  F                          reduce T -> F   (handle: F)              $
+  T                          reduce E -> T   (handle: T)              $
+  E                          ACCEPT                                   $
+
+  reductions applied (bottom-up): F -> id  |  T -> F  |  E -> T
+  reversed = rightmost derivation:
+    E
+    => T   (E -> T)
+    => F   (T -> F)
+    => id   (F -> id)
+  final form == input? true
+  no conflict: every right-sentential form has a unique handle.
+
+########## ambiguous : id + id + id
+  E -> E + E
+  E -> id
+
+  STACK                      ACTION                                   INPUT
+  (empty)                    shift id                                 id + id + id $
+  id                         reduce E -> id   (handle: id)            + id + id $
+  E                          shift +                                  + id + id $
+  E +                        shift id                                 id + id $
+  E + id                     reduce E -> id   (handle: id)            + id $
+  E + E                      reduce E -> E + E   (handle: E + E)      + id $
+  E                          shift +                                  + id $
+  E +                        shift id                                 id $
+  E + id                     reduce E -> id   (handle: id)            $
+  E + E                      reduce E -> E + E   (handle: E + E)      $
+  E                          ACCEPT                                   $
+
+  reductions applied (bottom-up): E -> id  |  E -> id  |  E -> E + E  |  E -> id  |  E -> E + E
+  reversed = rightmost derivation:
+    E
+    => E + E   (E -> E + E)
+    => E + id   (E -> id)
+    => E + E + id   (E -> E + E)
+    => E + id + id   (E -> id)
+    => id + id + id   (E -> id)
+  final form == input? true
+  CONFLICT: stack [E + E], input + id $  -> two accepting moves: reduce E -> E + E; shift +;
+
+VIABLE PREFIX: any prefix of a right-sentential form that does not run past
+the right end of that form's handle. Every STACK column above is a viable
+prefix. The set of all viable prefixes of a grammar is REGULAR -- Module 31
+builds the DFA that recognizes it, and that DFA is the LR parser's engine.

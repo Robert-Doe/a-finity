@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 13 — Subset Construction: NFA → DFA | Everything Parsing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/course.css">
+<style>:root{--accent:#2C6E49;--accent-wash:#E3F0E9;--accent-line:#AFD4BF}</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Everything Parsing · Module 13 · Part II — Lexical Analysis</p>
+  <h1>Subset<em>Construction</em></h1>
+  <p class="thesis">Turn any NFA into an equivalent DFA by making each DFA state
+  <b>a set of NFA states</b> — "everywhere a clone could be." Only the reachable
+  sets get built, so the DFA is usually small — but in the worst case it is
+  <b>exactly 2ⁿ</b>, and this module exhibits that case.</p>
+
+  <div class="headline">
+    <span class="lbl">The pipeline is complete</span>
+    <p>regex → (Thompson) → ε-NFA → <span class="hi">subset construction</span> →
+    DFA. The Thompson NFA for <code>(a|b)*abb</code> — 14 states — determinizes
+    to a 5-state DFA with the identical language, cross-checked against the regex
+    engine and Module 10's hand-built DFA.</p>
+  </div>
+</header>
+
+<!-- 00 -->
+<section class="sec" id="s00">
+  <div class="sechead"><span class="secnum">00</span><h2>Prerequisites</h2></div>
+  <ul class="prereqs">
+    <li><a href="../11-nfa-epsilon/tutorial.html">NFA simulation as a state set, ε-closure (Module 11)</a></li>
+    <li><a href="../12-thompson-construction/tutorial.html">Thompson's construction (Module 12)</a></li>
+    <li><a href="../10-dfa/tutorial.html">DFA: total δ, accepting set (Module 10)</a></li>
+    <li><a href="../prerequisites/sets-relations-fixed-points.html">power set, 2ⁿ subsets</a></li>
+  </ul>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="s01">
+  <div class="sechead"><span class="secnum">01</span><h2>The Big Analogy — hire the one meticulous detective</h2></div>
+
+  <div class="picture">
+    <p>Module 11's NFA detective <b>cloned themselves</b> at every fork. Effective,
+    but you're paying a lot of detectives.</p>
+    <p>Instead, hire <b>one</b> meticulous detective who never clones. At every
+    step they keep a <b>checklist of every room a clone <em>could</em> be in</b>.
+    New evidence comes in ("the letter <code>a</code>"): they cross off every
+    room, and for each one that <em>was</em> checked, tick the rooms it leads to
+    on <code>a</code> — then tick every room reachable from those through an
+    unlocked door (ε). The new checklist is the new situation.</p>
+    <p>The case is <b>solved</b> the moment the culprit's room appears anywhere
+    on the current checklist. One detective, one checklist per step, entirely
+    <b>deterministic</b> — that checklist <em>is</em> a DFA state.</p>
+    <p>The catch: there could be a distinct checklist for <em>every combination
+    of rooms</em> — up to <b>2ⁿ</b> of them for <code>n</code> rooms. Usually
+    only a handful ever come up. But design the building wrong and all 2ⁿ do.</p>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Detective</th><th>Subset construction</th></tr></thead>
+    <tbody>
+      <tr><td>the checklist of possible rooms</td><td>a DFA state = a set of NFA states</td></tr>
+      <tr><td>the starting checklist</td><td><code>εClosure({ nfa.start })</code></td></tr>
+      <tr><td>update the checklist for letter <code>a</code></td><td><code>δ(S, a) = εClosure(⋃ move(s, a))</code></td></tr>
+      <tr><td>culprit's room on the checklist</td><td><code>S ∩ F ≠ ∅</code> → accepting</td></tr>
+      <tr><td>checklists that never come up</td><td>unreachable subsets — never built</td></tr>
+      <tr><td>a building where every combination arises</td><td>the 2ⁿ worst case</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="s02">
+  <div class="sechead"><span class="secnum">02</span><h2>What Happens, Step by Step</h2></div>
+  <div class="mechanism">
+    <ol>
+      <li><b>Start subset</b> = <code>εClosure({ nfa.start })</code>. Name it
+        <code>D0</code>, put it on a worklist.</li>
+      <li><b>Take a subset <code>S</code> off the worklist.</b> For each input
+        symbol <code>a</code>:
+        <ul>
+          <li><code>moved = ⋃ nfa.move(s, a)</code> for every <code>s ∈ S</code></li>
+          <li><code>T = εClosure(moved)</code></li>
+          <li>if <code>T</code> is a subset we haven't seen (keyed by its
+            <em>sorted</em> contents), name it <code>D(next)</code> and enqueue it</li>
+          <li>record the DFA transition <code>S -a-> T</code></li>
+        </ul>
+      </li>
+      <li><b>Mark <code>S</code> accepting</b> iff <code>S ∩ nfa.accept ≠ ∅</code>.</li>
+      <li><b>Repeat</b> until the worklist is empty. Finitely many subsets ⇒ it
+        terminates.</li>
+      <li>Emit the DFA (states = the <code>Dn</code>, δ from the recorded
+        transitions) and hand it to Module 10's <code>Dfa.parse</code>.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="s03">
+  <div class="sechead"><span class="secnum">03</span><h2>The state, drawn</h2></div>
+
+  <h3>A tiny NFA, determinized</h3>
+  <div class="diagram"><pre>  NFA (nondeterministic on 'a'):        subset construction:
+
+    ──▶(1)──a──▶(1),(2)                D0 = {1}
+        │  ▲     accept: (2)           D0 -a-> εClose({1,2}) = {1,2}  = D1  (accepting: 2∈F)
+        └a─┘                           D0 -b-> {}                     = D2  (dead)
+       (1)-b->(1)                      D1 -a-> {1,2} = D1
+                                       D1 -b-> {1}   = D0
+                                       D2 -a,b-> D2
+
+  DFA:  D0 --a--> D1* --a--> D1* ...    (D1 accepting; D2 the dead state)</pre></div>
+
+  <h3>Each DFA state, as the set it stands for — <code>(a|b)*abb</code></h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>DFA state</th><th>= set of NFA states</th><th></th></tr></thead>
+    <tbody>
+      <tr><td><code>D0</code></td><td><code>{q0,q2,q4,q6,q7,q8}</code></td><td>the start closure</td></tr>
+      <tr><td><code>D1</code></td><td><code>{q0,q1,q2,q4,q5,q7,q8,q9,q10}</code></td><td>after some run ending in <code>a</code></td></tr>
+      <tr><td><code>D4</code></td><td><code>{q0,q2,q3,q4,q5,q7,q8,q13}</code></td><td class="yes">accepting — contains q13</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>The blow-up: "k-th symbol from the end is <code>a</code>"</h3>
+  <div class="diagram"><pre>    k    NFA states    DFA states    2^k
+    1        2             2          2
+    2        3             4          4
+    3        4             8          8
+    4        5            16         16
+    5        6            32         32
+
+  the NFA guesses "this 'a' is the one"; the DFA must REMEMBER the last k symbols
+  — one bit each — so it needs a state per k-bit memory: 2^k of them, exactly.</pre></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="s04">
+  <div class="sechead"><span class="secnum">04</span><h2>The Code, Explained</h2></div>
+
+  <h3>The worklist loop</h3>
+  <div class="split">
+    <figure>
+      <figcaption>java/Subset.java — determinize()</figcaption>
+<pre><code>Set&lt;String&gt; startSet = nfa.epsilonClosure(Set.of(nfa.start));
+name.put(startSet, <span class="y">"D0"</span>);
+work.add(startSet);
+
+<span class="k">while</span> (!work.isEmpty()) {
+  Set&lt;String&gt; S = work.poll();
+  String sName = name.get(S);
+  <span class="k">if</span> (!Nfa.intersect(S, nfa.accept).isEmpty()) accepting.add(sName);
+
+  <span class="k">for</span> (String a : nfa.alphabet) {
+    Set&lt;String&gt; moved = <span class="k">new</span> TreeSet&lt;&gt;();
+    <span class="k">for</span> (String s : S) moved.addAll(nfa.move(s, a));
+    Set&lt;String&gt; T = <span class="k">new</span> TreeSet&lt;&gt;(nfa.epsilonClosure(moved));  <span class="c">// closure OUTSIDE the move</span>
+    String tName = name.get(T);
+    <span class="k">if</span> (tName == <span class="k">null</span>) {                                  <span class="c">// a subset we haven't seen</span>
+      tName = <span class="y">"D"</span> + name.size();
+      name.put(T, tName);
+      work.add(T);
+    }
+    delta.get(sName).put(a, tName);
+  }
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>js/subset.mjs — explore()</figcaption>
+<pre><code><span class="k">const</span> start = [...nfa.epsilonClosure(<span class="k">new</span> Set([nfa.start]))].sort();
+nameOf.set(key(start), <span class="y">"D0"</span>);
+
+<span class="k">while</span> (work.length) {
+  <span class="k">const</span> S = work.shift();
+  <span class="k">const</span> sName = nameOf.get(key(S));
+  <span class="k">if</span> (S.some(s =&gt; nfa.accept.has(s))) acceptNames.push(sName);
+
+  <span class="k">for</span> (<span class="k">const</span> a <span class="k">of</span> nfa.alphabet) {
+    <span class="k">const</span> moved = <span class="k">new</span> Set();
+    <span class="k">for</span> (<span class="k">const</span> s <span class="k">of</span> S) <span class="k">for</span> (<span class="k">const</span> t <span class="k">of</span> nfa.move(s, a)) moved.add(t);
+    <span class="k">const</span> T = [...nfa.epsilonClosure(moved)].sort();
+    <span class="k">let</span> tName = nameOf.get(key(T));
+    <span class="k">if</span> (tName === <span class="k">undefined</span>) { tName = <span class="y">"D"</span> + nameOf.size; nameOf.set(key(T), tName); work.push(T); }
+    deltaByName.get(sName).set(a, tName);
+  }
+}</code></pre>
+    </figure>
+  </div>
+
+  <div class="callout brain">
+    <span class="ct">Two details that must be exactly right</span>
+    <p><b>1. The ε-closure wraps the whole move.</b>
+    <code>T = εClosure(⋃ move(s, a))</code> — closure on the <em>outside</em>. If
+    you close before moving and not after, you miss states the target can reach
+    for free.<br>
+    <b>2. Subsets are keyed by sorted contents.</b> <code>{q3,q1}</code> and
+    <code>{q1,q3}</code> are the same DFA state; the key is
+    <code>"q1q3"</code> either way. Key by insertion order and you split one
+    state into many. See <a href="DECISIONS.md">DECISIONS.md</a>.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="s05">
+  <div class="sechead"><span class="secnum">05</span><h2>Limits — what this module cannot do yet</h2></div>
+  <div class="compare">
+    <div class="cant">
+      <h4>Can't do yet</h4>
+      <ul>
+        <li>Produce the <em>minimal</em> DFA — the subset DFA can have redundant states (Module 14).</li>
+        <li>Avoid the 2ⁿ blow-up — for some NFAs the full DFA genuinely is that big.</li>
+        <li>Determinize <em>lazily</em> — this builds the whole reachable DFA up front.</li>
+        <li>Handle an NFA that isn't over a finite alphabet.</li>
+        <li>Emit tokens — still just a yes/no recogniser (Modules 15–16).</li>
+      </ul>
+    </div>
+    <div class="can">
+      <h4>Can do</h4>
+      <ul>
+        <li>Turn any NFA (with or without ε) into an equivalent DFA.</li>
+        <li>Build only the reachable subsets — often far fewer than 2ⁿ.</li>
+        <li>Show each DFA state as the exact set of NFA states it represents.</li>
+        <li>Verify the DFA's language equals the NFA's, the regex's, and Module 10's DFA's.</li>
+        <li>Exhibit an NFA whose DFA is provably 2ⁿ.</li>
+        <li>Complete the <code>regex → DFA</code> pipeline.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="s06">
+  <div class="sechead"><span class="secnum">06</span><h2>Run It</h2></div>
+  <div class="runit">
+    <h4>Java &amp; JavaScript (no fixture arg)</h4>
+<pre><code>cd 13-subset-construction
+javac -d java/out java/*.java
+java -cp java/out Main
+node js/main.mjs        # identical bytes</code></pre>
+    <h4>Expected (excerpt)</h4>
+<pre><code>regex /(a|b)*abb/  -&gt;  Thompson NFA (14 states, epsilon: true)  -&gt;  subset-construction DFA (5 states)
+
+L(NFA) up to length 7 == L(DFA):  true   (31 strings)
+
+exponential blow-up:  NFA "the k-th symbol from the end is 'a'" (over {a,b})
+    k  NFA states    DFA states    2^k
+    3  4             8             8   (matches 2^k)
+    <span class="exp">5  6             32            32   (matches 2^k)</span></code></pre>
+    <h4>Tests</h4>
+<pre><code>java -cp java/out SubsetTest    # OK 88 passed
+node js/subset.test.mjs         # OK 88 passed</code></pre>
+  </div>
+
+  <div class="troubleshoot">
+    <span class="ct">Getting a blank or broken result?</span>
+    <p><b><code>bad transition line: D0  D1</code></b> — the NFA's alphabet
+    contained an empty string. An empty <code>alphabet:</code> line must parse to
+    <code>[]</code>, not <code>[""]</code>.<br>
+    <b>DFA state count too high</b> — subsets keyed by order, not contents. Sort
+    before making the key.<br>
+    <b><code>L(NFA) != L(DFA)</code></b> — the <code>δ(S,a)</code> formula is
+    missing the outer <code>εClosure</code>.<br>
+    <b>k-th-from-end DFA smaller than 2ᵏ</b> — your NFA is missing
+    <code>s0 -a-> s0</code> or <code>s0 -b-> s0</code>.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="s07">
+  <div class="sechead"><span class="secnum">07</span><h2>Brain Exercise</h2></div>
+  <p><b>(1)</b> The 14-state Thompson NFA has <code>2¹⁴</code> possible subsets
+  but only <b>5</b> are reachable. What keeps that number small, and what makes
+  it explode?</p>
+  <p><b>(2)</b> "Lazy determinization" builds a DFA state only when some input
+  actually visits it. For one fixed input string of length <code>n</code>, how
+  many DFA states does matching it visit — worst case? So why does lazy
+  determinization help even when the full DFA is <code>2ᵏ</code>?</p>
+
+  <details>
+    <summary>Answers</summary>
+    <p><b>(1)</b> The reachable-subset count equals the number of distinct
+    "right languages" — the Myhill–Nerode classes (Module 14). It stays small
+    when the NFA's runs funnel into a few stable configurations (few states
+    with real choices, ε-structure that converges). It explodes when the
+    machine must track <em>independent</em> facts: the <code>k</code>-th-from-end
+    NFA has to remember <code>k</code> yes/no bits (was position <code>i</code>
+    from the end an <code>a</code>?), and there are <code>2ᵏ</code> combinations,
+    each a distinct class.</p>
+    <p><b>(2)</b> Matching one string of length <code>n</code> visits at most
+    <code>n + 1</code> DFA states — one per prefix. So even if the full DFA has
+    <code>2ᵏ</code> states, any single match touches a linear number. Lazy
+    determinization (RE2, GNU grep) builds and caches <em>only those</em>,
+    getting DFA-speed matching without ever materialising the exponential table
+    — and it caps the cache, falling back to NFA simulation if it grows too big.</p>
+  </details>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="s08">
+  <div class="sechead"><span class="secnum">08</span><h2>There Are No Dumb Questions</h2></div>
+
+  <details>
+    <summary>Is the DFA the subset construction produces minimal?</summary>
+    <p>No. It has no <em>unreachable</em> states, but it can still have two
+    states with the same future behaviour — redundant. The Thompson NFA for
+    <code>(a|b)*abb</code> determinizes to 5 states; the minimal DFA has 4.
+    Merging the redundant ones is Module 14, and the minimal DFA is
+    <em>unique</em>.</p>
+  </details>
+
+  <details>
+    <summary>What happens to the empty set ∅ as a subset?</summary>
+    <p>It becomes a DFA state — the dead state. Every symbol maps
+    <code>∅ → εClosure(∅) → ∅</code>, so it self-loops, and <code>∅ ∩ F = ∅</code>
+    so it's non-accepting. A trap you can never leave, exactly as Module 10's
+    <code>&lt;dead&gt;</code>.</p>
+  </details>
+
+  <details>
+    <summary>Why sort the subset before using it as a key?</summary>
+    <p>A set has no order, but a hash key needs a canonical form.
+    <code>{q1, q3}</code> and <code>{q3, q1}</code> must map to the <em>same</em>
+    DFA state. Sort the members, join them — now both produce the identical key.
+    Skip the sort and you'd create <code>D5</code> and <code>D8</code> for the
+    same set, doubling parts of the DFA.</p>
+  </details>
+
+  <details>
+    <summary>Does determinization always terminate?</summary>
+    <p>Yes. There are only <code>2ⁿ</code> subsets of an <code>n</code>-state
+    NFA, the worklist adds each subset at most once, and each iteration removes
+    one. Worst case it's exponential <em>time</em> and <em>space</em>, but it
+    always finishes.</p>
+  </details>
+
+  <details>
+    <summary>Is this how <code>grep</code> and RE2 actually work?</summary>
+    <p>Close. They build an NFA (Thompson-style) and determinise it
+    <em>lazily</em> — a DFA state is constructed the first time an input reaches
+    it, then cached. This gives linear-time matching with a bounded DFA cache; if
+    the cache fills, they fall back to direct NFA simulation. Backtracking
+    engines (PCRE, Perl, Python <code>re</code>, JS <code>RegExp</code>) skip the
+    automaton entirely and can blow up exponentially in time.</p>
+  </details>
+</section>
+
+<!-- 09 -->
+<section class="sec" id="s09">
+  <div class="sechead"><span class="secnum">09</span><h2>What's Next</h2></div>
+  <p>You have <code>regex → NFA → DFA</code>, but the DFA isn't the smallest one.
+  <b>Module 14 — DFA Minimization</b> merges states that behave identically from
+  then on. Two algorithms: <b>partition refinement</b> (Hopcroft's, near-linear)
+  and <b>table-filling</b> (all pairs, easy to trace). Myhill–Nerode guarantees
+  the result is <em>unique</em> — there is exactly one minimal DFA per regular
+  language — which also gives you a decision procedure for "do these two regexes
+  denote the same language?" Then Module 15 puts the minimal DFA to work for
+  maximal-munch tokenisation.</p>
+</section>
+
+<nav class="pager">
+  <a href="../12-thompson-construction/tutorial.html"><span class="dir">Previous</span>← Module 12 · Thompson's Construction</a>
+  <a href="../14-dfa-minimization/tutorial.html"><span class="dir">Next</span>Module 14 · DFA Minimization →</a>
+</nav>
+
+<p class="colophon">Everything Parsing · Module 13 · verified against OpenJDK 24
+and Node v22.14.0. All output real, from <code>13-subset-construction/</code>.
+See <a href="DECISIONS.md">DECISIONS.md</a> and <a href="../ROADMAP.md">ROADMAP.md</a>.</p>
+
+</div>
+</body>
+</html>

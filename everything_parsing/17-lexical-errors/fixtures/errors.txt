@@ -1,0 +1,6 @@
+# Ajoda probes with lexical errors. One probe per line.
+# '@', '$', '?' and '#' are printable, but no Ajoda token starts with them.
+x$y?z
+total = a @@@# b;
+let n: i64 = 5 @ 2;
+@@@
