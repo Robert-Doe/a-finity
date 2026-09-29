@@ -197,6 +197,7 @@ app.innerHTML = `
   <header class="topbar">
     <div class="topbar__brand">a-finity</div>
     <nav class="topbar__links">
+      <a href="course/">Courses</a>
       <a href="https://github.com/Robert-Doe/a-finity" target="_blank" rel="noopener">GitHub</a>
       <a href="https://robertdoe.com">&larr; robertdoe.com</a>
     </nav>
@@ -205,6 +206,30 @@ app.innerHTML = `
   <section class="hero">
     <h1>Compiler Playground</h1>
     <p>A real port of a-finity's hand-written lexer and recursive-descent parser, running client-side. Type toy-C source below and watch the actual token stream and AST it produces.</p>
+  </section>
+
+  <section class="courses" aria-labelledby="courses-title">
+    <div class="courses__head">
+      <h2 id="courses-title">Learn how it's built</h2>
+      <a href="course/">All courses &rarr;</a>
+    </div>
+    <div class="courses__grid">
+      <a class="course" href="course/#compiler">
+        <span class="course__kicker">Track 1 &middot; 16 modules</span>
+        <span class="course__title">Build a C Compiler</span>
+        <span class="course__desc">From reading a source file to a runnable x86-64 ELF object, in C.</span>
+      </a>
+      <a class="course" href="course/#parsing">
+        <span class="course__kicker">Track 2 &middot; Java + JavaScript</span>
+        <span class="course__title">Everything Parsing</span>
+        <span class="course__desc">Automata, grammars, LL and LR parsing, with a scanner generator and grammar workbench.</span>
+      </a>
+      <a class="course course--soon" href="course/#interpreters">
+        <span class="course__kicker">Track 3 &middot; coming next</span>
+        <span class="course__title">Interpreters</span>
+        <span class="course__desc">Tree-walkers, bytecode VMs and garbage collection.</span>
+      </a>
+    </div>
   </section>
 
   <main class="main">

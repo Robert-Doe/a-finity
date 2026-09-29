@@ -40,3 +40,6 @@ Thumbs.db
 # webapp/ (Vite + TS demo)
 webapp/node_modules/
 webapp/dist/
+
+.vercel
+.env*

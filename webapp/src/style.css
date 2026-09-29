@@ -505,3 +505,68 @@ table.ll1-table th:first-child, table.ll1-table td:first-child { text-align: lef
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--bg-elevated); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+/* ---------------------------------------------------------------- courses */
+
+.courses {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 28px 32px;
+}
+.courses__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.courses__head h2 {
+  font-family: var(--display);
+  font-size: 20px;
+  margin: 0;
+}
+.courses__head a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+}
+.courses__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.course {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+.course:hover { border-color: var(--accent); }
+.course__kicker {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+.course__title {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 700;
+}
+.course__desc {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+.course--soon { opacity: 0.75; }
+
+@media (max-width: 480px) {
+  .topbar { padding: 14px 16px; gap: 12px; }
+  .topbar__links { gap: 12px; font-size: 13px; }
+  .hero, .courses, .main { padding-left: 16px; padding-right: 16px; }
+}
